@@ -6,7 +6,6 @@ require("stringi")
 require("mxnet")
 
 #options(repos=c("CRAN"="https://cloud.r-project.org/"))
-#install.packages("lubridate")
 #install.packages("https://github.com/jeremiedb/mxnet_winbin/raw/master/mxnet.zip", repos=NULL)
 
 train_raw<- readRDS(file = "data/train_raw.rds")

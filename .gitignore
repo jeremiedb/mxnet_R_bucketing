@@ -37,4 +37,5 @@ vignettes/*.pdf
 
 /models/
 
-
+CNN_train.R
+cnn_bucket_wide.R

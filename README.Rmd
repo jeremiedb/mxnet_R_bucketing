@@ -23,11 +23,16 @@ source("rnn_model_bucket.R")
 
 General approach for data preparation was to invest pre-training time in cleaning the data and limit the iterator task to data feeding.  
 
+Demo can be run by going through the follwoing scripts: 
+  - data_import.R
+  - data_prep.R
+  - LSTM_train.R
+
 Core training module `rnn_model_bucket.R` reuses as much the existing `model.R` in order to ultimately make it a general usage training module, regardless if the data is bucketed or not. It should provide support for multi-devices training (some work on slicing needed before it is functional). 
 
 Key approach for the training routine is to first initialize the different symbols that will be used during  training (one graph is unrolled for each bucket). This it possible as the bucketing iterator provides info the the possible model configurations. 
 
-At training, the `mxnet:::mx.symbol.bind` operator is used to bind the previous model arguments to the current symbol provided by the iterator. 
+At training, the `mxnet:::mx.symbol.bind` operator is used to bind the previous model arguments to the current symbol provided by the iterator. Shared module options seems to be missing in R's symbol_bind operator, to be validated if poses issues on memory efficiency. 
 
 The lstm symbol construction has been slightly revised to correct the deprecated target_reshape warnings and to structure the output in a coherent shape when inferring with batch.  
 

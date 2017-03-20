@@ -5,7 +5,7 @@ require("stringr")
 require("stringi")
 require("mxnet")
 
-source("lstm_bucket_sentiment.R")
+source("lstm_bucket.R")
 source("rnn_model_bucket.R")
 source("iterator_and_metrics.R")
 
