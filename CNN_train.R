@@ -6,7 +6,7 @@ require("stringi")
 require("mxnet")
 require("AUC")
 
-source("cnn_bucket_sentiment.R")
+source("cnn_bucket_deep.R")
 source("cnn_model_bucket.R")
 source("iterator_and_metrics.R")
 

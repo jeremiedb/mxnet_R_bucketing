@@ -5,7 +5,10 @@ MXNet R-package bucketing
 
 General approach for data preparation was to invest pre-training time in cleaning the data and limit the iterator task to data feeding.
 
-Demo can be run by going through the follwoing scripts: - data\_import.R - data\_prep.R - LSTM\_train.R
+Demo can be run by going through the follwoing scripts:
+- data\_import.R
+- data\_prep.R
+- LSTM\_train.R / CNN\_train.R
 
 Core training module `rnn_model_bucket.R` reuses as much the existing `model.R` in order to ultimately make it a general usage training module, regardless if the data is bucketed or not. It should provide support for multi-devices training (some work on slicing needed before it is functional).
 
