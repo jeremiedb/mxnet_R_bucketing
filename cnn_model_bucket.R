@@ -1,5 +1,5 @@
 # Internal function to do multiple device training on RNN
-mx.model.train.rnn <- function(ctx,
+mx.model.train.cnn <- function(ctx,
                                sym_list,
                                args,
                                arg.params, 

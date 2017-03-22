@@ -1,7 +1,7 @@
 #############################################
 #### Symbol design for single output
 
-cnn.symbol.deep <- function(seq.len, 
+cnn.symbol <- function(seq.len, 
                        input.size,
                        num.embed, 
                        num_filters,
@@ -12,8 +12,8 @@ cnn.symbol.deep <- function(seq.len,
   conv_params <- list(embed_weight=mx.symbol.Variable("embed_weight"),
                       conv1.weight = mx.symbol.Variable("conv1_weight"),
                       conv1.bias = mx.symbol.Variable("conv1_bias"),
-                      #conv2.weight = mx.symbol.Variable("conv2_weight"),
-                      #conv2.bias = mx.symbol.Variable("conv2_bias"),
+                      conv2.weight = mx.symbol.Variable("conv2_weight"),
+                      conv2.bias = mx.symbol.Variable("conv2_bias"),
                       conv3.weight = mx.symbol.Variable("conv3_weight"),
                       conv3.bias = mx.symbol.Variable("conv3_bias"),
                       fc1.weight = mx.symbol.Variable("fc1_weight"),
@@ -35,22 +35,21 @@ cnn.symbol.deep <- function(seq.len,
   #test<- embed_expand$get.internals()
   #test$infer.shape(list(data=c(12,128)))
   
-  conv1<- mx.symbol.Convolution(data=embed_expand, weight=conv_params$conv1.weight, bias=conv_params$conv1.bias, kernel=c(num.embed, 5), stride=c(1,1), pad=c(0,2), num.filter=64)
+  conv1<- mx.symbol.Convolution(data=embed_expand, weight=conv_params$conv1.weight, bias=conv_params$conv1.bias, kernel=c(num.embed, 5), stride=c(1,1), pad=c(0,2), num.filter=16)
   act1<- mx.symbol.Activation(data=conv1, act.type="relu", name="act1")
-  #pool1<- mx.symbol.Pooling(data=act1, global.pool=F, pool.type="max" , kernel=c(1,5), stride=c(1,5), pad=c(0,2), name="pool1")
-  pool1<- mx.symbol.Pooling(data=act1, global.pool=T, pool.type="max", kernel=c(1,seq.len), name="pool1")
+  pool1<- mx.symbol.Pooling(data=act1, global.pool=F, pool.type="max" , kernel=c(1,5), stride=c(1,5), pad=c(0,2), name="pool1")
+  #pool1<- mx.symbol.Pooling(data=act1, global.pool=T, pool.type="max", kernel=c(1,seq.len), name="pool1")
   
-  #conv2<- mx.symbol.Convolution(data=pool1, weight=conv_params$conv2.weight, bias=conv_params$conv2.bias, kernel=c(1,3), stride=c(1,1), pad=c(0,1), num.filter=128)
-  #act2<- mx.symbol.Activation(data=conv2, act.type="relu", name="act2")
-  #pool2<- mx.symbol.Pooling(data=act2, global.pool=F, pool.type="max" , kernel=c(1,3), stride=c(1,5), pad=c(0,2), name="pool2")
-  #pool2<- mx.symbol.Pooling(data=act2, global.pool=T, pool.type="max", kernel=c(num.embed,seq.len), name="pool2")
-  
-  conv3<- mx.symbol.Convolution(data=pool1, weight=conv_params$conv3.weight, bias=conv_params$conv3.bias, kernel=c(1, 3), stride=c(1,1), pad=c(0,0), num.filter=32)
+  conv2<- mx.symbol.Convolution(data=pool1, weight=conv_params$conv2.weight, bias=conv_params$conv2.bias, kernel=c(1,3), stride=c(1,1), pad=c(0,1), num.filter=32)
+  act2<- mx.symbol.Activation(data=conv2, act.type="relu", name="act2")
+  pool2<- mx.symbol.Pooling(data=act2, global.pool=F, pool.type="max" , kernel=c(1,3), stride=c(1,3), pad=c(0,1), name="pool2")
+
+  conv3<- mx.symbol.Convolution(data=pool2, weight=conv_params$conv3.weight, bias=conv_params$conv3.bias, kernel=c(1, 3), stride=c(1,1), pad=c(0,1), num.filter=64)
   act3<- mx.symbol.Activation(data=conv3, act.type="relu", name="act3")
   pool3<- mx.symbol.Pooling(data=act3, global.pool=T, pool.type="max", kernel=c(1,seq.len), name="pool3")
   
   #concat<- mx.symbol.Concat(data=c(pool1, pool2, pool3), num.args=3, name="concat")
-  flatten<- mx.symbol.Flatten(data=pool1, name="flatten")
+  flatten<- mx.symbol.Flatten(data=pool3, name="flatten")
  
   fc1<- mx.symbol.FullyConnected(data=flatten, weight=conv_params$fc1.weight, bias=conv_params$fc1.bias, num.hidden=32, name="fc1")
   act_fc<- mx.symbol.Activation(data=fc1, act.type="relu", name="act_fc")
@@ -68,7 +67,7 @@ cnn.symbol.deep <- function(seq.len,
 
 ###########################################
 #### 
-mx.cnn.buckets.deep <- function(train.data, 
+mx.cnn.buckets <- function(train.data, 
                            eval.data=NULL,
                            num.embed, 
                            num_filters,
@@ -100,7 +99,7 @@ mx.cnn.buckets.deep <- function(train.data,
   
   # get unrolled symbol
   sym_list<- sapply(train.data$bucket_names, function(x) {
-    cnn.symbol.deep(seq.len=as.integer(x),
+    cnn.symbol(seq.len=as.integer(x),
                     input.size=input.size,
                     num.embed=num.embed,
                     num_filters=num_filters,
@@ -137,7 +136,7 @@ mx.cnn.buckets.deep <- function(train.data,
   #####################################################################
   ### GO TO rnn.model.R
   #####################################################################
-  model<- mx.model.train.rnn(sym_list=sym_list,
+  model<- mx.model.train.cnn(sym_list=sym_list,
                              args=args, 
                              input.shape=input.shape,
                              arg.params=params$arg.params, 

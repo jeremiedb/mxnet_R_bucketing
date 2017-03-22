@@ -6,7 +6,7 @@ require("stringi")
 require("mxnet")
 require("AUC")
 
-source("cnn_bucket_deep.R")
+source("cnn_bucket_utils.R")
 source("cnn_model_bucket.R")
 source("iterator_and_metrics.R")
 
@@ -149,7 +149,7 @@ table(pred_test==labels_test)/length(labels_test)
 roc_test<- roc(predictions = infer_model_on_test$predict[,2], labels = factor(labels_test))
 auc(roc_test)
 
-seq.len=12
+seq.len=200
 input.size=1000
 num.embed=64
 num_filters=16
@@ -162,12 +162,5 @@ cnn_graph_test<- cnn.symbol(seq.len=seq.len,
                             num_filters = num_filters,
                             num.label=num.label,
                             dropout=dropout)
-graph.viz(cnn_graph_test, shape=c(25,64))
 
-cnn_graph_test<- cnn.symbol.deep(seq.len=seq.len,
-                                 input.size=input.size,
-                                 num.embed=num.embed,
-                                 num_filters = num_filters,
-                                 num.label=num.label,
-                                 dropout=dropout)
 graph.viz(cnn_graph_test, shape=c(100,128), type = "vis", direction = "UD")
