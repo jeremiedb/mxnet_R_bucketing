@@ -6,9 +6,8 @@ cnn.symbol <- function(seq.len,
                        num.embed, 
                        num_filters,
                        num.label, 
-                       dropout=0.,
+                       dropout,
                        ignore_label=0) {
-  
   
   conv_params <- list(embed_weight=mx.symbol.Variable("embed_weight"),
                       conv1.weight = mx.symbol.Variable("conv1_weight"),
@@ -36,26 +35,28 @@ cnn.symbol <- function(seq.len,
   #test<- embed_expand$get.internals()
   #test$infer.shape(list(data=c(12,128)))
   
-  conv1<- mx.symbol.Convolution(data=embed_expand, weight=conv_params$conv1.weight, bias=conv_params$conv1.bias, kernel=c(num.embed, 1), stride=c(1,1), pad=c(0,0), num.filter=8)
+  conv1<- mx.symbol.Convolution(data=embed_expand, weight=conv_params$conv1.weight, bias=conv_params$conv1.bias, kernel=c(num.embed, 5), stride=c(1,1), pad=c(0,2), num.filter=16)
   act1<- mx.symbol.Activation(data=conv1, act.type="relu", name="act1")
-  pool1<- mx.symbol.Pooling(data=act1, global.pool=T, pool.type="max", kernel=c(1,1), name="pool1")
+  pool1<- mx.symbol.Pooling(data=act1, global.pool=F, pool.type="max" , kernel=c(1,5), stride=c(1,5), pad=c(0,2), name="pool1")
+  #pool1<- mx.symbol.Pooling(data=act1, global.pool=T, pool.type="max", kernel=c(1,seq.len), name="pool1")
   
-  conv2<- mx.symbol.Convolution(data=embed_expand, weight=conv_params$conv2.weight, bias=conv_params$conv2.bias, kernel=c(num.embed, 2), stride=c(1,1), pad=c(0,0), num.filter=16)
+  conv2<- mx.symbol.Convolution(data=pool1, weight=conv_params$conv2.weight, bias=conv_params$conv2.bias, kernel=c(1,3), stride=c(1,1), pad=c(0,1), num.filter=32)
   act2<- mx.symbol.Activation(data=conv2, act.type="relu", name="act2")
-  pool2<- mx.symbol.Pooling(data=act2, global.pool=T, pool.type="max", kernel=c(num.embed,seq.len), name="pool2")
-  
-  conv3<- mx.symbol.Convolution(data=embed_expand, weight=conv_params$conv3.weight, bias=conv_params$conv3.bias, kernel=c(num.embed, 3), stride=c(1,1), pad=c(0,0), num.filter=32)
+  pool2<- mx.symbol.Pooling(data=act2, global.pool=F, pool.type="max" , kernel=c(1,3), stride=c(1,3), pad=c(0,1), name="pool2")
+
+  conv3<- mx.symbol.Convolution(data=pool2, weight=conv_params$conv3.weight, bias=conv_params$conv3.bias, kernel=c(1, 3), stride=c(1,1), pad=c(0,1), num.filter=64)
   act3<- mx.symbol.Activation(data=conv3, act.type="relu", name="act3")
-  pool3<- mx.symbol.Pooling(data=act3, global.pool=T, pool.type="max", kernel=c(num.embed,seq.len), name="pool3")
+  pool3<- mx.symbol.Pooling(data=act3, global.pool=T, pool.type="max", kernel=c(1,seq.len), name="pool3")
   
-  concat<- mx.symbol.Concat(data=c(pool1, pool2, pool3), num.args=3, name="concat")
-  flatten<- mx.symbol.Flatten(data=concat, name="flatten")
-  dropout<- mx.symbol.Dropout(data=flatten, p=dropout, name="drop")
-  
-  fc1<- mx.symbol.FullyConnected(data=dropout, weight=conv_params$fc1.weight, bias=conv_params$fc1.bias, num.hidden=16, name="fc1")
+  #concat<- mx.symbol.Concat(data=c(pool1, pool2, pool3), num.args=3, name="concat")
+  flatten<- mx.symbol.Flatten(data=pool3, name="flatten")
+ 
+  fc1<- mx.symbol.FullyConnected(data=flatten, weight=conv_params$fc1.weight, bias=conv_params$fc1.bias, num.hidden=32, name="fc1")
   act_fc<- mx.symbol.Activation(data=fc1, act.type="relu", name="act_fc")
   
-  fc_final<- mx.symbol.FullyConnected(data=act_fc, weight=conv_params$fc_final.weight, bias=conv_params$fc_final.bias, num.hidden=2, name="fc_final")
+  dropout<- mx.symbol.Dropout(data=act_fc, p=dropout, name="drop")
+  
+  fc_final<- mx.symbol.FullyConnected(data=dropout, weight=conv_params$fc_final.weight, bias=conv_params$fc_final.bias, num.hidden=2, name="fc_final")
   
   ### Removed the ignore label in softmax
   softmax <- mx.symbol.SoftmaxOutput(data=fc_final, name="sm")
@@ -96,32 +97,18 @@ mx.cnn.buckets <- function(train.data,
   
   batch_size<- train.data$batch_size
   
-  
-  # conv_params <- list(embed_weight=mx.symbol.Variable("embed_weight"),
-  #                     conv1.weight = mx.symbol.Variable("conv1_weight"),
-  #                     conv1.bias = mx.symbol.Variable("conv1_bias"),
-  #                     conv2.weight = mx.symbol.Variable("conv2_weight"),
-  #                     conv2.bias = mx.symbol.Variable("conv2_bias"),
-  #                     conv3.weight = mx.symbol.Variable("conv3_weight"),
-  #                     conv3.bias = mx.symbol.Variable("conv3_bias"),
-  #                     # fc1.weight = mx.symbol.Variable("fc1_weight"),
-  #                     # fc1.bias = mx.symbol.Variable("fc1_bias"),
-  #                     fc_final.weight = mx.symbol.Variable("fc_final.weight"),
-  #                     fc_final.bias = mx.symbol.Variable("fc_final.bias"))
-  
-  # get unrolled lstm symbol
+  # get unrolled symbol
   sym_list<- sapply(train.data$bucket_names, function(x) {
     cnn.symbol(seq.len=as.integer(x),
                input.size=input.size,
                num.embed=num.embed,
                num_filters=num_filters,
                num.label=num.label,
-               #conv_params=conv_params,
                dropout=dropout)}, 
     simplify = F, USE.NAMES = T)
-
+  
   ##############################################################
-  # set up lstm model
+  # set up model
   symbol <- sym_list[[names(train.data$bucketID())]]
   
   seq.len<- as.integer(names(train.data$bucketID()))
@@ -148,7 +135,7 @@ mx.cnn.buckets <- function(train.data,
   #####################################################################
   ### GO TO rnn.model.R
   #####################################################################
-  model<- mx.model.train.rnn(sym_list=sym_list,
+  model<- mx.model.train.cnn(sym_list=sym_list,
                              args=args, 
                              input.shape=input.shape,
                              arg.params=params$arg.params, 
@@ -230,7 +217,7 @@ mx.util.filter.null <- function(lst) {
 
 
 
-#' Training LSTM Unrolled Model with bucketing
+#' Inference on Model with bucketing
 #'
 #' @param input_seq integer
 #'      The initializing sequence
@@ -247,25 +234,24 @@ mx.util.filter.null <- function(lst) {
 #' @return an integer vector corresponding to the encoded dictionnary
 #'
 #' @export
-mx.lstm.infer.buckets.sentiment <- function(infer_iter,
-                                            model,
-                                            ctx=list(mx.cpu()),
-                                            kvstore=NULL){
-  
-  ### Infer parameters from model
-  num.lstm.layer=((length(model$arg.params)-3)/6)
-  num.hidden=dim(model$arg.params$l1.init.h)[1]
-  input.size=dim(model$arg.params$embed.weight)[2]
-  num.embed=dim(model$arg.params$embed.weight)[1]
-  num.label=2
+mx.cnn.infer.buckets.sentiment <- function(infer_iter,
+                                           model,
+                                           ctx=list(mx.cpu()),
+                                           kvstore=NULL){
   
   ### Initialise the iterator
   infer_iter$init()
   infer_iter$reset()
   batch_size<- infer_iter$batch_size
   
+  ### Infer parameters from model
+  input.size<- dim(model$arg.params$embed_weight)[2]
+  num.embed<- dim(model$arg.params$embed_weight)[1]
+  num_filters=dim(model$arg.params$conv1_bias)
+  num.label=dim(model$arg.params$fc_final.bias)
   
-  sym_list<- sapply(train.data$bucket_names, function(x) {
+  # get unrolled symbol
+  sym_list<- sapply(infer_iter$bucket_names, function(x) {
     cnn.symbol(seq.len=as.integer(x),
                input.size=input.size,
                num.embed=num.embed,
@@ -274,45 +260,30 @@ mx.lstm.infer.buckets.sentiment <- function(infer_iter,
                dropout=dropout)}, 
     simplify = F, USE.NAMES = T)
   
-  
-  init.states.name<- as.character()
-  for (i in 1:num.lstm.layer){
-    state.c <- paste0("l", i, ".init.c")
-    state.h <- paste0("l", i, ".init.h")
-    init.states.name<- c(init.states.name, state.c, state.h)
-  }
-  
   ##############################################################
-  # set up lstm model
+  # set up model
   symbol <- sym_list[[names(infer_iter$bucketID())]]
   
+  seq.len<- as.integer(names(infer_iter$bucketID()))
+  input.shape<- list(data=c(seq.len, batch_size))
+  
   arg.names <- symbol$arguments
-  
-  input.shapes <- list()
-  infer_shapes<- function(seq.len){
-    for (name in arg.names) {
-      if (name %in% init.states.name) {
-        input.shapes[[name]] <- c(num.hidden, batch_size)
-      }
-      else if (grepl('data$', name)) {
-        if (seq.len == 1) {
-          input.shapes[[name]] <- c(batch_size)
-        } else {
-          input.shapes[[name]] <- c(seq.len, batch_size)
-        }
-      } 
-      else if (grepl('label$', name)) {
-        input.shapes[[name]] <- c(batch_size)
-      }
-    }
-    return(input.shapes)
-  }
-  
-  input.shape <- infer_shapes(seq.len = as.integer(names(infer_iter$bucketID())))
   args<- input.shape
   args$ctx <- ctx[[1]]
   args$grad.req <- "write"
   args$symbol <- symbol
+  
+  mx.model.init.params.rnn <- function(symbol, input.shape, initializer, ctx) {
+    if (!is.mx.symbol(symbol)) stop("symbol need to be MXSymbol")
+    slist <- symbol$infer.shape(input.shape)
+    if (is.null(slist)) stop("Not enough information to get shapes")
+    arg.params <- mx.init.create(initializer, slist$arg.shapes, ctx, skip.unknown=TRUE)
+    aux.params <- mx.init.create(initializer, slist$aux.shapes, ctx, skip.unknown=FALSE)
+    return(list(arg.params=arg.params, aux.params=aux.params))
+  }
+  
+  params <- mx.model.init.params.rnn(symbol = symbol, input.shape = input.shape, initializer = initializer, ctx = mx.cpu())
+  kvstore <- mxnet:::mx.model.create.kvstore(kvstore, params$arg.params, length(ctx), verbose=verbose)
   
   #####################################################################
   ### The above preperation is essentially the same as for training
@@ -331,11 +302,10 @@ mx.lstm.infer.buckets.sentiment <- function(infer_iter,
   train.execs <- lapply(1:ndevice, function(i) {
     do.call(mx.simple.bind, args)
   })
-  
   # set the parameters into executors
   for (texec in train.execs) {
-    mx.exec.update.arg.arrays(texec, model$arg.params, match.name=TRUE)
-    mx.exec.update.aux.arrays(texec, model$aux.params, match.name=TRUE)
+    mx.exec.update.arg.arrays(texec, params$arg.params, match.name=TRUE)
+    mx.exec.update.aux.arrays(texec, params$aux.params, match.name=TRUE)
   }
   
   # KVStore related stuffs
@@ -344,49 +314,64 @@ mx.lstm.infer.buckets.sentiment <- function(infer_iter,
       lapply(1:length(train.execs[[1]]$ref.grad.arrays), function(k) {
         if (!is.null(train.execs[[1]]$ref.grad.arrays[[k]])) k else NULL
       })))
+  update.on.kvstore <- FALSE
+  if (!is.null(kvstore) && kvstore$update.on.kvstore) {
+    update.on.kvstore <- TRUE
+    kvstore$set.optimizer(optimizer)
+  } else {
+    updaters <- lapply(1:ndevice, function(i) {
+      mx.opt.get.updater(optimizer, train.execs[[i]]$ref.arg.arrays)
+    })
+  }
   if (!is.null(kvstore)) {
     kvstore$init(params.index, train.execs[[1]]$ref.arg.arrays[params.index])
   }
   # Get the input names
   input.names <- mx.model.check.arguments(args$symbol)
-  input.names<- c(input.names[1], "data_mask", input.names[2])
+  #input.names<- c(input.names[1], "data_mask_array", input.names[2])
+  
+  # Grad request
+  grad_req<- rep("write", length(args$symbol$arguments))
+  grad_null_idx<- match(input.names, args$symbol$arguments)
+  grad_req[grad_null_idx]<- "null"
+  
+  # Arg array order
+  sym_arguments<- args$symbol$arguments
+  arg.names<- setdiff(sym_arguments, input.names)
+  update_names<- c(input.names, arg.names)
+  arg_update_idx<- match(sym_arguments, update_names)
   
   ### initialize the predict
   predict<- NULL
   labels<- NULL
   
-  while (infer_iter$iter.next()){
+  while (infer_iter$iter.next()) {
+    
     seq_len<- as.integer(names(infer_iter$bucketID()))
     # Get input data slice
     dlist <- infer_iter$value()
     slices <- lapply(1:ndevice, function(i) {
       s <- sliceinfo[[i]]
       ret <- list(data=mxnet:::mx.nd.slice(dlist$data, s$begin, s$end),
+                  #data_mask_array=mxnet:::mx.nd.slice(dlist$data_mask_array, s$begin, s$end),
                   label=mxnet:::mx.nd.slice(dlist$label, s$begin, s$end))
       return(ret)
     })
     
-    ### get the new symbol
-    ### Bind the arguments and symbol for the BucketID
-    symbol<- sym_list[[names(infer_iter$bucketID())]]
-    arg.names<- setdiff(symbol$arguments, input.names)
+    symbol = sym_list[[names(infer_iter$bucketID())]]
     
     train.execs <- lapply(1:ndevice, function(i) {
       s <- slices[[i]]
       names(s) <- input.names
-      #mx.exec.update.arg.arrays(train.execs[[i]], s, match.name=TRUE)
-      mxnet:::mx.symbol.bind(symbol = symbol, arg.arrays = c(s[1], train.execs[[i]]$arg.arrays[arg.names], s[2]), aux.arrays = train.execs[[i]]$aux.arrays, ctx=ctx[[i]], grad.req=c("null", rep("write", length(symbol$arguments)-2), "null"))
+      mxnet:::mx.symbol.bind(symbol = symbol, arg.arrays = c(s, model$arg.params[arg.names])[arg_update_idx], aux.arrays = model$aux.arrays, ctx=ctx[[i]], grad.req=grad_req)
     })
     
     for (texec in train.execs) {
       mx.exec.forward(texec, is.train=FALSE)
     }
-    
-    # copy outputs to CPU
     out.preds <- lapply(train.execs, function(texec) {
       mx.nd.copyto(texec$ref.outputs[[length(symbol$outputs)]], mx.cpu())
     })
-    
     predict <- rbind(predict, matrix(sapply(1:ndevice, function(i) {
       t(as.matrix(out.preds[[i]]))
     }), nrow=batch_size))
@@ -394,17 +379,9 @@ mx.lstm.infer.buckets.sentiment <- function(infer_iter,
     labels <- c(labels, sapply(1:ndevice, function(i) {
       as.numeric(as.array(mx.nd.Reshape(slices[[i]]$label, shape=-1)))
     }))
-    
-    #infer_iter$iter.next()
-    #infer_iter$value()$label
-    #apply(predict, 1, which.max)-1
-    #table(apply(predict, 1, which.max)-1 == as.numeric(as.array(infer_iter$value()$label)))
-    
   }
-  
   return(list(predict=predict, labels=labels))
 }
-
 
 
 # Extract model from executors

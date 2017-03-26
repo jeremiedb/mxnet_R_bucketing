@@ -77,7 +77,7 @@ R_iter<- function(buckets, batch_size, data_mask_element=0, shuffle=F){
     
     ### bucketID is a named integer whose value indicates the batch nb for the given bucket and the name is the a character string indicating the sequence length of the bucket
     idx<- (bucketID-1)*(batch_size)+(1:batch_size)
-    data<- buckets[[names(bucketID)]]$data[,idx]
+    data<- buckets[[names(bucketID)]]$data[,idx, drop=F]
     data_mask<- as.integer(names(bucketID)) - apply(data==data_mask_element, 2, sum)
     data_mask_array<- (!data==0)
     label<- buckets[[names(bucketID)]]$label[idx]

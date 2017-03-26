@@ -6,8 +6,8 @@ require("stringi")
 require("mxnet")
 require("AUC")
 
-source("cnn_bucket_utils.R")
-source("cnn_model_bucket.R")
+source("cnn_bucket_setup.R")
+source("cnn_bucket_train.R")
 source("iterator_and_metrics.R")
 
 #####################################################
@@ -22,9 +22,9 @@ vocab <- length(corpus_bucketed_test$dic)
 
 ctx<- list(mx.cpu())
 
-batch_size = 32
-num.embed=32
-num_filters=16
+batch_size = 64
+num.embed=48
+num_filters=24
 update.period = 1
 
 num.label=2
@@ -33,10 +33,10 @@ initializer=mx.init.Xavier(rnd_type = "gaussian", factor_type = "in", magnitude 
 dropout=0.25
 verbose=TRUE
 metric<- mx.metric.accuracy
-optimizer<- mx.opt.create("sgd", learning.rate=0.05, momentum=0.8, wd=0.001, clip_gradient=NULL, rescale.grad=1/batch_size)
-optimizer<- mx.opt.create("adadelta", rho=0.92, epsilon=1e-6, wd=0.001, clip_gradient=NULL, rescale.grad=1/batch_size)
+#optimizer<- mx.opt.create("sgd", learning.rate=0.05, momentum=0.8, wd=0.0002, clip_gradient=NULL, rescale.grad=1/batch_size)
+optimizer<- mx.opt.create("adadelta", rho=0.92, epsilon=1e-6, wd=0.0002, clip_gradient=NULL, rescale.grad=1/batch_size)
 begin.round=1
-end.round=8
+end.round=5
 
 ### Create iterators
 X_iter_train<- R_iter(buckets = corpus_bucketed_train$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = T)
@@ -48,13 +48,10 @@ kvstore<- "local"
 batch.end.callback<- mx.callback.log.train.metric(period = 50)
 epoch.end.callback<- mx.callback.log.train.metric(period = 1)
 
-# X_iter_train$init()
-# X_iter_train$reset()
-# X_iter_train$bucket_names
-# X_iter_train$iter.next()
-# (label1<- as.array(X_iter_train$value()$label))
-# data1<- as.array(X_iter_train$value()$data)
-# paste0(rev_dic[as.character(data1[,1])], collapse = " ")
+
+###############################################
+### CNN classification on sequence
+###############################################
 
 system.time(model_sentiment_cnn<- mx.cnn.buckets(train.data =  train.data,
                                                  eval.data = eval.data,
@@ -74,39 +71,14 @@ system.time(model_sentiment_cnn<- mx.cnn.buckets(train.data =  train.data,
                                                  batch.end.callback=batch.end.callback,
                                                  epoch.end.callback=epoch.end.callback))
 
-mx.model.save(model_sentiment_mask, prefix = "models/model_sentiment_cnn_mask", iteration = 50)
+mx.model.save(model_sentiment_cnn, prefix = "models/model_sentiment_cnn_v1", iteration = 5)
 
-
-
-###############################################
-### Deep CNN on words
-###############################################
-
-system.time(model_sentiment_cnn_deep<- mx.cnn.buckets.deep(train.data =  train.data,
-                                                           eval.data = eval.data,
-                                                           begin.round = begin.round, 
-                                                           end.round = end.round, 
-                                                           ctx = ctx, 
-                                                           metric = metric, 
-                                                           optimizer = optimizer, 
-                                                           kvstore = kvstore,
-                                                           num.embed=num.embed, 
-                                                           num_filters = num_filters,
-                                                           num.label=num.label,
-                                                           input.size=input.size,
-                                                           update.period=1,
-                                                           initializer=initializer,
-                                                           dropout=dropout,                                             
-                                                           batch.end.callback=batch.end.callback,
-                                                           epoch.end.callback=epoch.end.callback))
-
-mx.model.save(model_sentiment_cnn_deep, prefix = "models/model_sentiment_cnn_deep", iteration = 8)
 
 
 #####################################################
 ### Inference
 ctx<- list(mx.cpu())
-model_sentiment<- mx.model.load(prefix = "models/model_sentiment_cnn_deep", iteration = 8)
+model_sentiment<- mx.model.load(prefix = "models/model_sentiment_cnn_v1", iteration = 5)
 
 corpus_bucketed_train<- readRDS(file = "data/corpus_bucketed_train_100_200_300_500_800_left.rds")
 corpus_bucketed_test<- readRDS(file = "data/corpus_bucketed_test_100_200_300_500_800_left.rds")
@@ -135,7 +107,7 @@ auc(roc_train)
 
 ###############################################
 ### Inference on test
-X_iter_test<- R_iter(buckets = corpus_bucketed_test$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = F)
+X_iter_test<- R_iter(buckets = corpus_bucketed_test$buckets, batch_size = 1, data_mask_element = 0, shuffle = F)
 
 infer_model_on_test <- mx.cnn.infer.buckets.sentiment(infer_iter = X_iter_test, 
                                                       model = model_sentiment,
@@ -149,6 +121,10 @@ table(pred_test==labels_test)/length(labels_test)
 roc_test<- roc(predictions = infer_model_on_test$predict[,2], labels = factor(labels_test))
 auc(roc_test)
 
+
+
+#################################################
+## Graph visual
 seq.len=200
 input.size=1000
 num.embed=64

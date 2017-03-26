@@ -2,7 +2,7 @@
 #### Symbol design for single output
 
 # lstm cell symbol
-lstm <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, dropout=0, data_masking) {
+lstm.symbol <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, dropout=0, data_masking) {
   if (dropout > 0)
     indata <- mx.symbol.Dropout(data=indata, p=dropout)
   i2h <- mx.symbol.FullyConnected(data=indata,
@@ -36,14 +36,14 @@ lstm <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, dropou
 
 
 # unrolled lstm network
-lstm.unroll.sentiment <- function(num.lstm.layer, 
-                                  seq.len, 
-                                  input.size,
-                                  num.hidden, 
-                                  num.embed, 
-                                  num.label, 
-                                  dropout=0.,
-                                  ignore_label=0) {
+rnn.unroll <- function(num.lstm.layer, 
+                       seq.len, 
+                       input.size,
+                       num.hidden, 
+                       num.embed, 
+                       num.label, 
+                       dropout=0.,
+                       ignore_label=0) {
   
   embed.weight <- mx.symbol.Variable("embed.weight")
   cls.weight <- mx.symbol.Variable("cls.weight")
@@ -78,7 +78,7 @@ lstm.unroll.sentiment <- function(num.lstm.layer,
   # embed_t <- mx.symbol.transpose(data=embed, axes = c(2,0,1))
   # embed_t_mask <- mx.symbol.SequenceMask(data=embed_t, sequence_length=data_mask, use_sequence_length=T)
   # embed_mask <- mx.symbol.transpose(data=embed_t_mask, axes = c(2,0,1))
-
+  
   wordvec <- mx.symbol.SliceChannel(data=embed, axis=1, num_outputs=seq.len, squeeze_axis=T)
   
   data_mask_split <- mx.symbol.SliceChannel(data=data_mask_array, axis=1, num_outputs=seq.len, squeeze_axis=T)
@@ -90,12 +90,12 @@ lstm.unroll.sentiment <- function(num.lstm.layer,
     # stack lstm
     for (i in 1:num.lstm.layer) {
       dp <- ifelse(i==1, 0, dropout)
-      next.state <- lstm(num.hidden, indata=hidden,
-                         prev.state=last.states[[i]],
-                         param=param.cells[[i]],
-                         seqidx=seqidx, layeridx=i,
-                         dropout=dp,
-                         data_masking=data_mask_split[[seqidx]])
+      next.state <- lstm.symbol(num.hidden, indata=hidden,
+                                prev.state=last.states[[i]],
+                                param=param.cells[[i]],
+                                seqidx=seqidx, layeridx=i,
+                                dropout=dp,
+                                data_masking=data_mask_split[[seqidx]])
       hidden <- next.state$h
       last.states[[i]] <- next.state
     }
@@ -144,25 +144,25 @@ lstm.unroll.sentiment <- function(num.lstm.layer,
 
 ###########################################
 #### 
-mx.lstm.buckets.sentiment <- function(train.data, 
-                                      eval.data=NULL,
-                                      num.lstm.layer,
-                                      num.hidden, 
-                                      num.embed, 
-                                      num.label,
-                                      input.size,
-                                      ctx=list(mx.cpu()),
-                                      num.round=10, 
-                                      update.period=1,
-                                      initializer=mx.init.uniform(0.01),
-                                      dropout=0,
-                                      kvstore="local",
-                                      optimizer='sgd',
-                                      batch.end.callback,
-                                      epoch.end.callback,
-                                      begin.round=1,
-                                      end.round=1,
-                                      metric=mx.metric.rmse) {
+mx.rnn.buckets <- function(train.data, 
+                           eval.data=NULL,
+                           num.lstm.layer,
+                           num.hidden, 
+                           num.embed, 
+                           num.label,
+                           input.size,
+                           ctx=list(mx.cpu()),
+                           num.round=10, 
+                           update.period=1,
+                           initializer=mx.init.uniform(0.01),
+                           dropout=0,
+                           kvstore="local",
+                           optimizer='sgd',
+                           batch.end.callback,
+                           epoch.end.callback,
+                           begin.round=1,
+                           end.round=1,
+                           metric=mx.metric.rmse) {
   # check data and change data into iterator
   #train.data <- check.data(train.data, batch.size, TRUE)
   #eval.data <- check.data(eval.data, batch.size, FALSE)
@@ -177,13 +177,13 @@ mx.lstm.buckets.sentiment <- function(train.data,
   
   # get unrolled lstm symbol
   sym_list<- sapply(train.data$bucket_names, function(x) {
-    lstm.unroll.sentiment(num.lstm.layer=num.lstm.layer,
-                          num.hidden=num.hidden,
-                          seq.len=as.integer(x),
-                          input.size=input.size,
-                          num.embed=num.embed,
-                          num.label=num.label,
-                          dropout=dropout)}, 
+    rnn.unroll(num.lstm.layer=num.lstm.layer,
+               num.hidden=num.hidden,
+               seq.len=as.integer(x),
+               input.size=input.size,
+               num.embed=num.embed,
+               num.label=num.label,
+               dropout=dropout)}, 
     simplify = F, USE.NAMES = T)
   
   init.states.name<- as.character()
@@ -350,10 +350,10 @@ mx.util.filter.null <- function(lst) {
 #' @return an integer vector corresponding to the encoded dictionnary
 #'
 #' @export
-mx.lstm.infer.buckets.sentiment <- function(infer_iter,
-                                            model,
-                                            ctx=list(mx.cpu()),
-                                            kvstore=NULL){
+mx.rnn.infer.buckets <- function(infer_iter,
+                                 model,
+                                 ctx=list(mx.cpu()),
+                                 kvstore=NULL){
   
   ### Infer parameters from model
   num.lstm.layer=((length(model$arg.params)-3)/6)
@@ -369,13 +369,13 @@ mx.lstm.infer.buckets.sentiment <- function(infer_iter,
   
   # get unrolled lstm symbol
   sym_list<- sapply(infer_iter$bucket_names, function(x) {
-    lstm.unroll.sentiment(num.lstm.layer=num.lstm.layer,
-                          num.hidden=num.hidden,
-                          seq.len=as.integer(x),
-                          input.size=input.size,
-                          num.embed=num.embed,
-                          num.label=num.label,
-                          dropout=0)}, 
+    rnn.unroll(num.lstm.layer=num.lstm.layer,
+               num.hidden=num.hidden,
+               seq.len=as.integer(x),
+               input.size=input.size,
+               num.embed=num.embed,
+               num.label=num.label,
+               dropout=0)}, 
     simplify = F, USE.NAMES = T)
   
   init.states.name<- as.character()
