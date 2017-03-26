@@ -81,7 +81,7 @@ corpus_bucketed_test<- readRDS(file = "data/corpus_bucketed_test_100_200_300_500
 
 ###############################################
 ### Inference on train
-batch_size<- 64
+batch_size<- 128
 X_iter_train<- R_iter(buckets = corpus_bucketed_train$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = T)
 
 infer_model_on_train <- mx.rnn.infer.buckets(infer_iter = X_iter_train, 

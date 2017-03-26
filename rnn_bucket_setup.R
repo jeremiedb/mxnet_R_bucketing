@@ -404,6 +404,16 @@ mx.rnn.infer.buckets <- function(infer_iter,
           input.shapes[[name]] <- c(seq.len, batch_size)
         }
       } 
+      else if (grepl('data_mask$', name)) {
+        input.shapes[[name]] <- c(batch_size)
+      }
+      else if (grepl('data_mask_array$', name)) {
+        if (seq.len == 1) {
+          input.shapes[[name]] <- c(batch_size)
+        } else {
+          input.shapes[[name]] <- c(seq.len, batch_size)
+        }
+      }
       else if (grepl('label$', name)) {
         input.shapes[[name]] <- c(batch_size)
       }

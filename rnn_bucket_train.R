@@ -55,9 +55,9 @@ mx.model.train.rnn <- function(ctx,
   input.names<- c(input.names[1], "data_mask_array", input.names[2])
   
   # Grad request
-  gra_req<- rep("write", length(args$symbol$arguments))
+  grad_req<- rep("write", length(args$symbol$arguments))
   grad_null_idx<- match(input.names, args$symbol$arguments)
-  gra_req[grad_null_idx]<- "null"
+  grad_req[grad_null_idx]<- "null"
   
   # Arg array order
   sym_arguments<- args$symbol$arguments
@@ -91,7 +91,7 @@ mx.model.train.rnn <- function(ctx,
       train.execs <- lapply(1:ndevice, function(i) {
         s <- slices[[i]]
         names(s) <- input.names
-        mxnet:::mx.symbol.bind(symbol = symbol, arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.names])[arg_update_idx], aux.arrays = train.execs[[i]]$aux.arrays, ctx=ctx[[i]], grad.req=gra_req)
+        mxnet:::mx.symbol.bind(symbol = symbol, arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.names])[arg_update_idx], aux.arrays = train.execs[[i]]$aux.arrays, ctx=ctx[[i]], grad.req=grad_req)
       })
       
       for (texec in train.execs) {
@@ -191,7 +191,7 @@ mx.model.train.rnn <- function(ctx,
         train.execs <- lapply(1:ndevice, function(i) {
           s <- slices[[i]]
           names(s) <- input.names
-          mxnet:::mx.symbol.bind(symbol = symbol, arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.names])[arg_update_idx], aux.arrays = train.execs[[i]]$aux.arrays, ctx=ctx[[i]], grad.req=gra_req)
+          mxnet:::mx.symbol.bind(symbol = symbol, arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.names])[arg_update_idx], aux.arrays = train.execs[[i]]$aux.arrays, ctx=ctx[[i]], grad.req=grad_req)
         })
         
         for (texec in train.execs) {
