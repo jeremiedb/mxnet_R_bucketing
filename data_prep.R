@@ -11,8 +11,14 @@ require("mxnet")
 train_raw<- readRDS(file = "data/train_raw.rds")
 test_raw<- readRDS(file = "data/test_raw.rds")
 
+
 ################################################################
-##### Pre-process a corpus composed of a vector of sequences 
+### Data structure
+###   Each element of the character vector text sample
+###   Each element of the character vector is associated with a label
+
+################################################################
+##### Pre-process a corpus composed of a vector of sequences
 ##### Build a dictionnary removing too rare words
 text_pre_process <- function(corpus, count_threshold=10, dic=NULL){
   
@@ -71,15 +77,6 @@ make_bucket_data <- function(word_vec_list, labels, dic, seq_len=c(225), right_p
   word_vec_length<- lapply(word_vec_list, length) %>% unlist()
   bucketID<- cut(word_vec_length, breaks=c(0,seq_len, Inf), include.lowest = T, labels = F)
   #table(bucketID)
-  
-  
-  ### Right Padding
-  ### Pad sequences to their bucket length with dictionnary 0-label
-  # word_vec_list_pad<- lapply(1:length(word_vec_list), function(x){
-  #   length(word_vec_list[[x]])<- seq_len[bucketID[x]]
-  #   word_vec_list[[x]][is.na(word_vec_list[[x]])]<- names(dic[1])
-  #   return(word_vec_list[[x]])
-  # })
   
   ###  Right or Left side Padding
   ### Pad sequences to their bucket length with dictionnary 0-label

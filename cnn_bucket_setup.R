@@ -40,23 +40,23 @@ cnn.symbol <- function(seq.len,
   pool1<- mx.symbol.Pooling(data=act1, global.pool=F, pool.type="max" , kernel=c(1,5), stride=c(1,5), pad=c(0,2), name="pool1")
   #pool1<- mx.symbol.Pooling(data=act1, global.pool=T, pool.type="max", kernel=c(1,seq.len), name="pool1")
   
-  conv2<- mx.symbol.Convolution(data=pool1, weight=conv_params$conv2.weight, bias=conv_params$conv2.bias, kernel=c(1,3), stride=c(1,1), pad=c(0,1), num.filter=32)
+  conv2<- mx.symbol.Convolution(data=pool1, weight=conv_params$conv2.weight, bias=conv_params$conv2.bias, kernel=c(1,3), stride=c(1,1), pad=c(0,1), num.filter=16)
   act2<- mx.symbol.Activation(data=conv2, act.type="relu", name="act2")
   pool2<- mx.symbol.Pooling(data=act2, global.pool=F, pool.type="max" , kernel=c(1,3), stride=c(1,3), pad=c(0,1), name="pool2")
 
-  conv3<- mx.symbol.Convolution(data=pool2, weight=conv_params$conv3.weight, bias=conv_params$conv3.bias, kernel=c(1, 3), stride=c(1,1), pad=c(0,1), num.filter=64)
+  conv3<- mx.symbol.Convolution(data=pool2, weight=conv_params$conv3.weight, bias=conv_params$conv3.bias, kernel=c(1, 3), stride=c(1,1), pad=c(0,1), num.filter=32)
   act3<- mx.symbol.Activation(data=conv3, act.type="relu", name="act3")
   pool3<- mx.symbol.Pooling(data=act3, global.pool=T, pool.type="max", kernel=c(1,seq.len), name="pool3")
   
   #concat<- mx.symbol.Concat(data=c(pool1, pool2, pool3), num.args=3, name="concat")
   flatten<- mx.symbol.Flatten(data=pool3, name="flatten")
  
-  fc1<- mx.symbol.FullyConnected(data=flatten, weight=conv_params$fc1.weight, bias=conv_params$fc1.bias, num.hidden=32, name="fc1")
+  fc1<- mx.symbol.FullyConnected(data=flatten, weight=conv_params$fc1.weight, bias=conv_params$fc1.bias, num.hidden=16, name="fc1")
   act_fc<- mx.symbol.Activation(data=fc1, act.type="relu", name="act_fc")
   
   dropout<- mx.symbol.Dropout(data=act_fc, p=dropout, name="drop")
   
-  fc_final<- mx.symbol.FullyConnected(data=dropout, weight=conv_params$fc_final.weight, bias=conv_params$fc_final.bias, num.hidden=2, name="fc_final")
+  fc_final<- mx.symbol.FullyConnected(data=act_fc, weight=conv_params$fc_final.weight, bias=conv_params$fc_final.bias, num.hidden=2, name="fc_final")
   
   ### Removed the ignore label in softmax
   softmax <- mx.symbol.SoftmaxOutput(data=fc_final, name="sm")
@@ -120,7 +120,7 @@ mx.cnn.buckets <- function(train.data,
   args$grad.req <- "write"
   args$symbol <- symbol
   
-  mx.model.init.params.rnn <- function(symbol, input.shape, initializer, ctx) {
+  mx.model.init.params <- function(symbol, input.shape, initializer, ctx) {
     if (!is.mx.symbol(symbol)) stop("symbol need to be MXSymbol")
     slist <- symbol$infer.shape(input.shape)
     if (is.null(slist)) stop("Not enough information to get shapes")
@@ -129,29 +129,29 @@ mx.cnn.buckets <- function(train.data,
     return(list(arg.params=arg.params, aux.params=aux.params))
   }
   
-  params <- mx.model.init.params.rnn(symbol = symbol, input.shape = input.shape, initializer = initializer, ctx = mx.cpu())
+  params <- mx.model.init.params(symbol = symbol, input.shape = input.shape, initializer = initializer, ctx = mx.cpu())
   kvstore <- mxnet:::mx.model.create.kvstore(kvstore, params$arg.params, length(ctx), verbose=verbose)
   
   #####################################################################
   ### GO TO rnn.model.R
   #####################################################################
-  model<- mx.model.train.cnn(sym_list=sym_list,
-                             args=args, 
-                             input.shape=input.shape,
-                             arg.params=params$arg.params, 
-                             aux.params=params$aux.params,
-                             optimizer=optimizer,
-                             train.data=train.data, 
-                             batch.size=batch_size,
-                             eval.data=eval.data,
-                             kvstore=kvstore,
-                             verbose=verbose,
-                             begin.round = begin.round,
-                             end.round = end.round,
-                             metric = metric,
-                             ctx=ctx,
-                             batch.end.callback=batch.end.callback,
-                             epoch.end.callback=epoch.end.callback)
+  model<- mx.model.train.cnn.buckets(sym_list=sym_list,
+                                     args=args, 
+                                     input.shape=input.shape,
+                                     arg.params=params$arg.params, 
+                                     aux.params=params$aux.params,
+                                     optimizer=optimizer,
+                                     train.data=train.data, 
+                                     batch.size=batch_size,
+                                     eval.data=eval.data,
+                                     kvstore=kvstore,
+                                     verbose=verbose,
+                                     begin.round = begin.round,
+                                     end.round = end.round,
+                                     metric = metric,
+                                     ctx=ctx,
+                                     batch.end.callback=batch.end.callback,
+                                     epoch.end.callback=epoch.end.callback)
   
   return(model)
 }
@@ -234,10 +234,10 @@ mx.util.filter.null <- function(lst) {
 #' @return an integer vector corresponding to the encoded dictionnary
 #'
 #' @export
-mx.cnn.infer.buckets.sentiment <- function(infer_iter,
-                                           model,
-                                           ctx=list(mx.cpu()),
-                                           kvstore=NULL){
+mx.cnn.infer.buckets <- function(infer_iter,
+                                 model,
+                                 ctx=list(mx.cpu()),
+                                 kvstore=NULL){
   
   ### Initialise the iterator
   infer_iter$init()
@@ -273,7 +273,7 @@ mx.cnn.infer.buckets.sentiment <- function(infer_iter,
   args$grad.req <- "write"
   args$symbol <- symbol
   
-  mx.model.init.params.rnn <- function(symbol, input.shape, initializer, ctx) {
+  mx.model.init.params <- function(symbol, input.shape, initializer, ctx) {
     if (!is.mx.symbol(symbol)) stop("symbol need to be MXSymbol")
     slist <- symbol$infer.shape(input.shape)
     if (is.null(slist)) stop("Not enough information to get shapes")
@@ -282,7 +282,8 @@ mx.cnn.infer.buckets.sentiment <- function(infer_iter,
     return(list(arg.params=arg.params, aux.params=aux.params))
   }
   
-  params <- mx.model.init.params.rnn(symbol = symbol, input.shape = input.shape, initializer = initializer, ctx = mx.cpu())
+  #params<- list(arg.params=model$arg.params, aux.params=model$aux.params)
+  params <- mx.model.init.params(symbol = symbol, input.shape = input.shape, initializer = mx.init.uniform(0.1), ctx = mx.cpu())
   kvstore <- mxnet:::mx.model.create.kvstore(kvstore, params$arg.params, length(ctx), verbose=verbose)
   
   #####################################################################
@@ -314,15 +315,15 @@ mx.cnn.infer.buckets.sentiment <- function(infer_iter,
       lapply(1:length(train.execs[[1]]$ref.grad.arrays), function(k) {
         if (!is.null(train.execs[[1]]$ref.grad.arrays[[k]])) k else NULL
       })))
-  update.on.kvstore <- FALSE
-  if (!is.null(kvstore) && kvstore$update.on.kvstore) {
-    update.on.kvstore <- TRUE
-    kvstore$set.optimizer(optimizer)
-  } else {
-    updaters <- lapply(1:ndevice, function(i) {
-      mx.opt.get.updater(optimizer, train.execs[[i]]$ref.arg.arrays)
-    })
-  }
+  # update.on.kvstore <- FALSE
+  # if (!is.null(kvstore) && kvstore$update.on.kvstore) {
+  #   update.on.kvstore <- TRUE
+  #   kvstore$set.optimizer(optimizer)
+  # } else {
+  #   updaters <- lapply(1:ndevice, function(i) {
+  #     mx.opt.get.updater(optimizer, train.execs[[i]]$ref.arg.arrays)
+  #   })
+  # }
   if (!is.null(kvstore)) {
     kvstore$init(params.index, train.execs[[1]]$ref.arg.arrays[params.index])
   }

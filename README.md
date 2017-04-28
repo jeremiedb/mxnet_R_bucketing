@@ -10,7 +10,7 @@ Demo can be run by going through the follwoing scripts:
 - data\_prep.R
 - LSTM\_train.R / CNN\_train.R
 
-Core training module `rnn_model_bucket.R` reuses as much the existing `model.R` in order to ultimately make it a general usage training module, regardless if the data is bucketed or not. It should provide support for multi-devices training (some work on slicing needed before it is functional).
+Core training module `rnn_bucket_train.R` reuses as much the existing `model.R` in order to ultimately make it a general usage training module, regardless if the data is bucketed or not. It should provide support for multi-devices training (some work on slicing needed before it is functional).
 
 Key approach for the training routine is to first initialize the different symbols that will be used during training (one graph is unrolled for each bucket). This it possible as the bucketing iterator provides info the the possible model configurations.
 
@@ -42,13 +42,13 @@ A data mask array is also returned. It's an indicator matrix (built of 0 and 1) 
 ### Example of resulting architecture
 
 ``` r
-graph_test<- lstm.unroll.sentiment(num.lstm.layer=1,
-                                   num.hidden=20,
-                                   seq.len=2,
-                                   input.size=1000,
-                                   num.embed=100,
-                                   num.label=2,
-                                   dropout=0.2)
+graph_test<- rnn.unroll(num.lstm.layer=1,
+                        num.hidden=20,
+                        seq.len=2,
+                        input.size=1000,
+                        num.embed=100,
+                        num.label=2,
+                        dropout=0.2)
 
 graph<- graph.viz(graph_test, shape = c(2,12), graph.width.px = 225, graph.height.px = 450)
 ```

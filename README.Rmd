@@ -14,12 +14,14 @@ require("stringr")
 require("stringi")
 require("mxnet")
 
-source("lstm_bucket.R")
-source("rnn_model_bucket.R")
+source("rnn_bucket_setup.R")
+source("rnn_bucket_train.R")
 
 ```
 
-> Implementation of bucketing in RNN and CNN models with MXNet R-package. Examples based on sentiment analysis on the [IMDB data](http://ai.stanford.edu/~amaas/data/sentiment/)
+> Implementation of bucketing within RNN and CNN models with MXNet R-package. Examples based on sentiment analysis on the [IMDB data](http://ai.stanford.edu/~amaas/data/sentiment/)
+
+Look at the the [github pages]() for detailed examples. 
 
 General approach for data preparation was to invest pre-training time in cleaning the data and limit the iterator task to data feeding.  
 
@@ -28,7 +30,7 @@ Demo can be run by going through the follwoing scripts:
   - data_prep.R  
   - LSTM_train.R / CNN_train.R  
 
-Core training module `rnn_model_bucket.R` reuses as much the existing `model.R` in order to ultimately make it a general usage training module, regardless if the data is bucketed or not. It should provide support for multi-devices training (some work on slicing needed before it is functional). 
+Core training module `rnn_bucket_train.R` reuses as much the existing `model.R` in order to ultimately make it a general usage training module, regardless if the data is bucketed or not. It should provide support for multi-devices training (some work on slicing needed before it is functional). 
 
 Key approach for the training routine is to first initialize the different symbols that will be used during  training (one graph is unrolled for each bucket). This it possible as the bucketing iterator provides info the the possible model configurations. 
 
@@ -64,13 +66,13 @@ A data mask array is also returned. It's an indicator matrix (built of 0 and 1) 
 ```{r, echo=T}
 
 
-graph_test<- lstm.unroll.sentiment(num.lstm.layer=1,
-                                   num.hidden=20,
-                                   seq.len=2,
-                                   input.size=1000,
-                                   num.embed=100,
-                                   num.label=2,
-                                   dropout=0.2)
+graph_test<- rnn.unroll(num.lstm.layer=1,
+                        num.hidden=20,
+                        seq.len=2,
+                        input.size=1000,
+                        num.embed=100,
+                        num.label=2,
+                        dropout=0.2)
 
 graph<- graph.viz(graph_test, shape = c(2,12), graph.width.px = 225, graph.height.px = 450)
 

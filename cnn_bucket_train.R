@@ -1,21 +1,21 @@
 # Internal function to do multiple device training on RNN
-mx.model.train.cnn <- function(ctx,
-                               sym_list,
-                               args,
-                               arg.params, 
-                               aux.params,
-                               input.shape,
-                               begin.round, 
-                               end.round, 
-                               optimizer,
-                               train.data, 
-                               eval.data,
-                               metric,
-                               epoch.end.callback,
-                               batch.end.callback,
-                               kvstore,
-                               verbose=TRUE,
-                               batch.size) {
+mx.model.train.cnn.buckets <- function(ctx,
+                                       sym_list,
+                                       args,
+                                       arg.params, 
+                                       aux.params,
+                                       input.shape,
+                                       begin.round, 
+                                       end.round, 
+                                       optimizer,
+                                       train.data, 
+                                       eval.data,
+                                       metric,
+                                       epoch.end.callback,
+                                       batch.end.callback,
+                                       kvstore,
+                                       verbose=TRUE,
+                                       batch.size) {
   
   ndevice <- length(ctx)
   if(verbose) cat(paste0("Start training with ", ndevice, " devices\n"))
@@ -31,7 +31,7 @@ mx.model.train.cnn <- function(ctx,
     mx.exec.update.arg.arrays(texec, arg.params, match.name=TRUE)
     mx.exec.update.aux.arrays(texec, aux.params, match.name=TRUE)
   }
-
+  
   # KVStore related stuffs
   params.index <-
     as.integer(mx.util.filter.null(
@@ -187,7 +187,7 @@ mx.model.train.cnn <- function(ctx,
         })
         
         symbol = sym_list[[names(eval.data$bucketID())]]
-
+        
         train.execs <- lapply(1:ndevice, function(i) {
           s <- slices[[i]]
           names(s) <- input.names

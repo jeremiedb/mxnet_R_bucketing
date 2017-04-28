@@ -9,7 +9,6 @@ require("mxnet")
 #install.packages("lubridate")
 #install.packages("https://github.com/jeremiedb/mxnet_winbin/raw/master/mxnet.zip", repos=NULL)
 
-
 negative_train_list<- list.files("data/train/neg/", full.names = T)
 positive_train_list<- list.files("data/train/pos/", full.names = T)
 

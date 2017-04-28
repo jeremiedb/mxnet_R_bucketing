@@ -1,18 +1,14 @@
-
-
 ########################################################################################
-### Create an iterator
+### Create a bucketed iterator
 ########################################################################################
 
-R_iter<- function(buckets, batch_size, data_mask_element=0, shuffle=F){
+mx_io_bucket_iter<- function(buckets, batch_size, data_mask_element=0, shuffle=F){
   
   bucket_names<- names(buckets)
   
   init<- function(){
-    
     epoch<<- 0
     batch<<- 0
-    
     bucket_plan<<- NULL
     bucketID<<-NULL
   }
@@ -28,16 +24,13 @@ R_iter<- function(buckets, batch_size, data_mask_element=0, shuffle=F){
   }
   
   reset<- function(){
-    
     buckets_nb<- length(bucket_names)
     buckets_id<- 1:buckets_nb
-    
     buckets_size<- sapply(buckets, function(x) last(dim(x$data)))
     batch_per_bucket<- floor(buckets_size/batch_size)
     
     ### Number of batches per epoch given the batch_size
     batch_per_epoch<<- sum(batch_per_bucket)
-    
     epoch<<- epoch+1
     batch<<- 0
     
@@ -75,7 +68,9 @@ R_iter<- function(buckets, batch_size, data_mask_element=0, shuffle=F){
   
   value<- function(){
     
-    ### bucketID is a named integer whose value indicates the batch nb for the given bucket and the name is the a character string indicating the sequence length of the bucket
+    ### bucketID is a named integer: 
+    ###   the integer indicates the batch id for the given bucket (used to fetch appropriate samples within the bucket)
+    ###   the name is the a character containing the sequence length of the bucket (used to unroll the rnn to appropriate sequence length)
     idx<- (bucketID-1)*(batch_size)+(1:batch_size)
     data<- buckets[[names(bucketID)]]$data[,idx, drop=F]
     data_mask<- as.integer(names(bucketID)) - apply(data==data_mask_element, 2, sum)
@@ -86,21 +81,5 @@ R_iter<- function(buckets, batch_size, data_mask_element=0, shuffle=F){
   
   return(list(init=init, reset=reset, iter.next=iter.next, value=value, bucketID=bucket_fun, bucket_names=bucket_names, batch_size=batch_size))
 }
-
-
-mx.metric.Perplexity <- list(
-  init = function() {
-    c(0, 0)
-  },
-  update = function(label, pred, state, seq_len, batch.size) {
-    m <- -sum(log(pmax(1e-15, as.array(mx.nd.choose.element.0index(pred, label)))))
-    state <- c(state[[1]] + seq_len*batch.size, state[[2]] + m)
-    return(state)
-  },
-  get = function(state) {
-    list(name="Perplexity", value=exp(state[[2]]/state[[1]]))
-  }
-)
-class(mx.metric.Perplexity) <- "mx.metric"
 
 
