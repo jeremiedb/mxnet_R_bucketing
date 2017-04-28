@@ -9,7 +9,7 @@ output:
     code_folding: show
 ---
 
-> Demo the application of CNN to NLP task with varying length sequences using both padding and bucketing through custom iterator
+> Demo the application of CNN to NLP task with varying length sequences using both padding and bucketing through custom iterator with MXNet R package
 
 Example based on sentiment analysis on the [IMDB data](http://ai.stanford.edu/~amaas/data/sentiment/).
 
