@@ -1,11 +1,13 @@
 MXNet R-package bucketing
 ================
 
-> Implementation of bucketing in RNN and CNN models with MXNet R-package. Examples based on sentiment analysis on the [IMDB data](http://ai.stanford.edu/~amaas/data/sentiment/)
+> Implementation of bucketing within RNN and CNN models with MXNet R-package. Examples based on sentiment analysis on the [IMDB data](http://ai.stanford.edu/~amaas/data/sentiment/)
+
+Look at the the [github pages](https://jeremiedb.github.io/mxnet_R_bucketing/) for detailed examples.
 
 General approach for data preparation was to invest pre-training time in cleaning the data and limit the iterator task to data feeding.
 
-Demo can be run by going through the follwoing scripts:
+Demo can be run by going through the following scripts:
 - data\_import.R
 - data\_prep.R
 - LSTM\_train.R / CNN\_train.R

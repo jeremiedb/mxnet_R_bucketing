@@ -2,54 +2,56 @@
 title: "CNN for text analysis"
 output:
   html_document:
-    theme: cosmo
+    theme: paper
     toc: yes
     toc_depth: 3
     toc_float: true
     code_folding: show
-  html_notebook: null
 ---
 
-> Highlight the use of CNN to perform text classification on varying length sequences using both padding and bucketing through custom iterator
+> Demo the application of CNN to NLP task with varying length sequences using both padding and bucketing through custom iterator
 
+Example based on sentiment analysis on the [IMDB data](http://ai.stanford.edu/~amaas/data/sentiment/).
 
 Load some packages
 
-```{r, echo=T, include=F}
+```{r, echo=T, message=F}
 require("readr")
 require("dplyr")
 require("plotly")
 require("stringr")
 require("stringi")
-require("mxnet")
 require("AUC")
 require("scales")
+require("mxnet")
 ```
 
 
 Load utility functions
 
 ```{r, echo=T}
-source("mx_io_bucket_iter.R")
-source("cnn_bucket_setup.R")
-source("cnn_bucket_train.R")
+source("../mx_io_bucket_iter.R")
+source("../cnn_bucket_setup.R")
+source("../cnn_bucket_train.R")
 ```
 
 
 ## Prepare the data
 
-The loaded data has been already pre-process in order to be ready to be assigned into the bucket iterators. 
+The loaded data has been pre-process into a lists whose elements are the buckets containing the samples and their associated labels. 
 
-This pre-processing involves 2 scripts: 
-- data_import.R: import IMDB data.
-- data_prep.R: Performs raw text cleaning and assign samples and their labels into their respective buckets. 
+This pre-processing involves 2 scripts:  
+
+  - data_import.R: import IMDB data  
+  - data_prep.R: split samples into word vectors and aggregate the buckets of samples and labels into a list
+
 
 ```{r, echo=T}
 
 #####################################################
 ### Load preprocessed data
-corpus_bucketed_train<- readRDS(file = "data/corpus_bucketed_train_100_200_300_500_800_left.rds")
-corpus_bucketed_test<- readRDS(file = "data/corpus_bucketed_test_100_200_300_500_800_left.rds")
+corpus_bucketed_train<- readRDS(file = "../data/corpus_bucketed_train_100_200_300_500_800_left.rds")
+corpus_bucketed_test<- readRDS(file = "../data/corpus_bucketed_test_100_200_300_500_800_left.rds")
 
 vocab <- length(corpus_bucketed_test$dic)
 
@@ -85,9 +87,9 @@ epoch.end.callback<- mx.callback.log.train.metric(period = 1)
 
 ## Visualize model architecture
 
-```{r, echo=T, fig.height=3, fig.width=9}
+```{r, echo=T, fig.height=2, fig.width=9}
 
-seq.len<- 220
+seq.len<- 300
 
 cnn_graph<- cnn.symbol(seq.len=seq.len,
                             input.size=input.size,
@@ -96,12 +98,12 @@ cnn_graph<- cnn.symbol(seq.len=seq.len,
                             num.label=num.label,
                             dropout=dropout)
 
-graph.viz(cnn_graph, shape=c(seq.len, batch_size), type = "vis", direction = "LR", graph.height.px = 140)
+graph.viz(cnn_graph, shape=c(seq.len, batch_size), type = "vis", direction = "LR", graph.height.px = 120)
 
 ```
 
 
-### Model training
+## Model training
 
 ```{r, echo=T, eval=FALSE}
 
@@ -133,16 +135,16 @@ mx.model.save(model_sentiment_cnn, prefix = "models/model_sentiment_cnn_Visual_v
 ```
 
 
-##Plot word embeddings
+## Plot word embeddings
 
 In this minimalistic example, embeddings are only 2 dimensionnal, though it still provides enough seperation potential for the classifier to achive over 86% accuracy. 
 
 ```{r, echo=T}
 
-corpus_bucketed_train<- readRDS(file = "data/corpus_bucketed_train_100_200_300_500_800_left.rds")
-corpus_bucketed_test<- readRDS(file = "data/corpus_bucketed_test_100_200_300_500_800_left.rds")
+corpus_bucketed_train<- readRDS(file = "../data/corpus_bucketed_train_100_200_300_500_800_left.rds")
+corpus_bucketed_test<- readRDS(file = "../data/corpus_bucketed_test_100_200_300_500_800_left.rds")
 
-model_sentiment<- mx.model.load(prefix = "models/model_sentiment_cnn_Visual_v5", iteration = 24)
+model_sentiment<- mx.model.load(prefix = "../models/model_sentiment_cnn_Visual_v5", iteration = 24)
 
 dic <- corpus_bucketed_test$dic
 rev_dic <- corpus_bucketed_test$rev_dic
@@ -155,7 +157,7 @@ embeddings<- embeddings[-1, ]
 embeddings_20<- embeddings[400:450,]
 
 p <- ggplot(embeddings_20, aes(x = X1, y = X2, label = label))
-p+geom_label(fill="blue", colour="white") + theme_bw()
+p+geom_label(fill="navy", colour="white", fontface = "bold") + theme_bw()
 
 ```
 
@@ -166,10 +168,10 @@ p+geom_label(fill="blue", colour="white") + theme_bw()
 #####################################################
 ### Inference
 ctx<- list(mx.cpu())
-model_sentiment<- mx.model.load(prefix = "models/model_sentiment_cnn_Visual_v5", iteration = 24)
+model_sentiment<- mx.model.load(prefix = "../models/model_sentiment_cnn_Visual_v5", iteration = 24)
 
-corpus_bucketed_train<- readRDS(file = "data/corpus_bucketed_train_100_200_300_500_800_left.rds")
-corpus_bucketed_test<- readRDS(file = "data/corpus_bucketed_test_100_200_300_500_800_left.rds")
+corpus_bucketed_train<- readRDS(file = "../data/corpus_bucketed_train_100_200_300_500_800_left.rds")
+corpus_bucketed_test<- readRDS(file = "../data/corpus_bucketed_test_100_200_300_500_800_left.rds")
 
 ```
 
@@ -208,7 +210,7 @@ AUC: `r signif(auc_train, 4)`
 ```{r, echo=T}
 ###############################################
 ### Inference on test
-X_iter_test<- mx_io_bucket_iter(buckets = corpus_bucketed_test$buckets, batch_size = 1, data_mask_element = 0, shuffle = F)
+X_iter_test<- mx_io_bucket_iter(buckets = corpus_bucketed_test$buckets, batch_size = 32, data_mask_element = 0, shuffle = F)
 
 infer_model_on_test <- mx.cnn.infer.buckets(infer_iter = X_iter_test, 
                                             model = model_sentiment,
