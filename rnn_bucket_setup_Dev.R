@@ -1,48 +1,10 @@
 #############################################
 #### Symbol design for single output
 
-lstm.symbol_dev <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, dropout=0, data_masking) {
-  if (dropout > 0) indata <- mx.symbol.Dropout(data=indata, p=dropout)
-  i2h <- mx.symbol.FullyConnected(data=indata,
-                                  weight=param$i2h.weight,
-                                  bias=param$i2h.bias,
-                                  num.hidden=num.hidden * 4,
-                                  name=paste0("t", seqidx, ".l", layeridx, ".i2h"))
-  if (!is.null(prev.state)){
-  h2h <- mx.symbol.FullyConnected(data=prev.state$h,
-                                  weight=param$h2h.weight,
-                                  bias=param$h2h.bias,
-                                  num.hidden=num.hidden * 4,
-                                  name=paste0("t", seqidx, ".l", layeridx, ".h2h"))
-  gates <- i2h + h2h
-  } else gates<- i2h
-  
-  split.gates <- mx.symbol.split(gates, num.outputs=4, axis=1, squeeze.axis=F,
-                                 name=paste0("t", seqidx, ".l", layeridx, ".slice"))
-  
-  in.gate <- mx.symbol.Activation(split.gates[[1]], act.type="sigmoid")
-  in.transform <- mx.symbol.Activation(split.gates[[2]], act.type="tanh")
-  forget.gate <- mx.symbol.Activation(split.gates[[3]], act.type="sigmoid")
-  out.gate <- mx.symbol.Activation(split.gates[[4]], act.type="sigmoid")
-  
-  if (!is.null(prev.state)){
-  next.c <- (forget.gate * prev.state$c) + (in.gate * in.transform)
-  } else next.c <- in.gate * in.transform
-  
-  next.h <- out.gate * mx.symbol.Activation(next.c, act.type="tanh")
-  
-  ### Add a mask - using the mask_array approach
-  data_mask_expand<- mx.symbol.Reshape(data=data_masking, shape=c(1,-2))
-  next.c<- mx.symbol.broadcast_mul(lhs = next.c, rhs=data_mask_expand)
-  next.h<- mx.symbol.broadcast_mul(lhs = next.h, rhs=data_mask_expand)
-  
-  return (list(c=next.c, h=next.h))
-}
-
-
 # lstm cell symbol
 lstm.symbol <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, dropout=0, data_masking) {
-  if (dropout > 0) indata <- mx.symbol.Dropout(data=indata, p=dropout)
+  if (dropout > 0)
+    indata <- mx.symbol.Dropout(data=indata, p=dropout)
   i2h <- mx.symbol.FullyConnected(data=indata,
                                   weight=param$i2h.weight,
                                   bias=param$i2h.bias,
@@ -54,7 +16,7 @@ lstm.symbol <- function(num.hidden, indata, prev.state, param, seqidx, layeridx,
                                   num.hidden=num.hidden * 4,
                                   name=paste0("t", seqidx, ".l", layeridx, ".h2h"))
   gates <- i2h + h2h
-  slice.gates <- mx.symbol.split(gates, num.outputs=4, axis=1, squeeze.axis=F,
+  slice.gates <- mx.symbol.SliceChannel(gates, num.outputs=4,
                                         name=paste0("t", seqidx, ".l", layeridx, ".slice"))
   
   in.gate <- mx.symbol.Activation(slice.gates[[1]], act.type="sigmoid")
@@ -74,99 +36,7 @@ lstm.symbol <- function(num.hidden, indata, prev.state, param, seqidx, layeridx,
 
 
 # unrolled lstm network
-rnn.unroll_dev <- function(num.rnn.layer, 
-                           seq.len, 
-                           input.size,
-                           num.hidden, 
-                           num.embed, 
-                           num.label, 
-                           dropout=0.,
-                           ignore_label=0) {
-  
-  embed.weight <- mx.symbol.Variable("embed.weight")
-  cls.weight <- mx.symbol.Variable("cls.weight")
-  cls.bias <- mx.symbol.Variable("cls.bias")
-  
-  param.cells <- lapply(1:num.rnn.layer, function(i) {
-    cell <- list(i2h.weight = mx.symbol.Variable(paste0("l", i, ".i2h.weight")),
-                 i2h.bias = mx.symbol.Variable(paste0("l", i, ".i2h.bias")),
-                 h2h.weight = mx.symbol.Variable(paste0("l", i, ".h2h.weight")),
-                 h2h.bias = mx.symbol.Variable(paste0("l", i, ".h2h.bias")))
-    return (cell)
-  })
-  
-  # last.states <- lapply(1:num.rnn.layer, function(i) {
-  #   ###Block gradient so that that initial sequence state is always 0
-  #   c=mx.symbol.Variable(paste0("l", i, ".init.c"))
-  #   h=mx.symbol.Variable(paste0("l", i, ".init.h"))
-  #   state <- list(c=mx.symbol.BlockGrad(c, name=paste0("l", i, ".init.c")),
-  #                 h=mx.symbol.BlockGrad(h, name=paste0("l", i, ".init.h")))
-  #   return (state)
-  # })
-  
-  # embeding layer
-  label <- mx.symbol.Variable("label")
-  data <- mx.symbol.Variable("data")
-  data_mask <- mx.symbol.Variable("data_mask")
-  data_mask_array <- mx.symbol.Variable("data_mask_array")
-  data_mask_array<- mx.symbol.BlockGrad(data_mask_array, name="data_mask_array")
-  
-  embed <- mx.symbol.Embedding(data=data, input_dim=input.size,
-                               weight=embed.weight, output_dim=num.embed, name="embed")
-  
-  wordvec <- mx.symbol.split(data=embed, axis=1, num.outputs=seq.len, squeeze_axis=T)
-  data_mask_split <- mx.symbol.split(data=data_mask_array, axis=1, num.outputs=seq.len, squeeze_axis=T)
-  
-  last.hidden <- list()
-  last.states<- list()
-  
-  for (seqidx in 1:seq.len) {
-    hidden <- wordvec[[seqidx]]
-    
-    for (i in 1:num.rnn.layer) {
-      
-      if (seqidx==1) prev.state<- NULL else prev.state<- last.states[[i]]
-      
-      next.state <- lstm.symbol_dev(num.hidden = num.hidden, 
-                                    indata=hidden,
-                                    prev.state=prev.state,
-                                    param=param.cells[[i]],
-                                    seqidx=seqidx, 
-                                    layeridx=i,
-                                    dropout=0,
-                                    data_masking=data_mask_split[[seqidx]])
-      hidden <- next.state$h
-      last.states[[i]] <- next.state
-    }
-    # decoder
-    if (dropout > 0) hidden <- mx.symbol.Dropout(data=hidden, p=dropout)
-    last.hidden <- c(last.hidden, hidden)
-  }
-  
-  ### JDB - could be commented - only used for debugging masking
-  # last.hidden_expand = lapply(last.hidden, function(i) mx.symbol.expand_dims(i, axis=1))
-  # concat <-mx.symbol.Concat(last.hidden_expand, num.args = seq.len, dim = 1)
-  
-  # last.mask_expand = lapply(last.mask, function(i) mx.symbol.expand_dims(i, axis=1))
-  # concat_mask <-mx.symbol.Concat(last.mask_expand, num.args = seq.len, dim = 1)
-  
-  #reshape = mx.symbol.Reshape(concat, shape=c(num.hidden, -1))
-  
-  fc <- mx.symbol.FullyConnected(data=hidden,
-                                 weight=cls.weight,
-                                 bias=cls.bias,
-                                 num.hidden=num.label)
-  
-  #label <- mx.symbol.Reshape(data=label, shape=c(-1))
-  ### Removed the ignore label in softmax
-  softmax <- mx.symbol.SoftmaxOutput(data=fc, name="sm")
-  
-  return(softmax)
-  
-}
-
-# unrolled lstm network
-rnn.unroll <- function(num.rnn.layer, 
+rnn.unroll <- function(num.lstm.layer, 
                        seq.len, 
                        input.size,
                        num.hidden, 
@@ -179,14 +49,14 @@ rnn.unroll <- function(num.rnn.layer,
   cls.weight <- mx.symbol.Variable("cls.weight")
   cls.bias <- mx.symbol.Variable("cls.bias")
   
-  param.cells <- lapply(1:num.rnn.layer, function(i) {
+  param.cells <- lapply(1:num.lstm.layer, function(i) {
     cell <- list(i2h.weight = mx.symbol.Variable(paste0("l", i, ".i2h.weight")),
                  i2h.bias = mx.symbol.Variable(paste0("l", i, ".i2h.bias")),
                  h2h.weight = mx.symbol.Variable(paste0("l", i, ".h2h.weight")),
                  h2h.bias = mx.symbol.Variable(paste0("l", i, ".h2h.bias")))
     return (cell)
   })
-  last.states <- lapply(1:num.rnn.layer, function(i) {
+  last.states <- lapply(1:num.lstm.layer, function(i) {
     ###Block gradient so that that initial sequence state is always 0
     c=mx.symbol.Variable(paste0("l", i, ".init.c"))
     h=mx.symbol.Variable(paste0("l", i, ".init.h"))
@@ -218,7 +88,7 @@ rnn.unroll <- function(num.rnn.layer,
   for (seqidx in 1:seq.len) {
     hidden <- wordvec[[seqidx]]
     # stack lstm
-    for (i in 1:num.rnn.layer) {
+    for (i in 1:num.lstm.layer) {
       dp <- ifelse(i==1, 0, dropout)
       next.state <- lstm.symbol(num.hidden, indata=hidden,
                                 prev.state=last.states[[i]],
@@ -254,7 +124,7 @@ rnn.unroll <- function(num.rnn.layer,
   
   ## Add a grouping with the last h and c outputs - used for inference
   # output_states<- list()
-  # for (i in 1:num.rnn.layer) {
+  # for (i in 1:num.lstm.layer) {
   #   state_c<- last.states[[i]]$c
   #   state_h<- last.states[[i]]$h
   #   output_states<- c(output_states,
@@ -276,7 +146,7 @@ rnn.unroll <- function(num.rnn.layer,
 #### 
 mx.rnn.buckets <- function(train.data, 
                            eval.data=NULL,
-                           num.rnn.layer,
+                           num.lstm.layer,
                            num.hidden, 
                            num.embed, 
                            num.label,
@@ -307,7 +177,7 @@ mx.rnn.buckets <- function(train.data,
   
   # get unrolled lstm symbol
   sym_list<- sapply(train.data$bucket_names, function(x) {
-    rnn.unroll(num.rnn.layer=num.rnn.layer,
+    rnn.unroll(num.lstm.layer=num.lstm.layer,
                num.hidden=num.hidden,
                seq.len=as.integer(x),
                input.size=input.size,
@@ -317,7 +187,7 @@ mx.rnn.buckets <- function(train.data,
     simplify = F, USE.NAMES = T)
   
   init.states.name<- as.character()
-  for (i in 1:num.rnn.layer){
+  for (i in 1:num.lstm.layer){
     state.c <- paste0("l", i, ".init.c")
     state.h <- paste0("l", i, ".init.h")
     init.states.name<- c(init.states.name, state.c, state.h)
@@ -486,7 +356,7 @@ mx.rnn.infer.buckets <- function(infer_iter,
                                  kvstore=NULL){
   
   ### Infer parameters from model
-  num.rnn.layer=((length(model$arg.params)-3)/6)
+  num.lstm.layer=((length(model$arg.params)-3)/6)
   num.hidden=dim(model$arg.params$l1.init.h)[1]
   input.size=dim(model$arg.params$embed.weight)[2]
   num.embed=dim(model$arg.params$embed.weight)[1]
@@ -499,7 +369,7 @@ mx.rnn.infer.buckets <- function(infer_iter,
   
   # get unrolled lstm symbol
   sym_list<- sapply(infer_iter$bucket_names, function(x) {
-    rnn.unroll(num.rnn.layer=num.rnn.layer,
+    rnn.unroll(num.lstm.layer=num.lstm.layer,
                num.hidden=num.hidden,
                seq.len=as.integer(x),
                input.size=input.size,
@@ -509,7 +379,7 @@ mx.rnn.infer.buckets <- function(infer_iter,
     simplify = F, USE.NAMES = T)
   
   init.states.name<- as.character()
-  for (i in 1:num.rnn.layer){
+  for (i in 1:num.lstm.layer){
     state.c <- paste0("l", i, ".init.c")
     state.h <- paste0("l", i, ".init.h")
     init.states.name<- c(init.states.name, state.c, state.h)

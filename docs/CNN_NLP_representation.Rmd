@@ -46,7 +46,7 @@ This pre-processing involves 2 scripts:
   - data_prep.R: split samples into word vectors and aggregate the buckets of samples and labels into a list
 
 
-```{r, echo=T}
+```{r, echo=TRUE}
 
 #####################################################
 ### Load preprocessed data
@@ -58,15 +58,15 @@ vocab <- length(corpus_bucketed_test$dic)
 ### Create iterators
 batch_size = 64
 
-X_iter_train<- mx_io_bucket_iter(buckets = corpus_bucketed_train$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = T)
+X_iter_train<- mx_io_bucket_iter(buckets = corpus_bucketed_train$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = TRUE)
 
-X_iter_test<- mx_io_bucket_iter(buckets = corpus_bucketed_test$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = F)
+X_iter_test<- mx_io_bucket_iter(buckets = corpus_bucketed_test$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = FALSE)
 
 ```
 
 ## Define model parameters
 
-```{r, echo=T}
+```{r, echo=TRUE}
 
 num.label=2
 num.embed=2
@@ -87,7 +87,7 @@ epoch.end.callback<- mx.callback.log.train.metric(period = 1)
 
 ## Visualize model architecture
 
-```{r, echo=T, fig.height=2, fig.width=9}
+```{r, echo=TRUE, fig.height=2, fig.width=9}
 
 seq.len<- 300
 
@@ -105,7 +105,7 @@ graph.viz(cnn_graph, shape=c(seq.len, batch_size), type = "vis", direction = "LR
 
 ## Model training
 
-```{r, echo=T, eval=FALSE}
+```{r, echo=TRUE, eval=FALSE}
 
 devices<- list(mx.cpu())
 end.round=24
@@ -139,7 +139,7 @@ mx.model.save(model_sentiment_cnn, prefix = "models/model_sentiment_cnn_Visual_v
 
 In this minimalistic example, embeddings are only 2 dimensionnal, though it still provides enough seperation potential for the classifier to achive over 86% accuracy. 
 
-```{r, echo=T}
+```{r, echo=TRUE}
 
 corpus_bucketed_train<- readRDS(file = "../data/corpus_bucketed_train_100_200_300_500_800_left.rds")
 corpus_bucketed_test<- readRDS(file = "../data/corpus_bucketed_test_100_200_300_500_800_left.rds")
@@ -178,7 +178,7 @@ corpus_bucketed_test<- readRDS(file = "../data/corpus_bucketed_test_100_200_300_
 
 ### Inference on train data
 
-```{r, echo=T}
+```{r, echo=TRUE}
 
 ###############################################
 ### Inference on train
@@ -207,7 +207,7 @@ AUC: `r signif(auc_train, 4)`
 
 ### Inference on test
 
-```{r, echo=T}
+```{r, echo=TRUE}
 ###############################################
 ### Inference on test
 X_iter_test<- mx_io_bucket_iter(buckets = corpus_bucketed_test$buckets, batch_size = 32, data_mask_element = 0, shuffle = F)

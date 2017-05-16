@@ -63,7 +63,7 @@ A data mask array is also returned. It's an indicator matrix (built of 0 and 1) 
 
 ###Example of resulting architecture
 
-```{r, echo=T}
+```{r, echo=TRUE}
 
 
 graph_test<- rnn.unroll(num.lstm.layer=1,

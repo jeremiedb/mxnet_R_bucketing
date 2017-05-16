@@ -8,7 +8,8 @@ require("AUC")
 
 source("rnn_bucket_setup.R")
 source("rnn_bucket_train.R")
-source("iterator_and_metrics.R")
+source("mx_io_bucket_iter.R")
+source("mx_metric_Perplexity.R")
 
 #####################################################
 ### Setup the parameters for the training
@@ -23,8 +24,8 @@ vocab <- length(corpus_bucketed_test$dic)
 ctx<- list(mx.cpu())
 
 batch_size = 64
-num.hidden = 48
-num.embed = 48
+num.hidden = 24
+num.embed = 32
 num.lstm.layer = 1
 update.period = 1
 
@@ -37,20 +38,18 @@ metric<- mx.metric.accuracy
 #optimizer<- mx.opt.create("sgd", learning.rate=0.05, momentum=0.8, wd=0.0002, clip_gradient=NULL, rescale.grad=1/batch_size)
 optimizer<- mx.opt.create("adadelta", rho=0.92, epsilon=1e-6, wd=0.0002, clip_gradient=NULL, rescale.grad=1/batch_size)
 begin.round=1
-end.round=1
+end.round=2
 
 ### Create iterators
-X_iter_train<- R_iter(buckets = corpus_bucketed_train$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = T)
-X_iter_test<- R_iter(buckets = corpus_bucketed_test$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = T)
+X_iter_train<- mx_io_bucket_iter(buckets = corpus_bucketed_train$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = T)
+X_iter_test<- mx_io_bucket_iter(buckets = corpus_bucketed_test$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = T)
 
-train.data<- X_iter_train
-eval.data<- X_iter_test
 kvstore<- "local"
 batch.end.callback<- mx.callback.log.train.metric(period = 50)
 epoch.end.callback<- mx.callback.log.train.metric(period = 1)
 
-system.time(model_lstm_sentiment<- mx.rnn.buckets(train.data =  train.data,
-                                                  eval.data = eval.data,
+system.time(model_lstm_sentiment<- mx.rnn.buckets(train.data =  X_iter_train,
+                                                  eval.data = X_iter_test,
                                                   begin.round = begin.round, 
                                                   end.round = end.round, 
                                                   ctx = ctx, 
@@ -68,7 +67,7 @@ system.time(model_lstm_sentiment<- mx.rnn.buckets(train.data =  train.data,
                                                   batch.end.callback=batch.end.callback,
                                                   epoch.end.callback=epoch.end.callback))
 
-mx.model.save(model_lstm_sentiment, prefix = "models/model_lstm_sentiment", iteration = 1)
+mx.model.save(model_lstm_sentiment, prefix = "models/model_lstm_sentiment", iteration = 2)
 
 #####################################################
 ### Inference
@@ -115,7 +114,7 @@ table(pred_test==labels_test)/length(labels_test)
 
 #########################################################
 ### Graph visualisation
-graph_test<- rnn.unroll(num.lstm.layer=1,
+graph_test<- rnn.unroll(num.rnn.layer=1,
                         num.hidden=20,
                         seq.len=3,
                         input.size=1000,
@@ -123,3 +122,12 @@ graph_test<- rnn.unroll(num.lstm.layer=1,
                         num.label=2,
                         dropout=0.2)
 graph.viz(graph_test)
+
+graph_test2<- rnn.unroll_dev(num.rnn.layer=1,
+                             num.hidden=20,
+                             seq.len=3,
+                             input.size=1000,
+                             num.embed=100,
+                             num.label=2,
+                             dropout=0.2)
+graph.viz(graph_test2, type = "graph")
