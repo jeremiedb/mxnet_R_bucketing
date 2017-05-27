@@ -6,8 +6,12 @@ require("stringi")
 require("mxnet")
 require("AUC")
 
-source("rnn_bucket_setup.R")
-source("rnn_bucket_train.R")
+# source("rnn_bucket_setup.R")
+# source("rnn_bucket_train.R")
+
+source("rnn_bucket_setup_Dev.R")
+source("rnn_bucket_train_Dev.R")
+
 source("mx_io_bucket_iter.R")
 source("mx_metric_Perplexity.R")
 
@@ -114,14 +118,28 @@ table(pred_test==labels_test)/length(labels_test)
 
 #########################################################
 ### Graph visualisation
-graph_test<- rnn.unroll(num.rnn.layer=1,
+graph_seq_to_one<- rnn.unroll(num.rnn.layer=1,
                         num.hidden=20,
-                        seq.len=3,
-                        input.size=1000,
-                        num.embed=100,
-                        num.label=2,
+                        seq.len=2,
+                        input.size=100,
+                        num.embed=12,
+                        num.label=1000,
+                        config = "seq-to-one",
                         dropout=0.2)
-graph.viz(graph_test)
+
+graph.viz(graph_seq_to_one)
+
+graph_one_to_one<- rnn.unroll(num.rnn.layer=1,
+                              num.hidden=20,
+                              seq.len=2,
+                              input.size=100,
+                              num.embed=12,
+                              num.label=1000,
+                              config = "one-to-one",
+                              dropout=0.2)
+
+graph.viz(graph_one_to_one)
+
 
 graph_test2<- rnn.unroll_dev(num.rnn.layer=1,
                              num.hidden=20,
