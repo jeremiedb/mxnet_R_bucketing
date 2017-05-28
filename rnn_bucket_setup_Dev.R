@@ -64,14 +64,6 @@ rnn.unroll <- function(num.rnn.layer,
     return (cell)
   })
   
-  # last.states <- lapply(1:num.rnn.layer, function(i) {
-  #   ###Block gradient so that that initial sequence state is always 0
-  #   c=mx.symbol.Variable(paste0("l", i, ".init.c"))
-  #   h=mx.symbol.Variable(paste0("l", i, ".init.h"))
-  #   state <- list(c=mx.symbol.stop_gradient(c, name=paste0("l", i, ".init.c")),
-  #                 h=mx.symbol.stop_gradient(h, name=paste0("l", i, ".init.h")))
-  #   return (state)
-  # })
   
   # embeding layer
   label <- mx.symbol.Variable("label")
@@ -90,6 +82,7 @@ rnn.unroll <- function(num.rnn.layer,
   last.states<- list()
   decode<- list()
   softmax<- list()
+  fc<- list()
   
   for (seqidx in 1:seq.len) {
     hidden <- wordvec[[seqidx]]
@@ -113,13 +106,7 @@ rnn.unroll <- function(num.rnn.layer,
     
     # Decoding
     if (config=="one-to-one"){
-      fc <- mx.symbol.FullyConnected(data=hidden,
-                                     weight=cls.weight,
-                                     bias=cls.bias,
-                                     num.hidden=num.label)
-      
-      # Apply attention
-      softmax[[seqidx]] <- mx.symbol.SoftmaxOutput(data=fc, name=paste0("sm_",seqidx), ignore_label=ignore_label)
+      last.hidden <- c(last.hidden, hidden)
     }
   }
   
@@ -129,23 +116,22 @@ rnn.unroll <- function(num.rnn.layer,
                                    bias=cls.bias,
                                    num.hidden=num.label)
     
-    loss <- mx.symbol.SoftmaxOutput(data=fc, name="sm", ignore_label=ignore_label)
+    loss <- mx.symbol.SoftmaxOutput(data=fc, name="sm", label=label, ignore_label=ignore_label)
     
   } else if (config=="one-to-one"){
+
+    last.hidden_expand = lapply(last.hidden, function(i) mx.symbol.expand_dims(i, axis=1))
+    concat <-mx.symbol.Concat(last.hidden_expand, num.args = seq.len, dim = 1)
+    reshape = mx.symbol.Reshape(concat, shape=c(num.hidden, -1))
     
-    ### JDB - could be commented - only used for debugging masking
-    #last.hidden_expand = lapply(last.hidden, function(i) mx.symbol.expand_dims(i, axis=1))
-    #concat <-mx.symbol.Concat(last.hidden_expand, num.args = seq.len, dim = 1)
+    fc <- mx.symbol.FullyConnected(data=reshape,
+                                   weight=cls.weight,
+                                   bias=cls.bias,
+                                   num.hidden=num.label)
     
-    #last.mask_expand = lapply(last.mask, function(i) mx.symbol.expand_dims(i, axis=1))
-    #concat_mask <-mx.symbol.Concat(last.mask_expand, num.args = seq.len, dim = 1)
+    label <- mx.symbol.reshape(data=label, shape=c(-1))
+    loss <- mx.symbol.SoftmaxOutput(data=fc, name="sm", label=label, ignore_label=ignore_label)
     
-    #reshape = mx.symbol.Reshape(concat, shape=c(num.hidden, -1))
-    
-    #label <- mx.symbol.Reshape(data=label, shape=c(-1))
-    ### Removed the ignore label in softmax
-    
-    loss<- mx.symbol.Group(softmax)
   }
   
   return(loss)
@@ -155,7 +141,7 @@ rnn.unroll <- function(num.rnn.layer,
 #### 
 mx.rnn.buckets <- function(train.data, 
                            eval.data=NULL,
-                           num.lstm.layer,
+                           num.rnn.layer,
                            num.hidden, 
                            num.embed, 
                            num.label,
@@ -168,11 +154,13 @@ mx.rnn.buckets <- function(train.data,
                            config="one-to-one",
                            kvstore="local",
                            optimizer='sgd',
-                           batch.end.callback,
-                           epoch.end.callback,
+                           batch.end.callback=NULL,
+                           epoch.end.callback=NULL,
                            begin.round=1,
                            end.round=1,
-                           metric=mx.metric.rmse) {
+                           metric=mx.metric.rmse,
+                           verbose=FALSE) {
+  
   # check data and change data into iterator
   #train.data <- check.data(train.data, batch.size, TRUE)
   #eval.data <- check.data(eval.data, batch.size, FALSE)
@@ -187,7 +175,7 @@ mx.rnn.buckets <- function(train.data,
   
   # get unrolled lstm symbol
   sym_list<- sapply(train.data$bucket_names, function(x) {
-    rnn.unroll(num.lstm.layer=num.lstm.layer,
+    rnn.unroll(num.rnn.layer=num.rnn.layer,
                num.hidden=num.hidden,
                seq.len=as.integer(x),
                input.size=input.size,
@@ -198,7 +186,7 @@ mx.rnn.buckets <- function(train.data,
     simplify = F, USE.NAMES = T)
   
   init.states.name<- as.character()
-  for (i in 1:num.lstm.layer){
+  for (i in 1:num.rnn.layer){
     state.c <- paste0("l", i, ".init.c")
     state.h <- paste0("l", i, ".init.h")
     init.states.name<- c(init.states.name, state.c, state.h)
@@ -209,79 +197,43 @@ mx.rnn.buckets <- function(train.data,
   symbol <- sym_list[[names(train.data$bucketID())]]
   
   arg.names <- symbol$arguments
+  input.shape<- lapply(train.data$value(), dim)
+  input.shape<- input.shape[names(input.shape) %in% arg.names]
   
-  infer_shapes<- function(seq.len){
-    input.shapes <- list()
-    for (name in arg.names) {
-      if (name %in% init.states.name) {
-        input.shapes[[name]] <- c(num.hidden, batch_size)
-      }
-      else if (grepl('data$', name)) {
-        if (seq.len == 1) {
-          input.shapes[[name]] <- c(batch_size)
-        } else {
-          input.shapes[[name]] <- c(seq.len, batch_size)
-        }
-      } 
-      else if (grepl('data_mask$', name)) {
-        input.shapes[[name]] <- c(batch_size)
-      }
-      else if (grepl('data_mask_array$', name)) {
-        if (seq.len == 1) {
-          input.shapes[[name]] <- c(batch_size)
-        } else {
-          input.shapes[[name]] <- c(seq.len, batch_size)
-        }
-      }
-      else if (grepl('label$', name)) {
-        input.shapes[[name]] <- c(batch_size)
-      }
-    }
-    return(input.shapes)
-  }
-  
-  input.shape <- infer_shapes(seq.len = as.integer(names(train.data$bucketID())))
   args<- input.shape
   args$ctx <- mx.cpu()
   args$grad.req <- "write"
   args$symbol <- symbol
   
-  mx.model.init.params.rnn <- function(symbol, input.shape, initializer, ctx) {
-    if (!is.mx.symbol(symbol)) stop("symbol need to be MXSymbol")
-    slist <- symbol$infer.shape(input.shape)
-    if (is.null(slist)) stop("Not enough information to get shapes")
-    arg.params <- mx.init.create(initializer, slist$arg.shapes, ctx, skip.unknown=TRUE)
-    aux.params <- mx.init.create(initializer, slist$aux.shapes, ctx, skip.unknown=FALSE)
-    return(list(arg.params=arg.params, aux.params=aux.params))
-  }
-  
-  params <- mx.model.init.params.rnn(symbol = symbol, input.shape = input.shape, initializer = initializer, ctx = mx.cpu())
-  
+  infer_shapes<- symbol$infer.shape(input.shape)
+  arg.params <- mx.init.create(initializer, infer_shapes$arg.shapes, mx.cpu(), skip.unknown=TRUE)
+  aux.params <- mx.init.create(initializer, infer_shapes$aux.shapes, mx.cpu(), skip.unknown=TRUE)
+
   kvstore <- mxnet:::mx.model.create.kvstore(kvstore, params$arg.params, length(ctx), verbose=verbose)
   
   #####################################################################
-  ### GO TO rnn.model.R
-  #####################################################################
-  model<- mx.model.train.rnn(sym_list=sym_list,
-                             args=args, 
-                             input.shape=input.shape,
-                             arg.params=params$arg.params, 
-                             aux.params=params$aux.params,
-                             optimizer=optimizer,
-                             train.data=train.data, 
-                             batch.size=batch_size,
-                             eval.data=eval.data,
-                             kvstore=kvstore,
-                             verbose=verbose,
-                             begin.round = begin.round,
-                             end.round = end.round,
-                             metric = metric,
-                             ctx=ctx,
-                             batch.end.callback=batch.end.callback,
-                             epoch.end.callback=epoch.end.callback)
+  ### Execute training -  rnn.model.R
+  model<- mx.model.train.rnn.buckets(sym_list=sym_list,
+                                     args=args, 
+                                     input.shape=input.shape,
+                                     arg.params=arg.params, 
+                                     aux.params=aux.params,
+                                     optimizer=optimizer,
+                                     train.data=train.data, 
+                                     batch.size=batch_size,
+                                     eval.data=eval.data,
+                                     kvstore=kvstore,
+                                     verbose=verbose,
+                                     begin.round = begin.round,
+                                     end.round = end.round,
+                                     metric = metric,
+                                     ctx=ctx,
+                                     batch.end.callback=batch.end.callback,
+                                     epoch.end.callback=epoch.end.callback)
   
   return(model)
 }
+
 
 # slice the shape on the highest dimension
 mx.model.slice.shape <- function(shape, nsplit) {
@@ -367,7 +319,7 @@ mx.rnn.infer.buckets <- function(infer_iter,
                                  kvstore=NULL){
   
   ### Infer parameters from model
-  num.lstm.layer=((length(model$arg.params)-3)/6)
+  num.rnn.layer=((length(model$arg.params)-3)/6)
   num.hidden=dim(model$arg.params$l1.init.h)[1]
   input.size=dim(model$arg.params$embed.weight)[2]
   num.embed=dim(model$arg.params$embed.weight)[1]
@@ -380,7 +332,7 @@ mx.rnn.infer.buckets <- function(infer_iter,
   
   # get unrolled lstm symbol
   sym_list<- sapply(infer_iter$bucket_names, function(x) {
-    rnn.unroll(num.lstm.layer=num.lstm.layer,
+    rnn.unroll(num.rnn.layer=num.rnn.layer,
                num.hidden=num.hidden,
                seq.len=as.integer(x),
                input.size=input.size,
@@ -390,7 +342,7 @@ mx.rnn.infer.buckets <- function(infer_iter,
     simplify = F, USE.NAMES = T)
   
   init.states.name<- as.character()
-  for (i in 1:num.lstm.layer){
+  for (i in 1:num.rnn.layer){
     state.c <- paste0("l", i, ".init.c")
     state.h <- paste0("l", i, ".init.h")
     init.states.name<- c(init.states.name, state.c, state.h)
@@ -518,11 +470,6 @@ mx.rnn.infer.buckets <- function(infer_iter,
     labels <- c(labels, sapply(1:ndevice, function(i) {
       as.numeric(as.array(mx.nd.Reshape(slices[[i]]$label, shape=-1)))
     }))
-    
-    #infer_iter$iter.next()
-    #infer_iter$value()$label
-    #apply(predict, 1, which.max)-1
-    #table(apply(predict, 1, which.max)-1 == as.numeric(as.array(infer_iter$value()$label)))
     
   }
   

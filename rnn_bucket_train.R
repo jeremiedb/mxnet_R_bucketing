@@ -1,21 +1,21 @@
 # Internal function to do multiple device training on RNN
-mx.model.train.rnn <- function(ctx,
-                               sym_list,
-                               args,
-                               arg.params, 
-                               aux.params,
-                               input.shape,
-                               begin.round, 
-                               end.round, 
-                               optimizer,
-                               train.data, 
-                               eval.data,
-                               metric,
-                               epoch.end.callback,
-                               batch.end.callback,
-                               kvstore,
-                               verbose=TRUE,
-                               batch.size) {
+mx.model.train.rnn.buckets <- function(ctx,
+                                       sym_list,
+                                       args,
+                                       arg.params, 
+                                       aux.params,
+                                       input.shape,
+                                       begin.round, 
+                                       end.round, 
+                                       optimizer,
+                                       train.data, 
+                                       eval.data,
+                                       metric,
+                                       epoch.end.callback,
+                                       batch.end.callback,
+                                       kvstore,
+                                       verbose=TRUE,
+                                       batch.size) {
   
   ndevice <- length(ctx)
   if(verbose) cat(paste0("Start training with ", ndevice, " devices\n"))

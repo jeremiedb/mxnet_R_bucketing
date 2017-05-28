@@ -1,21 +1,21 @@
 # Internal function to do multiple device training on RNN
-mx.model.train.rnn <- function(ctx,
-                               sym_list,
-                               args,
-                               arg.params, 
-                               aux.params,
-                               input.shape,
-                               begin.round, 
-                               end.round, 
-                               optimizer,
-                               train.data, 
-                               eval.data,
-                               metric,
-                               epoch.end.callback,
-                               batch.end.callback,
-                               kvstore,
-                               verbose=TRUE,
-                               batch.size) {
+mx.model.train.rnn.buckets <- function(ctx,
+                                       sym_list,
+                                       args,
+                                       arg.params, 
+                                       aux.params,
+                                       input.shape,
+                                       begin.round, 
+                                       end.round, 
+                                       optimizer,
+                                       train.data, 
+                                       eval.data,
+                                       metric,
+                                       epoch.end.callback,
+                                       batch.end.callback,
+                                       kvstore,
+                                       verbose=TRUE,
+                                       batch.size) {
   
   ndevice <- length(ctx)
   if(verbose) cat(paste0("Start training with ", ndevice, " devices\n"))
@@ -116,7 +116,12 @@ mx.model.train.rnn <- function(ctx,
       
       # copy outputs to CPU
       out.preds <- lapply(train.execs, function(texec) {
-        mx.nd.copyto(texec$ref.outputs[[length(symbol$outputs)]], mx.cpu())
+        #mx.nd.copyto(texec$ref.outputs[[length(symbol$outputs)]], mx.cpu())
+        # keep all outputs
+        lapply(texec$ref.outputs, function(texec_out) {
+          mx.nd.copyto(texec_out, mx.cpu())
+        })
+        #mx.nd.concat(data = texec$ref.outputs, num_args = length(texec$ref.outputs), dim = 1)
       })
       
       # backward pass
@@ -151,9 +156,8 @@ mx.model.train.rnn <- function(ctx,
       # Update the evaluation metrics
       if (!is.null(metric)) {
         for (i in 1 : ndevice) {
-          #train.metric <- metric$update(label = mx.nd.Reshape(train.execs[[i]]$ref.arg.arrays[["label"]], shape = -1), pred = train.execs[[i]]$ref.outputs[["sm_output"]], state = train.metric)
+          #train.metric <- metric$update(label = mx.nd.Reshape(slices[[i]]$label, shape=-1), pred = out.preds[[i]], state = train.metric)
           train.metric <- metric$update(label = mx.nd.Reshape(slices[[i]]$label, shape=-1), pred = out.preds[[i]], state = train.metric)
-          #train.metric <- metric$update(label = mx.nd.Reshape(slices[[i]]$label, shape=-1), pred = out.preds[[i]], state = train.metric, seq_len = seq_len, batch.size=batch.size)
         }
       }
       nbatch <- nbatch + 1

@@ -48,7 +48,8 @@ mx_io_bucket_iter<- function(buckets, batch_size, data_mask_element=0, shuffle=F
       buckets<<- lapply(buckets, function(x){
         set.seed(123)
         shuffle_id<- sample(ncol(x$data))
-        list(data=x$data[, shuffle_id], label=x$label[shuffle_id])
+        if (length(dim(x$label))==1) list(data=x$data[, shuffle_id], label=x$label[shuffle_id]) else
+          list(data=x$data[, shuffle_id], label=x$label[, shuffle_id])
       })
     }
     
@@ -75,7 +76,8 @@ mx_io_bucket_iter<- function(buckets, batch_size, data_mask_element=0, shuffle=F
     data<- buckets[[names(bucketID)]]$data[,idx, drop=F]
     data_mask<- as.integer(names(bucketID)) - apply(data==data_mask_element, 2, sum)
     data_mask_array<- (!data==0)
-    label<- buckets[[names(bucketID)]]$label[idx]
+    if (length(dim(buckets[[names(bucketID)]]$label))==1) label<- buckets[[names(bucketID)]]$label[idx] else 
+      label<- buckets[[names(bucketID)]]$label[, idx, drop=F]
     return(list(data=mx.nd.array(data), label=mx.nd.array(label), data_mask=mx.nd.array(data_mask), data_mask_array=mx.nd.array(data_mask_array)))
   }
   
