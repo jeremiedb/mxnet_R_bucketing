@@ -70,17 +70,6 @@ rnn.unroll <- function(num.rnn.layer,
     return (cell)
   })
   
-  
-  if (!is.null(init.state)){
-    param.cells <- lapply(1:num.rnn.layer, function(i) {
-      init <- list(i2h.weight = mx.symbol.Variable(paste0("l", i, ".i2h.weight")),
-                   i2h.bias = mx.symbol.Variable(paste0("l", i, ".i2h.bias")),
-                   h2h.weight = mx.symbol.Variable(paste0("l", i, ".h2h.weight")),
-                   h2h.bias = mx.symbol.Variable(paste0("l", i, ".h2h.bias")))
-      return (cell)
-    })
-  }
-  
   # embeding layer
   label <- mx.symbol.Variable("label")
   data <- mx.symbol.Variable("data")
