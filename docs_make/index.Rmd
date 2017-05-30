@@ -1,0 +1,11 @@
+---
+output: html_document
+---
+
+> Examples of applications using bucketing. 
+
+* Sentiment analysis with LSTM
+
+* Language model and text generation with LSTM
+
+* Sentiment analysis with CNN

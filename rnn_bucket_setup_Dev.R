@@ -3,12 +3,16 @@
 
 # lstm cell symbol
 lstm.symbol <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, dropout=0, data_masking){
-  if (dropout > 0) indata <- mx.symbol.Dropout(data=indata, p=dropout)
+  
+  
   i2h <- mx.symbol.FullyConnected(data=indata,
                                   weight=param$i2h.weight,
                                   bias=param$i2h.bias,
                                   num.hidden=num.hidden * 4,
                                   name=paste0("t", seqidx, ".l", layeridx, ".i2h"))
+  
+  if (dropout > 0) i2h <- mx.symbol.Dropout(data=i2h, p=dropout)
+  
   if (!is.null(prev.state)){
     h2h <- mx.symbol.FullyConnected(data=prev.state$h,
                                     weight=param$h2h.weight,
@@ -48,9 +52,11 @@ rnn.unroll <- function(num.rnn.layer,
                        num.hidden, 
                        num.embed, 
                        num.label, 
-                       dropout=0.,
+                       dropout=0,
                        ignore_label=0,
-                       config="one-to-one") {
+                       init.state=NULL,
+                       config,
+                       output_last_state=F) {
   
   embed.weight <- mx.symbol.Variable("embed.weight")
   cls.weight <- mx.symbol.Variable("cls.weight")
@@ -63,7 +69,6 @@ rnn.unroll <- function(num.rnn.layer,
                  h2h.bias = mx.symbol.Variable(paste0("l", i, ".h2h.bias")))
     return (cell)
   })
-  
   
   # embeding layer
   label <- mx.symbol.Variable("label")
@@ -89,7 +94,7 @@ rnn.unroll <- function(num.rnn.layer,
     
     for (i in 1:num.rnn.layer) {
       
-      if (seqidx==1) prev.state<- NULL else prev.state<- last.states[[i]]
+      if (seqidx==1) prev.state<- init.state[[i]] else prev.state<- last.states[[i]]
       
       next.state <- lstm.symbol(num.hidden = num.hidden, 
                                 indata=hidden,
@@ -97,10 +102,10 @@ rnn.unroll <- function(num.rnn.layer,
                                 param=param.cells[[i]],
                                 seqidx=seqidx, 
                                 layeridx=i,
-                                dropout=0,
+                                dropout=dropout,
                                 data_masking=data_mask_split[[seqidx]])
       hidden <- next.state$h
-      if (dropout > 0) hidden <- mx.symbol.Dropout(data=hidden, p=dropout)
+      #if (dropout > 0) hidden <- mx.symbol.Dropout(data=hidden, p=dropout)
       last.states[[i]] <- next.state
     }
     
@@ -134,11 +139,16 @@ rnn.unroll <- function(num.rnn.layer,
     
   }
   
-  return(loss)
+  if (output_last_state){
+    group<- mx.symbol.Group(c(unlist(last.states), loss))
+    return(group)
+  } else return(loss)
 }
 
+
+
 ###########################################
-#### 
+#### mx.rnn.buckets
 mx.rnn.buckets <- function(train.data, 
                            eval.data=NULL,
                            num.rnn.layer,
@@ -160,11 +170,6 @@ mx.rnn.buckets <- function(train.data,
                            end.round=1,
                            metric=mx.metric.rmse,
                            verbose=FALSE) {
-  
-  # check data and change data into iterator
-  #train.data <- check.data(train.data, batch.size, TRUE)
-  #eval.data <- check.data(eval.data, batch.size, FALSE)
-  
   train.data$init()
   if (!is.null(eval.data)) eval.data$init()
   
@@ -185,13 +190,6 @@ mx.rnn.buckets <- function(train.data,
                config = config)}, 
     simplify = F, USE.NAMES = T)
   
-  init.states.name<- as.character()
-  for (i in 1:num.rnn.layer){
-    state.c <- paste0("l", i, ".init.c")
-    state.h <- paste0("l", i, ".init.h")
-    init.states.name<- c(init.states.name, state.c, state.h)
-  }
-  
   ##############################################################
   # setup lstm model
   symbol <- sym_list[[names(train.data$bucketID())]]
@@ -200,29 +198,69 @@ mx.rnn.buckets <- function(train.data,
   input.shape<- lapply(train.data$value(), dim)
   input.shape<- input.shape[names(input.shape) %in% arg.names]
   
-  args<- input.shape
-  args$ctx <- mx.cpu()
-  args$grad.req <- "write"
-  args$symbol <- symbol
-  
   infer_shapes<- symbol$infer.shape(input.shape)
   arg.params <- mx.init.create(initializer, infer_shapes$arg.shapes, mx.cpu(), skip.unknown=TRUE)
   aux.params <- mx.init.create(initializer, infer_shapes$aux.shapes, mx.cpu(), skip.unknown=TRUE)
 
   kvstore <- mxnet:::mx.model.create.kvstore(kvstore, params$arg.params, length(ctx), verbose=verbose)
   
+  ndevice <- length(ctx)
+  if(verbose) cat(paste0("Start training with ", ndevice, " devices\n"))
+  
+  ###################################
+  # Get the input names
+  input.names <- names(input.shape)
+  arg.names<- names(arg.params)
+  
+  # Grad request
+  grad_req<- rep("write", length(symbol$arguments))
+  grad_null_idx<- match(input.names, symbol$arguments)
+  grad_req[grad_null_idx]<- "null"
+  
+  # Arg array order
+  update_names<- c(input.names, arg.names)
+  arg_update_idx<- match(symbol$arguments, update_names)
+  
+  # Initial input shapes - need to be adapted for multi-devices - divide highest dimension by device nb
+  s<- sapply(input.shape, function(shape){
+    mx.nd.zeros(shape=shape, ctx = mx.cpu())
+  })
+  
+  #####################################################
+  ### Initial binding
+  train.execs <- lapply(1:ndevice, function(i) {
+    mxnet:::mx.symbol.bind(symbol = symbol, arg.arrays = c(s, arg.params)[arg_update_idx], aux.arrays = aux.params, ctx=ctx[[i]], grad.req=grad_req)
+  })
+  
+  # KVStore related stuffs
+  params.index <-
+    as.integer(mx.util.filter.null(
+      lapply(1:length(train.execs[[1]]$ref.grad.arrays), function(k) {
+        if (!is.null(train.execs[[1]]$ref.grad.arrays[[k]])) k else NULL
+      })))
+  update.on.kvstore <- FALSE
+  if (!is.null(kvstore) && kvstore$update.on.kvstore) {
+    update.on.kvstore <- TRUE
+    kvstore$set.optimizer(optimizer)
+  } else {
+    updaters <- lapply(1:ndevice, function(i) {
+      mx.opt.get.updater(optimizer, train.execs[[i]]$ref.arg.arrays)
+    })
+  }
+  if (!is.null(kvstore)) {
+    kvstore$init(params.index, train.execs[[1]]$ref.arg.arrays[params.index])
+  }
+  
   #####################################################################
   ### Execute training -  rnn.model.R
   model<- mx.model.train.rnn.buckets(sym_list=sym_list,
-                                     args=args, 
-                                     input.shape=input.shape,
-                                     arg.params=arg.params, 
-                                     aux.params=aux.params,
+                                     train.execs=train.execs,
                                      optimizer=optimizer,
                                      train.data=train.data, 
-                                     batch.size=batch_size,
+                                     batch_size=batch_size,
                                      eval.data=eval.data,
                                      kvstore=kvstore,
+                                     update.on.kvstore=update.on.kvstore,
                                      verbose=verbose,
                                      begin.round = begin.round,
                                      end.round = end.round,
@@ -315,12 +353,15 @@ mx.util.filter.null <- function(lst) {
 #' @export
 mx.rnn.infer.buckets <- function(infer_iter,
                                  model,
+                                 config,
                                  ctx=list(mx.cpu()),
-                                 kvstore=NULL){
+                                 kvstore=NULL,
+                                 output_last_state=FALSE,
+                                 init.state=NULL){
   
   ### Infer parameters from model
-  num.rnn.layer=((length(model$arg.params)-3)/6)
-  num.hidden=dim(model$arg.params$l1.init.h)[1]
+  num.rnn.layer=((length(model$arg.params)-3)/4)
+  num.hidden=dim(model$arg.params$l1.h2h.weight)[1]
   input.size=dim(model$arg.params$embed.weight)[2]
   num.embed=dim(model$arg.params$embed.weight)[1]
   num.label=dim(model$arg.params$cls.bias)
@@ -338,57 +379,21 @@ mx.rnn.infer.buckets <- function(infer_iter,
                input.size=input.size,
                num.embed=num.embed,
                num.label=num.label,
-               dropout=0)}, 
+               config = config,
+               dropout=0, 
+               init.state = init.state,
+               output_last_state = output_last_state)}, 
     simplify = F, USE.NAMES = T)
   
-  init.states.name<- as.character()
-  for (i in 1:num.rnn.layer){
-    state.c <- paste0("l", i, ".init.c")
-    state.h <- paste0("l", i, ".init.h")
-    init.states.name<- c(init.states.name, state.c, state.h)
-  }
-  
-  ##############################################################
-  # set up lstm model
   symbol <- sym_list[[names(infer_iter$bucketID())]]
   
   arg.names <- symbol$arguments
+  input.shape<- lapply(infer_iter$value(), dim)
+  input.shape<- input.shape[names(input.shape) %in% arg.names]
   
-  input.shapes <- list()
-  infer_shapes<- function(seq.len){
-    for (name in arg.names) {
-      if (name %in% init.states.name) {
-        input.shapes[[name]] <- c(num.hidden, batch_size)
-      }
-      else if (grepl('data$', name)) {
-        if (seq.len == 1) {
-          input.shapes[[name]] <- c(batch_size)
-        } else {
-          input.shapes[[name]] <- c(seq.len, batch_size)
-        }
-      } 
-      else if (grepl('data_mask$', name)) {
-        input.shapes[[name]] <- c(batch_size)
-      }
-      else if (grepl('data_mask_array$', name)) {
-        if (seq.len == 1) {
-          input.shapes[[name]] <- c(batch_size)
-        } else {
-          input.shapes[[name]] <- c(seq.len, batch_size)
-        }
-      }
-      else if (grepl('label$', name)) {
-        input.shapes[[name]] <- c(batch_size)
-      }
-    }
-    return(input.shapes)
-  }
-  
-  input.shape <- infer_shapes(seq.len = as.integer(names(infer_iter$bucketID())))
-  args<- input.shape
-  args$ctx <- ctx[[1]]
-  args$grad.req <- "write"
-  args$symbol <- symbol
+  infer_shapes<- symbol$infer.shape(input.shape)
+  arg.params<- model$arg.params
+  aux.params<- model$aux.params
   
   #####################################################################
   ### The above preperation is essentially the same as for training
@@ -401,79 +406,97 @@ mx.rnn.infer.buckets <- function(infer_iter,
   
   ndevice <- length(ctx)
   
-  # create the executors - need to adjust for the init_cand init_h
-  sliceinfo <- mx.model.slice.shape(input.shape, ndevice)
+  symbol<- sym_list[[names(infer_iter$bucketID())]]
+  input.names <- names(input.shape)
+  arg.names<- names(arg.params)
   
-  train.execs <- lapply(1:ndevice, function(i) {
-    do.call(mx.simple.bind, args)
+  # Grad request
+  grad_req<- rep("null", length(symbol$arguments))
+  grad_null_idx<- match(input.names, symbol$arguments)
+  grad_req[grad_null_idx]<- "null"
+  
+  # Arg array order
+  update_names<- c(input.names, arg.names)
+  arg_update_idx<- match(symbol$arguments, update_names)
+  
+  # Initial input shapes - need to be adapted for multi-devices - divide highest dimension by device nb
+  s<- sapply(input.shape, function(shape){
+    mx.nd.zeros(shape=shape, ctx = mx.cpu())
   })
   
-  # set the parameters into executors
-  for (texec in train.execs) {
-    mx.exec.update.arg.arrays(texec, model$arg.params, match.name=TRUE)
-    mx.exec.update.aux.arrays(texec, model$aux.params, match.name=TRUE)
-  }
-  
-  # KVStore related stuffs
-  params.index <-
-    as.integer(mx.util.filter.null(
-      lapply(1:length(train.execs[[1]]$ref.grad.arrays), function(k) {
-        if (!is.null(train.execs[[1]]$ref.grad.arrays[[k]])) k else NULL
-      })))
-  if (!is.null(kvstore)) {
-    kvstore$init(params.index, train.execs[[1]]$ref.arg.arrays[params.index])
-  }
-  # Get the input names
-  input.names <- mx.model.check.arguments(args$symbol)
-  input.names<- c(input.names[1], "data_mask", input.names[2])
-  
+  #####################################################
+  ### Initial binding
+  train.execs <- lapply(1:ndevice, function(i) {
+    mxnet:::mx.symbol.bind(symbol = symbol, arg.arrays = c(s, arg.params)[arg_update_idx], aux.arrays = aux.params, ctx=ctx[[i]], grad.req=grad_req)
+  })
+
   ### initialize the predict
-  predict<- NULL
-  labels<- NULL
+  pred<- NULL
+  label<- NULL
   
   while (infer_iter$iter.next()){
+    
     seq_len<- as.integer(names(infer_iter$bucketID()))
+    
     # Get input data slice
     dlist <- infer_iter$value()
-    slices <- lapply(1:ndevice, function(i) {
-      s <- sliceinfo[[i]]
-      ret <- list(data=mxnet:::mx.nd.slice(dlist$data, s$begin, s$end),
-                  label=mxnet:::mx.nd.slice(dlist$label, s$begin, s$end))
-      return(ret)
+    
+    # Slice inputs for multi-devices
+    slices <- lapply(dlist[input.names], function(input) {
+      mx.nd.SliceChannel(data=input, num_outputs = ndevice, axis = 0, squeeze_axis = F)
     })
     
     ### get the new symbol
     ### Bind the arguments and symbol for the BucketID
     symbol<- sym_list[[names(infer_iter$bucketID())]]
-    arg.names<- setdiff(symbol$arguments, input.names)
-    
+
     train.execs <- lapply(1:ndevice, function(i) {
-      s <- slices[[i]]
-      names(s) <- input.names
-      #mx.exec.update.arg.arrays(train.execs[[i]], s, match.name=TRUE)
-      mxnet:::mx.symbol.bind(symbol = symbol, arg.arrays = c(s[1], train.execs[[i]]$arg.arrays[arg.names], s[2]), aux.arrays = train.execs[[i]]$aux.arrays, ctx=ctx[[i]], grad.req=c("null", rep("write", length(symbol$arguments)-2), "null"))
+      if (ndevice>1) s <- lapply(slices, function(x) x[[i]]) else 
+        s<- slices
+      mxnet:::mx.symbol.bind(symbol = symbol, arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.names])[arg_update_idx], aux.arrays = train.execs[[i]]$aux.arrays, ctx=ctx[[i]], grad.req=grad_req)
     })
     
     for (texec in train.execs) {
       mx.exec.forward(texec, is.train=FALSE)
     }
     
-    # copy outputs to CPU
-    out.preds <- lapply(train.execs, function(texec) {
-      mx.nd.copyto(texec$ref.outputs[[length(symbol$outputs)]], mx.cpu())
-    })
-    
-    predict <- rbind(predict, matrix(sapply(1:ndevice, function(i) {
-      t(as.matrix(out.preds[[i]]))
-    }), nrow=batch_size))
-    
-    labels <- c(labels, sapply(1:ndevice, function(i) {
-      as.numeric(as.array(mx.nd.Reshape(slices[[i]]$label, shape=-1)))
-    }))
-    
+    if (config=="one-to-one"){
+      
+      # copy outputs to CPU
+      out.preds <- lapply(train.execs, function(texec) {
+        lapply(texec$ref.outputs, function(output){
+          mx.nd.copyto(output, mx.cpu())
+        })
+      })
+      
+      ### Only works for 1 device
+      pred<- lapply(1:length(out.preds[[1]]), function(i){
+        rbind(pred[[i]], as.array(out.preds[[1]][[i]]))
+      })
+    } else if (config=="seq-to-one"){
+      
+      # copy outputs to CPU
+      out.preds <- lapply(train.execs, function(texec) {
+        mx.nd.copyto(texec$ref.outputs[[length(symbol$outputs)]], mx.cpu())
+      })
+      
+      pred <- rbind(pred, matrix(sapply(1:ndevice, function(i) {
+        t(as.matrix(out.preds[[i]]))
+      }), nrow=batch_size))
+      
+      label <- c(label, sapply(1:ndevice, function(i) {
+        if (ndevice==1) as.numeric(as.array(mx.nd.Reshape(slices$label, shape=-1))) else
+          as.numeric(as.array(mx.nd.Reshape(slices[[i]]$label, shape=-1)))
+      }))
+      
+    }
   }
   
-  return(list(predict=predict, labels=labels))
+  if (config=="one-to-one"){
+    return(pred)
+  } else if (config=="one-to-one"){
+    return(list(pred=pred, label=label))
+  }
 }
 
 

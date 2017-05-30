@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+
+
+<title>LSTM Text Generation</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/paper.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<script src="site_libs/navigation-1.1/codefolding.js"></script>
+<link href="site_libs/highlightjs-1.1/default.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-1.1/highlight.js"></script>
+<script src="site_libs/htmlwidgets-0.8/htmlwidgets.js"></script>
+<script src="site_libs/viz-0.3/viz.js"></script>
+<link href="site_libs/DiagrammeR-styles-0.2/styles.css" rel="stylesheet" />
+<script src="site_libs/grViz-binding-0.9.0/grViz.js"></script>
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs && document.readyState && document.readyState === "complete") {
+   window.setTimeout(function() {
+      hljs.initHighlighting();
+   }, 0);
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+<link rel="stylesheet" href="style.css" type="text/css" />
+
+</head>
+
+<body>
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 64px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 69px;
+  margin-top: -69px;
+}
+
+.section h2 {
+  padding-top: 69px;
+  margin-top: -69px;
+}
+.section h3 {
+  padding-top: 69px;
+  margin-top: -69px;
+}
+.section h4 {
+  padding-top: 69px;
+  margin-top: -69px;
+}
+.section h5 {
+  padding-top: 69px;
+  margin-top: -69px;
+}
+.section h6 {
+  padding-top: 69px;
+  margin-top: -69px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+
+<div class="container-fluid main-container">
+
+<!-- tabsets -->
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+</script>
+
+<!-- code folding -->
+<style type="text/css">
+.code-folding-btn { margin-bottom: 4px; }
+</style>
+<script>
+$(document).ready(function () {
+  window.initializeCodeFolding("show" === "show");
+});
+</script>
+
+
+
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_').toLowerCase();
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+  padding-left: 25px;
+  text-indent: 0;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row-fluid">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+<nav class="navbar navbar-default navbar-fixed-top" role="navigation">
+  <div class="container">
+  <div class="navbar-header">
+  <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+    <i class="fa fa-bars fa-lg fa-inverse"></i>
+  </button>
+  <a class="navbar-brand" href="index.html">MXNET Bucketing</a>
+  </div>
+  
+  <div id="navbar" class="collapse navbar-collapse">
+  <ul class="nav navbar-nav">
+    
+  <li><a href="LSTM_NLP_classification.html">LSTM NLP Classification</a></li>
+  <li><a href="LSTM_text_generation.html">LSTM Text generation</a></li>
+  <li><a href="CNN_NLP_classification.html">CNN NLP Classification</a></li>
+  
+  </ul>
+  
+  <ul class="nav navbar-nav navbar-right">
+    <li class=navbar-right><a href="mailto:nimus44@gmail.com" ><i class="fa fa-envelope fa-lg"></i></a></li>
+    <li class=navbar-right><a href="https://github.com/jeremiedb" ><i class="fa fa-github fa-lg"></i></a></li>
+  </ul>
+  
+  </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+  </nav><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+<div class="btn-group pull-right">
+<button type="button" class="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span>Code</span> <span class="caret"></span></button>
+<ul class="dropdown-menu" style="min-width: 50px;">
+<li><a id="rmd-show-all-code" href="#">Show All Code</a></li>
+<li><a id="rmd-hide-all-code" href="#">Hide All Code</a></li>
+</ul>
+</div>
+
+
+
+<h1 class="title toc-ignore">LSTM Text Generation</h1>
+
+</div>
+
+
+<pre><code>## Init Rcpp</code></pre>
+<p>Approach:</p>
+<ol style="list-style-type: decimal">
+<li><p>Data preparation 1.1. Read a csv file<br />
+1.2. Split into lines<br />
+1.3. Encode into integrers</p></li>
+<li><p>Iterator<br />
+2.1 Iterator that return bucket ID.<br />
+2.2 Needs to sample from batches that share the same bucket ID.</p></li>
+</ol>
+<p>Retained solution: create a list of arrays, each array corresponds to a bucket.</p>
+<p>Idea is to invest time in preperation rather than during the training</p>
+<div id="build-a-dictionnary" class="section level2">
+<h2>Build a dictionnary</h2>
+<pre class="r"><code>make_dic &lt;- function(text, max.vocab=10000) {
+  
+  dic_labels &lt;- sort(unique(text))
+  #dic &lt;- 1:length(dic_labels)-1
+  dic &lt;- 1:length(dic_labels)
+  names(dic)&lt;- dic_labels
+  
+  cat(paste0(&quot;Total unique char: &quot;, length(dic), &quot;\n&quot;))
+  return (dic)
+}</code></pre>
+</div>
+<div id="index-data-to-vocabulary" class="section level2">
+<h2>Index data to vocabulary</h2>
+<pre class="r"><code>make_data &lt;- function(path, seq.len=32, max.vocab=10000, dic=NULL) {
+  
+  text_vec &lt;- read_file(file = path)
+  text_vec &lt;- strsplit(text_vec, &#39;&#39;) %&gt;% unlist
+  
+  if (is.null(dic)){
+    dic &lt;- make_dic(text_vec, max.vocab)
+  }
+  
+  rev_dic&lt;- names(dic)
+  names(rev_dic)&lt;- dic
+  
+  ### Adjuste by -1 because need a 1-lag for labels
+  num.seq &lt;- as.integer(floor((length(text_vec)-1)/seq.len))
+  
+  features&lt;- dic[text_vec[1:(seq.len*num.seq)]] 
+  labels&lt;- dic[text_vec[1:(seq.len*num.seq)+1]]
+  
+  features_array &lt;- array(features, dim=c(seq.len, num.seq))
+  labels_array &lt;- array(labels, dim=c(seq.len, num.seq))
+  
+  return (list(features_array=features_array, labels_array=labels_array, dic=dic, rev_dic=rev_dic))
+}
+
+
+### Altenative avenues to consider for breaking into characters, words or characters
+# stri_split_boundaries(&quot;alfdsl fdslkj fds Tre Alo. BOn bewn&quot;, type=&quot;sentence&quot;, simplify = T)
+# stri_split_boundaries(&quot;alfdsl fdslkj fds Tre Alo. BOn bewn&quot;, type=&quot;character&quot;, simplify = T)</code></pre>
+<div id="array-list-bucket-iterator" class="section level3">
+<h3>Array List Bucket Iterator</h3>
+<p>A bucketID is returned at initialisation - required for the initial setup the executor.</p>
+<p>During training, the executor is reloaded through a binding to the next executor</p>
+</div>
+</div>
+<div id="prepare-the-obama-speech-data" class="section level2">
+<h2>Prepare the Obama speech data</h2>
+<pre class="r"><code>seq.len&lt;- 100
+system.time(data_prep &lt;- make_data(path = &quot;../data/obama.txt&quot;, seq.len=seq.len, dic=NULL))</code></pre>
+<pre><code>## Total unique char: 83</code></pre>
+<pre><code>##    user  system elapsed 
+##    0.58    0.09    0.69</code></pre>
+<pre class="r"><code>X &lt;- data_prep$features_array
+Y &lt;- data_prep$labels_array
+dic &lt;- data_prep$dic
+rev_dic &lt;- data_prep$rev_dic
+vocab &lt;- length(dic)
+
+shape &lt;- dim(X)
+train.val.fraction &lt;- 0.9
+size &lt;- shape[2]
+
+X.train.data &lt;- X[, 1:as.integer(size * train.val.fraction)]
+X.val.data &lt;- X[, -(1:as.integer(size * train.val.fraction))]
+
+X.train.label &lt;- Y[, 1:as.integer(size * train.val.fraction)]
+X.val.label &lt;- Y[, -(1:as.integer(size * train.val.fraction))]</code></pre>
+</div>
+<div id="visualise-the-lstm-network" class="section level2">
+<h2>Visualise the LSTM network</h2>
+<p>Modification brought to the original model:</p>
+<ul>
+<li>Use a list of symbols, one for every bucket, instead of a single unrolled LSTM</li>
+</ul>
+<pre class="r"><code>test_symbol &lt;- rnn.unroll(num.rnn.layer = 1,
+                          seq.len = 2, 
+                          input.size=vocab,
+                          num.hidden=24,
+                          num.embed=32,
+                          num.label=vocab,
+                          dropout=0, config = &quot;one-to-one&quot;, 
+                          ignore_label = 0)
+
+test_symbol$arguments</code></pre>
+<pre><code>##  [1] &quot;data&quot;            &quot;embed.weight&quot;    &quot;l1.i2h.weight&quot;  
+##  [4] &quot;l1.i2h.bias&quot;     &quot;data_mask_array&quot; &quot;l1.h2h.weight&quot;  
+##  [7] &quot;l1.h2h.bias&quot;     &quot;cls.weight&quot;      &quot;cls.bias&quot;       
+## [10] &quot;label&quot;</code></pre>
+<pre class="r"><code>graph.viz(test_symbol, type=&quot;graph&quot;, direction=&quot;UD&quot;)</code></pre>
+<div id="htmlwidget-b210f6e67dafa858fd7e" style="width:672px;height:960px;" class="grViz html-widget"></div>
+<script type="application/json" data-for="htmlwidget-b210f6e67dafa858fd7e">{"x":{"diagram":"digraph {\n\ngraph [layout = \"dot\",\n       rankdir = \"UD\"]\n\n\n  \"1\" [label = \"data\ndata\", shape = \"oval\", penwidth = \"2\", color = \"#8dd3c7\", style = \"filled\", fillcolor = \"#8DD3C7FF\"] \n  \"2\" [label = \"Embedding\nembed\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fillcolor = \"#FCCDE5FF\"] \n  \"3\" [label = \"SliceChannel\nsplit0\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fillcolor = \"#FCCDE5FF\"] \n  \"4\" [label = \"FullyConnected\nt1.l1.i2h\n96\", shape = \"box\", penwidth = \"2\", color = \"#fb8072\", style = \"filled\", fillcolor = \"#FB8072FF\"] \n  \"5\" [label = \"SliceChannel\nt1.l1.slice\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fillcolor = \"#FCCDE5FF\"] \n  \"6\" [label = \"Activation\nactivation3\nsigmoid\", shape = \"box\", penwidth = \"2\", color = \"#ffffb3\", style = \"filled\", fillcolor = \"#FFFFB3FF\"] \n  \"7\" [label = \"Activation\nactivation0\nsigmoid\", shape = \"box\", penwidth = \"2\", color = \"#ffffb3\", style = \"filled\", fillcolor = \"#FFFFB3FF\"] \n  \"8\" [label = \"Activation\nactivation1\ntanh\", shape = \"box\", penwidth = \"2\", color = \"#ffffb3\", style = \"filled\", fillcolor = \"#FFFFB3FF\"] \n  \"9\" [label = \"_mul\n_mul0\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fillcolor = \"#FCCDE5FF\"] \n  \"10\" [label = \"Activation\nactivation4\ntanh\", shape = \"box\", penwidth = \"2\", color = \"#ffffb3\", style = \"filled\", fillcolor = \"#FFFFB3FF\"] \n  \"11\" [label = \"_mul\n_mul1\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fillcolor = \"#FCCDE5FF\"] \n  \"12\" [label = \"BlockGrad\ndata_mask_array\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fillcolor = \"#FCCDE5FF\"] \n  \"13\" [label = \"SliceChannel\nsplit1\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fillcolor = \"#FCCDE5FF\"] \n  \"14\" [label = \"Reshape\nreshape0\", shape = \"oval\", penwidth = \"2\", color = \"#fdb462\", style = \"filled\", fillcolor = \"#FDB462FF\"] \n  \"15\" [label = \"broadcast_mul\nbroadcast_mul1\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fillcolor = \"#FCCDE5FF\"] \n  \"16\" [label = \"expand_dims\nexpand_dims0\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fillcolor = \"#FCCDE5FF\"] \n  \"17\" [label = \"FullyConnected\nt2.l1.i2h\n96\", shape = \"box\", penwidth = \"2\", color = \"#fb8072\", style = \"filled\", fillcolor = \"#FB8072FF\"] \n  \"18\" [label = \"FullyConnected\nt2.l1.h2h\n96\", shape = \"box\", penwidth = \"2\", color = \"#fb8072\", style = \"filled\", fillcolor = \"#FB8072FF\"] \n  \"19\" [label = \"elemwise_add\n_plus0\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fillcolor = \"#FCCDE5FF\"] \n  \"20\" [label = \"SliceChannel\nt2.l1.slice\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fillcolor = \"#FCCDE5FF\"] \n  \"21\" [label = \"Activation\nactivation8\nsigmoid\", shape = \"box\", penwidth = \"2\", color = \"#ffffb3\", style = \"filled\", fillcolor = \"#FFFFB3FF\"] \n  \"22\" [label = \"Activation\nactivation7\nsigmoid\", shape = \"box\", penwidth = \"2\", color = \"#ffffb3\", style = \"filled\", fillcolor = \"#FFFFB3FF\"] \n  \"23\" [label = \"broadcast_mul\nbroadcast_mul0\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fillcolor = \"#FCCDE5FF\"] \n  \"24\" [label = \"_mul\n_mul2\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fillcolor = \"#FCCDE5FF\"] \n  \"25\" [label = \"Activation\nactivation5\nsigmoid\", shape = \"box\", penwidth = \"2\", color = \"#ffffb3\", style = \"filled\", fillcolor = \"#FFFFB3FF\"] \n  \"26\" [label = \"Activation\nactivation6\ntanh\", shape = \"box\", penwidth = \"2\", color = \"#ffffb3\", style = \"filled\", fillcolor = \"#FFFFB3FF\"] \n  \"27\" [label = \"_mul\n_mul3\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fillcolor = \"#FCCDE5FF\"] \n  \"28\" [label = \"elemwise_add\n_plus1\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fillcolor = \"#FCCDE5FF\"] \n  \"29\" [label = \"Activation\nactivation9\ntanh\", shape = \"box\", penwidth = \"2\", color = \"#ffffb3\", style = \"filled\", fillcolor = \"#FFFFB3FF\"] \n  \"30\" [label = \"_mul\n_mul4\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fillcolor = \"#FCCDE5FF\"] \n  \"31\" [label = \"Reshape\nreshape1\", shape = \"oval\", penwidth = \"2\", color = \"#fdb462\", style = \"filled\", fillcolor = \"#FDB462FF\"] \n  \"32\" [label = \"broadcast_mul\nbroadcast_mul3\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fillcolor = \"#FCCDE5FF\"] \n  \"33\" [label = \"expand_dims\nexpand_dims1\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fillcolor = \"#FCCDE5FF\"] \n  \"34\" [label = \"Concat\nconcat0\", shape = \"oval\", penwidth = \"2\", color = \"#fdb462\", style = \"filled\", fillcolor = \"#FDB462FF\"] \n  \"35\" [label = \"Reshape\nreshape2\", shape = \"oval\", penwidth = \"2\", color = \"#fdb462\", style = \"filled\", fillcolor = \"#FDB462FF\"] \n  \"36\" [label = \"FullyConnected\nfullyconnected0\n83\", shape = \"box\", penwidth = \"2\", color = \"#fb8072\", style = \"filled\", fillcolor = \"#FB8072FF\"] \n  \"37\" [label = \"Reshape\nreshape3\", shape = \"oval\", penwidth = \"2\", color = \"#fdb462\", style = \"filled\", fillcolor = \"#FDB462FF\"] \n  \"38\" [label = \"SoftmaxOutput\nsm\", shape = \"box\", penwidth = \"2\", color = \"#b3de69\", style = \"filled\", fillcolor = \"#B3DE69FF\"] \n\"1\"->\"2\" [id = \"1\", color = \"black\"] \n\"2\"->\"3\" [id = \"2\", color = \"black\"] \n\"3\"->\"4\" [id = \"3\", color = \"black\"] \n\"4\"->\"5\" [id = \"4\", color = \"black\"] \n\"5\"->\"6\" [id = \"5\", color = \"black\"] \n\"5\"->\"7\" [id = \"6\", color = \"black\"] \n\"5\"->\"8\" [id = \"7\", color = \"black\"] \n\"7\"->\"9\" [id = \"8\", color = \"black\"] \n\"8\"->\"9\" [id = \"9\", color = \"black\"] \n\"9\"->\"10\" [id = \"10\", color = \"black\"] \n\"6\"->\"11\" [id = \"11\", color = \"black\"] \n\"10\"->\"11\" [id = \"12\", color = \"black\"] \n\"12\"->\"13\" [id = \"13\", color = \"black\"] \n\"13\"->\"14\" [id = \"14\", color = \"black\"] \n\"11\"->\"15\" [id = \"15\", color = \"black\"] \n\"14\"->\"15\" [id = \"16\", color = \"black\"] \n\"15\"->\"16\" [id = \"17\", color = \"black\"] \n\"3\"->\"17\" [id = \"18\", color = \"black\"] \n\"15\"->\"18\" [id = \"19\", color = \"black\"] \n\"17\"->\"19\" [id = \"20\", color = \"black\"] \n\"18\"->\"19\" [id = \"21\", color = \"black\"] \n\"19\"->\"20\" [id = \"22\", color = \"black\"] \n\"20\"->\"21\" [id = \"23\", color = \"black\"] \n\"20\"->\"22\" [id = \"24\", color = \"black\"] \n\"9\"->\"23\" [id = \"25\", color = \"black\"] \n\"14\"->\"23\" [id = \"26\", color = \"black\"] \n\"22\"->\"24\" [id = \"27\", color = \"black\"] \n\"23\"->\"24\" [id = \"28\", color = \"black\"] \n\"20\"->\"25\" [id = \"29\", color = \"black\"] \n\"20\"->\"26\" [id = \"30\", color = \"black\"] \n\"25\"->\"27\" [id = \"31\", color = \"black\"] \n\"26\"->\"27\" [id = \"32\", color = \"black\"] \n\"24\"->\"28\" [id = \"33\", color = \"black\"] \n\"27\"->\"28\" [id = \"34\", color = \"black\"] \n\"28\"->\"29\" [id = \"35\", color = \"black\"] \n\"21\"->\"30\" [id = \"36\", color = \"black\"] \n\"29\"->\"30\" [id = \"37\", color = \"black\"] \n\"13\"->\"31\" [id = \"38\", color = \"black\"] \n\"30\"->\"32\" [id = \"39\", color = \"black\"] \n\"31\"->\"32\" [id = \"40\", color = \"black\"] \n\"32\"->\"33\" [id = \"41\", color = \"black\"] \n\"16\"->\"34\" [id = \"42\", color = \"black\"] \n\"33\"->\"34\" [id = \"43\", color = \"black\"] \n\"34\"->\"35\" [id = \"44\", color = \"black\"] \n\"35\"->\"36\" [id = \"45\", color = \"black\"] \n\"36\"->\"38\" [id = \"46\", color = \"black\"] \n\"37\"->\"38\" [id = \"47\", color = \"black\"] \n}","config":{"engine":null,"options":null}},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="evaluation-metrics" class="section level2">
+<h2>Evaluation metrics</h2>
+<pre class="r"><code>mx.metric.custom&lt;- function (name, feval) 
+{
+  init &lt;- function() {
+    c(0, 0)
+  }
+  update &lt;- function(label, pred, state) {
+    m &lt;- feval(label, pred)
+    state &lt;- c(state[[1]] + 1, state[[2]] + m)
+    return(state)
+  }
+  get &lt;- function(state) {
+    list(name = name, value = (state[[2]]/state[[1]]))
+  }
+  ret &lt;- (list(init = init, update = update, get = get))
+  class(ret) &lt;- &quot;mx.metric&quot;
+  return(ret)
+}
+
+mx.metric.Perplexity &lt;- mx.metric.custom(&quot;Perplexity&quot;, function(label, pred){
+  label_probs &lt;- as.array(mx.nd.choose.element.0index(pred, label))
+  batch &lt;- length(label_probs)
+  NLL &lt;- -sum(log(pmax(1e-15, as.array(label_probs)))) / batch
+  Perplexity &lt;- exp(NLL)
+  return(Perplexity)
+})</code></pre>
+</div>
+<div id="train-a-language-model" class="section level2">
+<h2>Train a language model</h2>
+<pre class="r"><code>### Create iterators
+batch_size = 64
+
+train_buckets&lt;- list(&quot;100&quot;=list(data=X.train.data, label=X.train.label))
+eval_buckets&lt;- list(&quot;100&quot;=list(data=X.val.data, label=X.val.label))
+
+iter_train&lt;- mx_io_bucket_iter(buckets = train_buckets, batch_size = batch_size, data_mask_element = 0, shuffle = T)
+
+iter_eval&lt;- mx_io_bucket_iter(buckets = eval_buckets, batch_size = batch_size, data_mask_element = 0, shuffle = T)
+
+ctx&lt;- list(mx.cpu())
+
+dropout = 0
+num.rnn.layer = 1
+num.hidden = 32
+num.embed = 16
+num.label = vocab 
+input.size = vocab
+metric = mx.metric.Perplexity
+kvstore=&quot;local&quot;
+batch.end.callback&lt;- NULL
+epoch.end.callback&lt;- NULL
+#optimizer&lt;- mx.opt.create(&quot;sgd&quot;, learning.rate=0.02, wd=0.0001, rescale.grad=1/batch_size)
+optimizer&lt;- mx.opt.create(&quot;adadelta&quot;, rho=0.92, eps=1e-6, wd=0.0001, rescale.grad=1/batch_size)
+initializer=mx.init.uniform(0.1)
+config = &quot;one-to-one&quot;
+verbose=T
+
+system.time(model_obama_1&lt;- mx.rnn.buckets(train.data = iter_train, 
+                               eval.data=iter_eval,
+                               num.rnn.layer = 1, 
+                               num.hidden = 50, 
+                               num.embed = 32, 
+                               num.label = vocab, 
+                               input.size = vocab, 
+                               ctx = ctx, 
+                               begin.round = 1,
+                               end.round = 5,
+                               initializer = initializer, 
+                               dropout = 0.2, 
+                               metric = mx.metric.Perplexity, 
+                               config = &quot;one-to-one&quot;, 
+                               optimizer = optimizer,
+                               verbose=TRUE)
+)
+
+mx.model.save(model = model_obama_1, prefix = &quot;../models/obama_test1&quot;, iteration = 5)</code></pre>
+</div>
+<div id="inference-from-trained-model" class="section level2">
+<h2>Inference from trained model</h2>
+<div id="convert-new-inputs-into-buckets" class="section level3">
+<h3>Convert new inputs into buckets</h3>
+<pre class="r"><code>make_inference_data &lt;- function(text, max.vocab=10000, dic) {
+  
+  text_vec &lt;- strsplit(text, &#39;&#39;) %&gt;% unlist
+  
+  seq.len&lt;- length(text_vec)
+  
+  rev_dic&lt;- names(dic)
+  names(rev_dic)&lt;- dic
+  
+  ### Adjust by -1 because need a 1-lag for labels
+  num.seq &lt;- as.integer(ceiling((length(text_vec)-1)/seq.len))
+  
+  features&lt;- dic[text_vec[1:(seq.len*num.seq)]] 
+  labels&lt;- dic[text_vec[1:(seq.len*num.seq)+1]]
+  
+  features[is.na(features)]&lt;- 0
+  labels[is.na(labels)]&lt;- 0
+  
+  features_array &lt;- array(features, dim=c(seq.len, num.seq))
+  labels_array &lt;- array(labels, dim=c(seq.len, num.seq))
+  
+  return (list(features_array=features_array, labels_array=labels_array, dic=dic, rev_dic=rev_dic))
+}
+
+infer_prep&lt;- make_inference_data(text = &quot;The United States&quot;, dic = data_prep$dic)
+
+infer_features &lt;- infer_prep$features_array
+infer_labels &lt;- infer_prep$labels_array
+dic &lt;- data_prep$dic
+rev_dic &lt;- data_prep$rev_dic
+vocab &lt;- length(dic)
+
+shape &lt;- dim(infer_features)
+size &lt;- shape[2]
+
+infer_buckets&lt;- list(list(data=infer_features, label=infer_labels))
+names(infer_buckets)&lt;- paste0(shape[1])
+
+
+infer_iter&lt;- mx_io_bucket_iter(buckets = infer_buckets, batch_size = 1, data_mask_element = 0, shuffle = F)</code></pre>
+</div>
+<div id="generate-inference" class="section level3">
+<h3>Generate inference</h3>
+<pre class="r"><code>model_obama&lt;- mx.model.load(prefix = &quot;../models/obama_test1&quot;, iteration = 5)
+
+### Get Initial Inference from sentences
+infer_init&lt;- mx.rnn.infer.buckets(infer_iter = infer_iter,
+                                  model = model_obama,
+                                  config = &quot;one-to-one&quot;,
+                                  ctx = ctx, 
+                                  output_last_state=TRUE,
+                                  kvstore = NULL)
+
+### Generate muultiple predictions from a given initial state
+infer_recur&lt;- mx.rnn.infer.buckets(infer_iter = infer_iter,
+                                   model = model_obama,
+                                   config = &quot;one-to-one&quot;,
+                                   ctx = ctx, 
+                                   output_last_state=TRUE,
+                                   init.state = infer_init[1:(length(infer_init)-1)]
+                                   kvstore = NULL)
+
+
+
+preds&lt;- infer_test$pred
+labels&lt;- infer_test$label</code></pre>
+</div>
+</div>
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

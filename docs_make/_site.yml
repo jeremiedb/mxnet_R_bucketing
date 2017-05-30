@@ -1,0 +1,7 @@
+name: "MXNET Bucketing"
+output_dir: "../docs"
+output:
+  html_document:
+    theme: paper
+    css: style.css
+    self_contained: false

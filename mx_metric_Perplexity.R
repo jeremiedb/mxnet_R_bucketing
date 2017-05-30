@@ -5,9 +5,9 @@ mx_metric_Perplexity <- list(
   init = function() {
     c(0, 0)
   },
-  update = function(label, pred, state, seq_len, batch.size) {
+  update = function(label, pred, state, seq_len, batch_size) {
     m <- -sum(log(pmax(1e-15, as.array(mx.nd.choose.element.0index(pred, label)))))
-    state <- c(state[[1]] + seq_len*batch.size, state[[2]] + m)
+    state <- c(state[[1]] + seq_len*batch_size, state[[2]] + m)
     return(state)
   },
   get = function(state) {
@@ -15,3 +15,4 @@ mx_metric_Perplexity <- list(
   }
 )
 class(mx_metric_Perplexity) <- "mx.metric"
+
