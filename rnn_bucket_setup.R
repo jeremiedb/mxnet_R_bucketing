@@ -415,7 +415,7 @@ mx.rnn.infer.buckets <- function(infer_iter,
   
   ### Initialise the iterator
   infer_iter$reset()
-  batch_size<- infer_iter$batch_size
+  batch_size <- infer_iter$batch_size
   
   # get unrolled lstm symbol
   sym_list<- sapply(infer_iter$bucket_names, function(x) {
@@ -435,12 +435,12 @@ mx.rnn.infer.buckets <- function(infer_iter,
   symbol <- sym_list[[names(infer_iter$bucketID())]]
   
   arg.names <- symbol$arguments
-  input.shape<- lapply(infer_iter$value(), dim)
-  input.shape<- input.shape[names(input.shape) %in% arg.names]
+  input.shape <- lapply(infer_iter$value(), dim)
+  input.shape <- input.shape[names(input.shape) %in% arg.names]
   
-  infer_shapes<- symbol$infer.shape(input.shape)
-  arg.params<- model$arg.params
-  aux.params<- model$aux.params
+  infer_shapes <- symbol$infer.shape(input.shape)
+  arg.params <- model$arg.params
+  aux.params <- model$aux.params
   
   #####################################################################
   ### The above preperation is essentially the same as for training

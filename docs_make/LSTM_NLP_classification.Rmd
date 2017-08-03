@@ -117,29 +117,29 @@ num.rnn.layer=2
 batch.end.callback<- mx.callback.log.train.metric(period = 10)
 epoch.end.callback<- mx.callback.log.train.metric(period = 1)
 
-system.time(model_sentiment_lstm<- mx.rnn.buckets(train.data =  X_iter_train,
-                                                  eval.data = X_iter_test,
-                                                  begin.round = 1, 
-                                                  end.round = end.round, 
-                                                  ctx = devices, 
-                                                  metric = metric, 
-                                                  optimizer = optimizer, 
-                                                  kvstore = "local",
-                                                  num.rnn.layer = num.rnn.layer,
-                                                  num.embed=num.embed, 
-                                                  num.hidden = num.hidden,
-                                                  num.label=num.label,
-                                                  input.size=input.size,
-                                                  update.period=1,
-                                                  initializer=initializer,
-                                                  dropout=dropout,
-                                                  config="seq-to-one",
-                                                  batch.end.callback=batch.end.callback,
-                                                  epoch.end.callback=epoch.end.callback,
-                                                  cell.type="lstm",
-                                                  verbose=TRUE))
+system.time(model_sentiment <- mx.rnn.buckets(train.data =  X_iter_train,
+                                              eval.data = X_iter_test,
+                                              begin.round = 1, 
+                                              end.round = end.round, 
+                                              ctx = devices, 
+                                              metric = metric, 
+                                              optimizer = optimizer, 
+                                              kvstore = "local",
+                                              num.rnn.layer = num.rnn.layer,
+                                              num.embed=num.embed, 
+                                              num.hidden = num.hidden,
+                                              num.label=num.label,
+                                              input.size=input.size,
+                                              update.period=1,
+                                              initializer=initializer,
+                                              dropout=dropout,
+                                              config="seq-to-one",
+                                              batch.end.callback=batch.end.callback,
+                                              epoch.end.callback=epoch.end.callback,
+                                              cell.type="lstm",
+                                              verbose=TRUE))
 
-mx.model.save(model_sentiment_lstm, prefix = "../models/model_sentiment_lstm", iteration = 16)
+mx.model.save(model_sentiment, prefix = "../models/model_sentiment_lstm", iteration = 16)
 
 ```
 

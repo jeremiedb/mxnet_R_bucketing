@@ -1,0 +1,239 @@
+---
+title: "LSTM - NLP for Classification"
+output:
+  html_document:
+    theme: paper
+    toc: yes
+    toc_depth: 3
+    toc_float: true
+    code_folding: show
+---
+
+> Demo the application of LSTM for NLP task with varying length sequences using both padding and bucketing through custom iterator with MXNet R package
+
+Example based on sentiment analysis on the [IMDB data](http://ai.stanford.edu/~amaas/data/sentiment/).
+
+Load some packages
+
+```{r, echo=T, message=F}
+require("readr")
+require("dplyr")
+require("plotly")
+require("stringr")
+require("stringi")
+require("AUC")
+require("scales")
+require("mxnet")
+```
+
+
+Load utility functions
+
+```{r, echo=T}
+source("../mx_io_bucket_iter.R")
+source("../rnn_bucket_setup.R")
+source("../rnn_bucket_train.R")
+```
+
+
+## Prepare the data
+
+The loaded data has been pre-process into lists whose elements are the buckets containing the samples and their associated labels. 
+
+This pre-processing involves 2 scripts:  
+
+  - data_import.R: import IMDB data  
+  - data_prep.R: split samples into word vectors and aggregate the buckets of samples and labels into a list
+
+
+```{r, echo=TRUE}
+
+#####################################################
+### Load preprocessed data
+corpus_bucketed_train<- readRDS(file = "../data/kaggle_corpus_bucketed_train_left.rds")
+corpus_bucketed_test<- readRDS(file = "../data/kaggle_corpus_bucketed_test_left.rds")
+
+vocab <- length(corpus_bucketed_test$dic)
+
+### Create iterators
+batch_size = 64
+
+X_iter_train<- mx_io_bucket_iter(buckets = corpus_bucketed_train$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = TRUE)
+
+X_iter_test<- mx_io_bucket_iter(buckets = corpus_bucketed_test$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = FALSE)
+
+```
+
+## Define model parameters
+
+```{r, echo=TRUE}
+
+num.label=2
+num.embed=16
+num.hidden=24
+input.size=vocab
+
+update.period = 1
+
+metric <- mx.metric.accuracy
+
+initializer=mx.init.Xavier(rnd_type = "gaussian", factor_type = "in", magnitude = 2)
+dropout=0.25
+verbose=TRUE
+
+```
+
+## Visualize model architecture
+
+```{r, echo=TRUE, fig.height=12, fig.width=8}
+
+seq.len=2
+rnn_graph<- rnn.unroll(seq.len=seq.len, num.rnn.layer = 1, 
+                       num.hidden = num.hidden,
+                       input.size=input.size,
+                       num.embed=num.embed, 
+                       num.label=num.label,
+                       dropout=dropout, 
+                       ignore_label = 0,
+                       cell.type="lstm",
+                       config = "seq-to-one")
+
+graph.viz(rnn_graph, type = "graph", direction = "TD")
+
+```
+
+
+## Model training
+
+```{r, echo=TRUE, eval=FALSE}
+
+devices<- list(mx.cpu())
+end.round=32
+
+optimizer<- mx.opt.create("adadelta", rho=0.92, epsilon=1e-6, wd=0.0001, clip_gradient=NULL, rescale.grad=1/batch_size)
+
+num.rnn.layer=1
+
+batch.end.callback<- mx.callback.log.train.metric(period = 20)
+epoch.end.callback<- mx.callback.log.train.metric(period = 1)
+
+system.time(model_sentiment <- mx.rnn.buckets(train.data =  X_iter_train,
+                                              eval.data = NULL,
+                                              cell.type="lstm",
+                                              begin.round = 1, 
+                                              end.round = end.round, 
+                                              ctx = devices, 
+                                              metric = metric, 
+                                              optimizer = optimizer, 
+                                              kvstore = "local",
+                                              num.rnn.layer = num.rnn.layer,
+                                              num.embed=num.embed, 
+                                              num.hidden = num.hidden,
+                                              num.label=num.label,
+                                              input.size=input.size,
+                                              update.period=1,
+                                              initializer=initializer,
+                                              dropout=dropout,
+                                              config="seq-to-one",
+                                              batch.end.callback=batch.end.callback,
+                                              epoch.end.callback=epoch.end.callback,
+                                              verbose=TRUE))
+
+mx.model.save(model_sentiment, prefix = "../models/model_kaggle_IMDB_LSTM_1layer", iteration = 20)
+
+```
+
+
+## Inference
+
+```{r, echo=TRUE}
+
+#####################################################
+### Inference
+ctx <- list(mx.cpu())
+model_sentiment <- mx.model.load(prefix = "../models/model_kaggle_IMDB_LSTM_1layer", iteration = 20)
+
+corpus_bucketed_train <- readRDS(file = "../data/kaggle_corpus_bucketed_train_left.rds")
+corpus_bucketed_test<- readRDS(file = "../data/kaggle_corpus_bucketed_test_left.rds")
+
+```
+
+
+### Inference on train data
+
+```{r, echo=TRUE}
+
+###############################################
+### Inference on train
+batch_size <- 256
+
+X_iter_train<- mx_io_bucket_iter(buckets = corpus_bucketed_train$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = F)
+
+infer_train <- mx.rnn.infer.buckets(infer_iter = X_iter_train, 
+                                    model = model_sentiment,
+                                    config="seq-to-one",
+                                    ctx = ctx, 
+                                    cell.type = "lstm",
+                                    kvstore="local")
+
+pred <- infer_train$pred[,2]
+pred_bin <- apply(infer_train$pred, 1, which.max)-1
+label_train <- infer_train$label
+
+acc_train <- sum(pred_bin==label_train)/length(label_train)
+
+roc_train <- roc(predictions = pred, labels = factor(label_train))
+auc_train <- auc(roc_train)
+
+```
+
+Accuracy: `r percent(acc_train)`  
+AUC: `r signif(auc_train, 4)`
+
+
+### Inference on test
+
+```{r, echo=TRUE}
+
+###############################################
+### Inference on test
+batch_size <- 256
+
+X_iter_test <- mx_io_bucket_iter(buckets = corpus_bucketed_test$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = F)
+
+infer_test <- mx.rnn.infer.buckets(infer_iter = X_iter_test, 
+                                   model = model_sentiment,
+                                   config="seq-to-one",
+                                   ctx = ctx,
+                                   cell.type = "lstm",
+                                   kvstore="local")
+
+
+### get raw predictions - including padding
+pred <- infer_test$pred[,2]
+pred_bin <- apply(infer_test$pred, 1, which.max)-1
+length(pred)
+
+### test IDs
+test_ID <- corpus_bucketed_test$ID
+
+### remove padded predictions
+bucket_size <- unlist(lapply(corpus_bucketed_test$buckets, function(x) length(x$label)))
+pred_per_bucket <- ceiling(bucket_size / batch_size) * batch_size
+pading_per_bucket <- pred_per_bucket - bucket_size
+pred_per_bucket_cumsum <- c(0, cumsum(pred_per_bucket))
+
+pred_ID <- unlist(sapply(1:(length(pred_per_bucket_cumsum)-1), function(x) seq(from=pred_per_bucket_cumsum[x] + 1, to=pred_per_bucket_cumsum[x+1] - pading_per_bucket[x])))
+
+pred <- pred[pred_ID]
+pred_bin <- pred_bin[pred_ID]
+pred_df <- data.frame(id=test_ID, sentiment=pred, stringsAsFactors = F)
+
+### submission
+submission <- read_csv("../data/kaggle/data/sampleSubmission.csv") %>% select(-sentiment)
+submission <- submission %>% left_join(pred_df, by="id")
+
+write_csv(submission, path = "../submit/kaggle_IMDB_LSTM_v1.csv")
+
+```
+

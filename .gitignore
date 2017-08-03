@@ -4,6 +4,7 @@
 
 # Session Data files
 .RData
+*.rds
 
 # Example code in package build process
 *-Ex.R
@@ -36,4 +37,7 @@ vignettes/*.pdf
 /data/
 
 /models/
+/submit/
+/test/
 
+/blog/aclImdb/
