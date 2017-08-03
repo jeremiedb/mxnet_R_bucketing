@@ -50,8 +50,8 @@ This pre-processing involves 2 scripts:
 
 #####################################################
 ### Load preprocessed data
-corpus_bucketed_train<- readRDS(file = "../data/corpus_bucketed_train_100_200_300_500_800_left.rds")
-corpus_bucketed_test<- readRDS(file = "../data/corpus_bucketed_test_100_200_300_500_800_left.rds")
+corpus_bucketed_train<- readRDS(file = "../data/kaggle_corpus_bucketed_train_left.rds")
+corpus_bucketed_test<- readRDS(file = "../data/kaggle_corpus_bucketed_test_left.rds")
 
 vocab <- length(corpus_bucketed_test$dic)
 
@@ -71,11 +71,12 @@ X_iter_test<- mx_io_bucket_iter(buckets = corpus_bucketed_test$buckets, batch_si
 num.label=2
 num.embed=16
 num.hidden=24
+input.size=vocab
+
 update.period = 1
 
-metric<- mx.metric.accuracy
+metric <- mx.metric.accuracy
 
-input.size=vocab
 initializer=mx.init.Xavier(rnd_type = "gaussian", factor_type = "in", magnitude = 2)
 dropout=0.25
 verbose=TRUE
@@ -86,8 +87,7 @@ verbose=TRUE
 
 ```{r, echo=TRUE, fig.height=12, fig.width=8}
 
-seq.len<- 2
-
+seq.len=2
 rnn_graph<- rnn.unroll(seq.len=seq.len, num.rnn.layer = 1, 
                        num.hidden = num.hidden,
                        input.size=input.size,
@@ -108,17 +108,18 @@ graph.viz(rnn_graph, type = "graph", direction = "TD")
 ```{r, echo=TRUE, eval=FALSE}
 
 devices<- list(mx.cpu())
-end.round=16
+end.round=32
 
-optimizer<- mx.opt.create("adadelta", rho=0.92, epsilon=1e-6, wd=0.0002, clip_gradient=NULL, rescale.grad=1/batch_size)
+optimizer<- mx.opt.create("adadelta", rho=0.92, epsilon=1e-6, wd=0.0001, clip_gradient=NULL, rescale.grad=1/batch_size)
 
-num.rnn.layer=2
+num.rnn.layer=1
 
-batch.end.callback<- mx.callback.log.train.metric(period = 10)
+batch.end.callback<- mx.callback.log.train.metric(period = 20)
 epoch.end.callback<- mx.callback.log.train.metric(period = 1)
 
 system.time(model_sentiment <- mx.rnn.buckets(train.data =  X_iter_train,
-                                              eval.data = X_iter_test,
+                                              eval.data = NULL,
+                                              cell.type="lstm",
                                               begin.round = 1, 
                                               end.round = end.round, 
                                               ctx = devices, 
@@ -136,10 +137,9 @@ system.time(model_sentiment <- mx.rnn.buckets(train.data =  X_iter_train,
                                               config="seq-to-one",
                                               batch.end.callback=batch.end.callback,
                                               epoch.end.callback=epoch.end.callback,
-                                              cell.type="lstm",
                                               verbose=TRUE))
 
-mx.model.save(model_sentiment, prefix = "../models/model_sentiment_lstm", iteration = 16)
+mx.model.save(model_sentiment, prefix = "../models/model_kaggle_IMDB_LSTM_1layer", iteration = 20)
 
 ```
 
@@ -151,10 +151,10 @@ mx.model.save(model_sentiment, prefix = "../models/model_sentiment_lstm", iterat
 #####################################################
 ### Inference
 ctx <- list(mx.cpu())
-model_sentiment <- mx.model.load(prefix = "../models/model_sentiment_lstm", iteration = 16)
+model_sentiment <- mx.model.load(prefix = "../models/model_kaggle_IMDB_LSTM_1layer", iteration = 20)
 
-corpus_bucketed_train <- readRDS(file = "../data/corpus_bucketed_train_100_200_300_500_800_left.rds")
-corpus_bucketed_test<- readRDS(file = "../data/corpus_bucketed_test_100_200_300_500_800_left.rds")
+corpus_bucketed_train <- readRDS(file = "../data/kaggle_corpus_bucketed_train_left.rds")
+corpus_bucketed_test<- readRDS(file = "../data/kaggle_corpus_bucketed_test_left.rds")
 
 ```
 
@@ -165,7 +165,7 @@ corpus_bucketed_test<- readRDS(file = "../data/corpus_bucketed_test_100_200_300_
 
 ###############################################
 ### Inference on train
-batch_size <- 64
+batch_size <- 256
 
 X_iter_train<- mx_io_bucket_iter(buckets = corpus_bucketed_train$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = F)
 
@@ -176,13 +176,14 @@ infer_train <- mx.rnn.infer.buckets(infer_iter = X_iter_train,
                                     cell.type = "lstm",
                                     kvstore="local")
 
-pred_train<- apply(infer_train$pred, 1, which.max)-1
-label_train<- infer_train$label
+pred <- infer_train$pred[,2]
+pred_bin <- apply(infer_train$pred, 1, which.max)-1
+label_train <- infer_train$label
 
-acc_train<- sum(pred_train==label_train)/length(label_train)
+acc_train <- sum(pred_bin==label_train)/length(label_train)
 
-roc_train<- roc(predictions = infer_train$pred[,2], labels = factor(label_train))
-auc_train<- auc(roc_train)
+roc_train <- roc(predictions = pred, labels = factor(label_train))
+auc_train <- auc(roc_train)
 
 ```
 
@@ -196,24 +197,43 @@ AUC: `r signif(auc_train, 4)`
 
 ###############################################
 ### Inference on test
-X_iter_test<- mx_io_bucket_iter(buckets = corpus_bucketed_test$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = F)
+batch_size <- 256
+
+X_iter_test <- mx_io_bucket_iter(buckets = corpus_bucketed_test$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = F)
 
 infer_test <- mx.rnn.infer.buckets(infer_iter = X_iter_test, 
                                    model = model_sentiment,
                                    config="seq-to-one",
                                    ctx = ctx,
+                                   cell.type = "lstm",
                                    kvstore="local")
 
-pred_test<- apply(infer_test$pred, 1, which.max)-1
-label_test<- infer_test$label
 
-acc_test<- sum(pred_test==label_test)/length(label_test)
+### get raw predictions - including padding
+pred <- infer_test$pred[,2]
+pred_bin <- apply(infer_test$pred, 1, which.max)-1
+length(pred)
 
-roc_test<- roc(predictions = infer_test$pred[,2], labels = factor(label_test))
-auc_test<- auc(roc_test)
+### test IDs
+test_ID <- corpus_bucketed_test$ID
+
+### remove padded predictions
+bucket_size <- unlist(lapply(corpus_bucketed_test$buckets, function(x) length(x$label)))
+pred_per_bucket <- ceiling(bucket_size / batch_size) * batch_size
+pading_per_bucket <- pred_per_bucket - bucket_size
+pred_per_bucket_cumsum <- c(0, cumsum(pred_per_bucket))
+
+pred_ID <- unlist(sapply(1:(length(pred_per_bucket_cumsum)-1), function(x) seq(from=pred_per_bucket_cumsum[x] + 1, to=pred_per_bucket_cumsum[x+1] - pading_per_bucket[x])))
+
+pred <- pred[pred_ID]
+pred_bin <- pred_bin[pred_ID]
+pred_df <- data.frame(id=test_ID, sentiment=pred, stringsAsFactors = F)
+
+### submission
+submission <- read_csv("../data/kaggle/data/sampleSubmission.csv") %>% select(-sentiment)
+submission <- submission %>% left_join(pred_df, by="id")
+
+write_csv(submission, path = "../submit/kaggle_IMDB_LSTM_v1.csv")
 
 ```
-
-Accuracy: `r percent(acc_test)`  
-AUC: `r signif(auc_test, 4)`
 

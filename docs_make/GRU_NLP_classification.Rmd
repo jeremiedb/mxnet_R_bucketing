@@ -1,5 +1,5 @@
 ---
-title: "LSTM - NLP for Classification"
+title: "GRU - NLP for Classification"
 output:
   html_document:
     theme: paper
@@ -9,7 +9,7 @@ output:
     code_folding: show
 ---
 
-> Demo the application of LSTM for NLP task with varying length sequences using both padding and bucketing through custom iterator with MXNet R package
+> Demo the application of GRU for NLP task with varying length sequences using both padding and bucketing through custom iterator with MXNet R package
 
 Example based on sentiment analysis on the [IMDB data](http://ai.stanford.edu/~amaas/data/sentiment/).
 
@@ -77,7 +77,7 @@ metric<- mx.metric.accuracy
 
 input.size=vocab
 initializer=mx.init.Xavier(rnd_type = "gaussian", factor_type = "in", magnitude = 2)
-dropout=0.25
+dropout=0.2
 verbose=TRUE
 
 ```
@@ -86,7 +86,7 @@ verbose=TRUE
 
 ```{r, echo=TRUE, fig.height=12, fig.width=8}
 
-seq.len<- 2
+seq.len=2
 
 rnn_graph<- rnn.unroll(seq.len=seq.len, num.rnn.layer = 1, 
                        num.hidden = num.hidden,
@@ -95,7 +95,7 @@ rnn_graph<- rnn.unroll(seq.len=seq.len, num.rnn.layer = 1,
                        num.label=num.label,
                        dropout=dropout, 
                        ignore_label = 0,
-                       cell.type="lstm",
+                       cell.type="gru",
                        config = "seq-to-one")
 
 graph.viz(rnn_graph, type = "graph", direction = "TD")
@@ -110,15 +110,16 @@ graph.viz(rnn_graph, type = "graph", direction = "TD")
 devices<- list(mx.cpu())
 end.round=16
 
-optimizer<- mx.opt.create("adadelta", rho=0.92, epsilon=1e-6, wd=0.0002, clip_gradient=NULL, rescale.grad=1/batch_size)
+optimizer<- mx.opt.create("adadelta", rho=0.92, epsilon=1e-6, wd=0.0001, clip_gradient=NULL, rescale.grad=1/batch_size)
 
 num.rnn.layer=2
 
-batch.end.callback<- mx.callback.log.train.metric(period = 10)
+batch.end.callback<- mx.callback.log.train.metric(period = 20)
 epoch.end.callback<- mx.callback.log.train.metric(period = 1)
 
 system.time(model_sentiment <- mx.rnn.buckets(train.data =  X_iter_train,
                                               eval.data = X_iter_test,
+                                              cell.type="gru",
                                               begin.round = 1, 
                                               end.round = end.round, 
                                               ctx = devices, 
@@ -136,10 +137,9 @@ system.time(model_sentiment <- mx.rnn.buckets(train.data =  X_iter_train,
                                               config="seq-to-one",
                                               batch.end.callback=batch.end.callback,
                                               epoch.end.callback=epoch.end.callback,
-                                              cell.type="lstm",
                                               verbose=TRUE))
 
-mx.model.save(model_sentiment, prefix = "../models/model_sentiment_lstm", iteration = 16)
+mx.model.save(model_sentiment, prefix = "../models/model_sentiment_gru", iteration = 16)
 
 ```
 
@@ -151,7 +151,7 @@ mx.model.save(model_sentiment, prefix = "../models/model_sentiment_lstm", iterat
 #####################################################
 ### Inference
 ctx <- list(mx.cpu())
-model_sentiment <- mx.model.load(prefix = "../models/model_sentiment_lstm", iteration = 16)
+model_sentiment <- mx.model.load(prefix = "../models/model_sentiment_gru", iteration = 16)
 
 corpus_bucketed_train <- readRDS(file = "../data/corpus_bucketed_train_100_200_300_500_800_left.rds")
 corpus_bucketed_test<- readRDS(file = "../data/corpus_bucketed_test_100_200_300_500_800_left.rds")
@@ -173,7 +173,7 @@ infer_train <- mx.rnn.infer.buckets(infer_iter = X_iter_train,
                                     model = model_sentiment,
                                     config="seq-to-one",
                                     ctx = ctx, 
-                                    cell.type = "lstm",
+                                    cell.type = "gru",
                                     kvstore="local")
 
 pred_train<- apply(infer_train$pred, 1, which.max)-1
@@ -202,6 +202,7 @@ infer_test <- mx.rnn.infer.buckets(infer_iter = X_iter_test,
                                    model = model_sentiment,
                                    config="seq-to-one",
                                    ctx = ctx,
+                                   cell.type = "gru",
                                    kvstore="local")
 
 pred_test<- apply(infer_test$pred, 1, which.max)-1

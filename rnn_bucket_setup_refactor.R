@@ -1,111 +1,16 @@
 #############################################
 #### Symbol design for single output
 
-# LSTM cell symbol
-lstm.cell <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, dropout=0, data_masking){
-  
-  
-  i2h <- mx.symbol.FullyConnected(data=indata,
-                                  weight=param$i2h.weight,
-                                  bias=param$i2h.bias,
-                                  num.hidden=num.hidden * 4,
-                                  name=paste0("t", seqidx, ".l", layeridx, ".i2h"))
-  
-  if (dropout > 0) i2h <- mx.symbol.Dropout(data=i2h, p=dropout)
-  
-  if (!is.null(prev.state)){
-    h2h <- mx.symbol.FullyConnected(data=prev.state$h,
-                                    weight=param$h2h.weight,
-                                    bias=param$h2h.bias,
-                                    num.hidden=num.hidden * 4,
-                                    name=paste0("t", seqidx, ".l", layeridx, ".h2h"))
-    gates <- i2h + h2h
-  } else gates<- i2h
-  
-  split.gates <- mx.symbol.split(gates, num.outputs=4, axis=1, squeeze.axis=F,
-                                 name=paste0("t", seqidx, ".l", layeridx, ".slice"))
-  
-  in.gate <- mx.symbol.Activation(split.gates[[1]], act.type="sigmoid")
-  in.transform <- mx.symbol.Activation(split.gates[[2]], act.type="tanh")
-  forget.gate <- mx.symbol.Activation(split.gates[[3]], act.type="sigmoid")
-  out.gate <- mx.symbol.Activation(split.gates[[4]], act.type="sigmoid")
-  
-  if (is.null(prev.state)){
-    next.c <- in.gate * in.transform
-  } else {
-    next.c <- (forget.gate * prev.state$c) + (in.gate * in.transform)
-  }
-  
-  next.h <- out.gate * mx.symbol.Activation(next.c, act.type="tanh")
-  
-  ### Add a mask - using the mask_array approach
-  data_mask_expand<- mx.symbol.Reshape(data=data_masking, shape=c(1,-2))
-  next.c<- mx.symbol.broadcast_mul(lhs = next.c, rhs=data_mask_expand)
-  next.h<- mx.symbol.broadcast_mul(lhs = next.h, rhs=data_mask_expand)
-  
-  return (list(c=next.c, h=next.h))
-}
+#RNN test cell
+# data <- mx.symbol.Variable("data")
+# param1 <- mx.symbol.Variable("rnn.weight")
+# prev.state <- mx.symbol.Variable("prestate")
+# 
+# rnn <- mx.symbol.RNN(data=data, parameters=param1, state.size=5, num.layers=1, bidirectional=F, mode="lstm", state.outputs=F, name="RNN")
 
-
-# GRU cell symbol
-gru.cell <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, dropout=0, data_masking) {
-  
-  i2h <- mx.symbol.FullyConnected(data=indata,
-                                  weight=param$gates.i2h.weight,
-                                  bias=param$gates.i2h.bias,
-                                  num.hidden=num.hidden * 2,
-                                  name=paste0("t", seqidx, ".l", layeridx, ".gates.i2h"))
-  
-  if (dropout > 0) i2h <- mx.symbol.Dropout(data=i2h, p=dropout)
-  
-  if (!is.null(prev.state)){
-    h2h <- mx.symbol.FullyConnected(data=prev.state$h,
-                                    weight=param$gates.h2h.weight,
-                                    bias=param$gates.h2h.bias,
-                                    num.hidden=num.hidden * 2,
-                                    name=paste0("t", seqidx, ".l", layeridx, ".gates.h2h"))
-    gates <- i2h + h2h
-  } else gates <- i2h
-  
-  split.gates <- mx.symbol.split(gates, num.outputs=2, axis=1, squeeze.axis=F,
-                                 name=paste0("t", seqidx, ".l", layeridx, ".split"))
-  
-  update.gate <- mx.symbol.Activation(split.gates[[1]], act.type="sigmoid")
-  reset.gate <- mx.symbol.Activation(split.gates[[2]], act.type="sigmoid")
-  
-  htrans.i2h <- mx.symbol.FullyConnected(data=indata,
-                                         weight=param$trans.i2h.weight,
-                                         bias=param$trans.i2h.bias,
-                                         num.hidden=num.hidden,
-                                         name=paste0("t", seqidx, ".l", layeridx, ".trans.i2h"))
-  
-  if (is.null(prev.state)){
-    h.after.reset <- reset.gate * 0
-  } else {
-    h.after.reset <- prev.state$h * reset.gate
-  }
-  
-  htrans.h2h <- mx.symbol.FullyConnected(data=h.after.reset,
-                                         weight=param$trans.h2h.weight,
-                                         bias=param$trans.h2h.bias,
-                                         num.hidden=num.hidden,
-                                         name=paste0("t", seqidx, ".l", layeridx, ".trans.h2h"))
-  
-  h.trans <- htrans.i2h + htrans.h2h
-  h.trans.active <- mx.symbol.Activation(h.trans, act.type="tanh")
-  
-  if (is.null(prev.state)){
-    next.h <- update.gate * h.trans.active
-  } else {
-    next.h <- prev.state$h + update.gate * (h.trans.active - prev.state$h)
-  }
-  
-  ### Add a mask - using the mask_array approach
-  data_mask_expand<- mx.symbol.Reshape(data=data_masking, shape=c(1,-2))
-  next.h<- mx.symbol.broadcast_mul(lhs = next.h, rhs=data_mask_expand)
-  
-  return (list(h=next.h))
-}
+# error message: seq length - batch size - input size
+# R: input size - batch size - seq length
+#rnn$infer.shape(list(data=c(8, 26, 22)))
 
 
 # unrolled RNN network
@@ -123,28 +28,10 @@ rnn.unroll <- function(num.rnn.layer,
                        output_last_state=F) {
   
   embed.weight <- mx.symbol.Variable("embed.weight")
+  rnn.weight <- mx.symbol.Variable("rnn.weight")
+  rnn.state.weight <- mx.symbol.Variable("rnn.state.weight")
   cls.weight <- mx.symbol.Variable("cls.weight")
   cls.bias <- mx.symbol.Variable("cls.bias")
-  
-  param.cells <- lapply(1:num.rnn.layer, function(i) {
-    
-    if (cell.type=="lstm"){
-      cell <- list(i2h.weight = mx.symbol.Variable(paste0("l", i, ".i2h.weight")),
-                   i2h.bias = mx.symbol.Variable(paste0("l", i, ".i2h.bias")),
-                   h2h.weight = mx.symbol.Variable(paste0("l", i, ".h2h.weight")),
-                   h2h.bias = mx.symbol.Variable(paste0("l", i, ".h2h.bias")))
-    } else if (cell.type=="gru"){
-      cell <- list(gates.i2h.weight = mx.symbol.Variable(paste0("l", i, ".gates.i2h.weight")),
-                   gates.i2h.bias = mx.symbol.Variable(paste0("l", i, ".gates.i2h.bias")),
-                   gates.h2h.weight = mx.symbol.Variable(paste0("l", i, ".gates.h2h.weight")),
-                   gates.h2h.bias = mx.symbol.Variable(paste0("l", i, ".gates.h2h.bias")),
-                   trans.i2h.weight = mx.symbol.Variable(paste0("l", i, ".trans.i2h.weight")),
-                   trans.i2h.bias = mx.symbol.Variable(paste0("l", i, ".trans.i2h.bias")),
-                   trans.h2h.weight = mx.symbol.Variable(paste0("l", i, ".trans.h2h.weight")),
-                   trans.h2h.bias = mx.symbol.Variable(paste0("l", i, ".trans.h2h.bias")))
-    }
-    return (cell)
-  })
   
   # embeding layer
   label <- mx.symbol.Variable("label")
@@ -156,8 +43,8 @@ rnn.unroll <- function(num.rnn.layer,
   embed <- mx.symbol.Embedding(data=data, input_dim=input.size,
                                weight=embed.weight, output_dim=num.embed, name="embed")
   
-  wordvec <- mx.symbol.split(data=embed, axis=1, num.outputs=seq.len, squeeze_axis=T)
-  data_mask_split <- mx.symbol.split(data=data_mask_array, axis=1, num.outputs=seq.len, squeeze_axis=T)
+  wordvec <- mx.symbol.split(data=embed, axis=1, num.outputs=seq.len, squeeze_axis=F)
+  data_mask_split <- mx.symbol.split(data=data_mask_array, axis=1, num.outputs=seq.len, squeeze_axis=F)
   
   last.hidden <- list()
   last.states <- list()
@@ -165,40 +52,29 @@ rnn.unroll <- function(num.rnn.layer,
   softmax <- list()
   fc <- list()
   
+  seqidx <- 1
+  
   for (seqidx in 1:seq.len) {
+    
     hidden <- wordvec[[seqidx]]
     
-    for (i in 1:num.rnn.layer) {
-      
-      if (seqidx==1) prev.state<- init.state[[i]] else prev.state <- last.states[[i]]
-      
-      if (cell.type=="lstm") {
-        cell.symbol <- lstm.cell
-      } else if (cell.type=="gru"){
-        cell.symbol <- gru.cell
-      }
-      
-      next.state <- cell.symbol(num.hidden = num.hidden, 
-                                indata=hidden,
-                                prev.state=prev.state,
-                                param=param.cells[[i]],
-                                seqidx=seqidx, 
-                                layeridx=i,
-                                dropout=dropout,
-                                data_masking=data_mask_split[[seqidx]])
-      hidden <- next.state$h
-      #if (dropout > 0) hidden <- mx.symbol.Dropout(data=hidden, p=dropout)
-      last.states[[i]] <- next.state
+    if (seqidx==1) {
+      next.state <- mx.symbol.RNN(data=hidden, state=rnn.state.weight, parameters=rnn.weight, state.size=num.hidden, num.layers=num.rnn.layer, bidirectional=F, mode=cell.type, state.outputs=T, p=dropout)
+    } else {
+      next.state <- mx.symbol.RNN(data=hidden, state=next.state[[2]], parameters=rnn.weight, state.size=num.hidden, num.layers=num.rnn.layer, bidirectional=F, mode=cell.type, state.outputs=T, p=dropout)
     }
     
+    #hidden <- next.state
+    #last.states[[i]] <- next.state
+    
     # Decoding
-    if (config=="one-to-one"){
-      last.hidden <- c(last.hidden, hidden)
+    if (config=="one-to-one") {
+      last.hidden <- c(last.hidden, next.state[[1]])
     }
   }
   
-  if (config=="seq-to-one"){
-    fc <- mx.symbol.FullyConnected(data=hidden,
+  if (config=="seq-to-one") {
+    fc <- mx.symbol.FullyConnected(data=next.state[[1]],
                                    weight=cls.weight,
                                    bias=cls.bias,
                                    num.hidden=num.label)
@@ -206,7 +82,7 @@ rnn.unroll <- function(num.rnn.layer,
     loss <- mx.symbol.SoftmaxOutput(data=fc, name="sm", label=label, ignore_label=ignore_label)
     
   } else if (config=="one-to-one"){
-
+    
     last.hidden_expand = lapply(last.hidden, function(i) mx.symbol.expand_dims(i, axis=1))
     concat <-mx.symbol.concat(last.hidden_expand, num.args = seq.len, dim = 1)
     reshape = mx.symbol.Reshape(concat, shape=c(num.hidden, -1))
@@ -222,11 +98,10 @@ rnn.unroll <- function(num.rnn.layer,
   }
   
   if (output_last_state){
-    group<- mx.symbol.Group(c(unlist(last.states), loss))
+    group <- mx.symbol.Group(c(unlist(last.states), loss))
     return(group)
   } else return(loss)
 }
-
 
 
 ###########################################
@@ -240,7 +115,6 @@ mx.rnn.buckets <- function(train.data,
                            input.size,
                            ctx=list(mx.cpu()),
                            num.round=1, 
-                           update.period=1,
                            initializer=mx.init.uniform(0.01),
                            dropout=0,
                            config="one-to-one",
@@ -261,10 +135,10 @@ mx.rnn.buckets <- function(train.data,
   train.data$reset()
   if (!is.null(eval.data)) eval.data$reset()
   
-  batch_size<- train.data$batch_size
+  batch_size <- train.data$batch_size
   
   # get unrolled lstm symbol
-  sym_list<- sapply(train.data$bucket_names, function(x) {
+  sym_list <- sapply(train.data$bucket_names, function(x) {
     rnn.unroll(num.rnn.layer=num.rnn.layer,
                num.hidden=num.hidden,
                seq.len=as.integer(x),
@@ -281,33 +155,33 @@ mx.rnn.buckets <- function(train.data,
   symbol <- sym_list[[names(train.data$bucketID())]]
   
   arg.names <- symbol$arguments
-  input.shape<- lapply(train.data$value(), dim)
-  input.shape<- input.shape[names(input.shape) %in% arg.names]
+  input.shape <- lapply(train.data$value(), dim)
+  input.shape <- input.shape[names(input.shape) %in% arg.names]
   
-  infer_shapes<- symbol$infer.shape(input.shape)
+  infer_shapes <- symbol$infer.shape(input.shape)
   arg.params <- mx.init.create(initializer, infer_shapes$arg.shapes, mx.cpu(), skip.unknown=TRUE)
   aux.params <- mx.init.create(initializer, infer_shapes$aux.shapes, mx.cpu(), skip.unknown=TRUE)
-
+  
   kvstore <- mxnet:::mx.model.create.kvstore(kvstore, params$arg.params, length(ctx), verbose=verbose)
   
   #####################################################################
   ### Execute training -  rnn.model.R
-  model<- mx.model.train.rnn.buckets(sym_list=sym_list,
-                                     input.shape=input.shape,
-                                     arg.params=arg.params, 
-                                     aux.params=aux.params,
-                                     optimizer=optimizer,
-                                     train.data=train.data, 
-                                     batch_size=batch_size,
-                                     eval.data=eval.data,
-                                     kvstore=kvstore,
-                                     verbose=verbose,
-                                     begin.round = begin.round,
-                                     end.round = end.round,
-                                     metric = metric,
-                                     ctx=ctx,
-                                     batch.end.callback=batch.end.callback,
-                                     epoch.end.callback=epoch.end.callback)
+  model <- mx.model.train.rnn.buckets(sym_list=sym_list,
+                                      input.shape=input.shape,
+                                      arg.params=arg.params, 
+                                      aux.params=aux.params,
+                                      optimizer=optimizer,
+                                      train.data=train.data, 
+                                      batch_size=batch_size,
+                                      eval.data=eval.data,
+                                      kvstore=kvstore,
+                                      verbose=verbose,
+                                      begin.round = begin.round,
+                                      end.round = end.round,
+                                      metric = metric,
+                                      ctx=ctx,
+                                      batch.end.callback=batch.end.callback,
+                                      epoch.end.callback=epoch.end.callback)
   
   return(model)
 }

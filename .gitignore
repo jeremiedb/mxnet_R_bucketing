@@ -4,12 +4,14 @@
 
 # Session Data files
 .RData
+*.rds
 
 # Example code in package build process
 *-Ex.R
 
 # Output files from R CMD build
 /*.tar.gz
+*.tar.gz
 
 # Output files from R CMD check
 /*.Rcheck/
@@ -36,4 +38,7 @@ vignettes/*.pdf
 /data/
 
 /models/
+/submit/
+/test/
 
+/blog/aclImdb/
