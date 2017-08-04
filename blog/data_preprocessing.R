@@ -35,16 +35,13 @@ positive_test_raw <- file_import(positive_test_list)
 train_raw <- c(negative_train_raw, positive_train_raw)
 test_raw <- c(negative_test_raw, positive_test_raw)
 
-saveRDS(train_raw, file = "train_raw.rds")
-saveRDS(test_raw, file = "test_raw.rds")
-
 # Pre-process a corpus composed of a vector of sequences Build a dictionnary
 # removing too rare words
 text_pre_process <- function(corpus, count_threshold = 10, dic = NULL) {
   raw_vec <- corpus
   raw_vec <- stri_enc_toascii(str = raw_vec)
   
-  ### remove non-printable characters
+  ### perform some preprocessing
   raw_vec <- str_replace_all(string = raw_vec, pattern = "[^[:print:]]", replacement = "")
   raw_vec <- str_to_lower(string = raw_vec)
   raw_vec <- str_replace_all(string = raw_vec, pattern = "_", replacement = " ")
@@ -158,5 +155,5 @@ corpus_bucketed_test <- make_bucket_data(word_vec_list = corpus_preprocessed_tes
                                          seq_len = c(100, 150, 250, 400, 600), 
                                          right_pad = F)
 
-saveRDS(corpus_bucketed_train, file = "corpus_bucketed_train.rds")
-saveRDS(corpus_bucketed_test, file = "corpus_bucketed_test.rds")
+saveRDS(corpus_bucketed_train, file = "data/corpus_bucketed_train.rds")
+saveRDS(corpus_bucketed_test, file = "data/corpus_bucketed_test.rds")

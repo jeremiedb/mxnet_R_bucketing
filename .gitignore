@@ -42,3 +42,5 @@ vignettes/*.pdf
 /test/
 
 /blog/aclImdb/
+/blog/data/
+/blog/models/
