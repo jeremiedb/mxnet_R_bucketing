@@ -126,8 +126,8 @@ rnn.unroll <- function(num.rnn.layer,
   } else if (config=="one-to-one"){
 
     last.hidden_expand = lapply(last.hidden, function(i) mx.symbol.expand_dims(i, axis=1))
-    concat <-mx.symbol.Concat(last.hidden_expand, num.args = seq.len, dim = 1)
-    reshape = mx.symbol.Reshape(concat, shape=c(num.hidden, -1))
+    concat <-mx.symbol.concat(last.hidden_expand, num.args = seq.len, dim = 1)
+    reshape = mx.symbol.reshape(concat, shape=c(num.hidden, -1))
     
     fc <- mx.symbol.FullyConnected(data=reshape,
                                    weight=cls.weight,

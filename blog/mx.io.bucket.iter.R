@@ -63,6 +63,12 @@ BucketIter <- setRefClass("BucketIter", fields = c("buckets", "bucket.names", "b
   # character containing the sequence length of the bucket (used to unroll the rnn
   # to appropriate sequence length)
   idx <- (.self$bucketID - 1) * (.self$batch.size) + (1:batch.size)
+  
+  ### reuse first idx for padding
+  if (bucketID == batch_per_bucket[names(.self$bucketID)] & !last_batch_pad[names(.self$bucketID)] == 0) {
+    idx <- c(idx[1:last_batch_pad[names(.self$bucketID)]], 1:(batch_size - last_batch_pad[names(.self$bucketID)]))
+  }
+  
   data <- .self$buckets[[names(.self$bucketID)]]$data[, idx, drop = F]
   data_mask_array <- (!data == 0)
   if (length(dim(.self$buckets[[names(.self$bucketID)]]$label)) == 0) {

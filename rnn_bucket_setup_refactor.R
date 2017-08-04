@@ -13,19 +13,19 @@
 #rnn$infer.shape(list(data=c(8, 26, 22)))
 
 
-# unrolled RNN network
-rnn.unroll <- function(num.rnn.layer, 
-                       seq.len, 
-                       input.size,
-                       num.embed, 
-                       num.hidden,
-                       num.label,
-                       dropout=0,
-                       ignore_label=0,
-                       init.state=NULL,
-                       config,
-                       cell.type="lstm",
-                       output_last_state=F) {
+# unroll RNN network
+rnn.unroll.cudnn <- function(num.rnn.layer, 
+                             seq.len, 
+                             input.size,
+                             num.embed, 
+                             num.hidden,
+                             num.label,
+                             dropout=0,
+                             ignore_label=0,
+                             init.state=NULL,
+                             config,
+                             cell.type="lstm",
+                             output_last_state=F) {
   
   embed.weight <- mx.symbol.Variable("embed.weight")
   rnn.weight <- mx.symbol.Variable("rnn.weight")
@@ -55,17 +55,12 @@ rnn.unroll <- function(num.rnn.layer,
   seqidx <- 1
   
   for (seqidx in 1:seq.len) {
-    
     hidden <- wordvec[[seqidx]]
-    
     if (seqidx==1) {
       next.state <- mx.symbol.RNN(data=hidden, state=rnn.state.weight, parameters=rnn.weight, state.size=num.hidden, num.layers=num.rnn.layer, bidirectional=F, mode=cell.type, state.outputs=T, p=dropout)
     } else {
       next.state <- mx.symbol.RNN(data=hidden, state=next.state[[2]], parameters=rnn.weight, state.size=num.hidden, num.layers=num.rnn.layer, bidirectional=F, mode=cell.type, state.outputs=T, p=dropout)
     }
-    
-    #hidden <- next.state
-    #last.states[[i]] <- next.state
     
     # Decoding
     if (config=="one-to-one") {
@@ -350,7 +345,7 @@ mx.rnn.infer.buckets <- function(infer_iter,
   train.execs <- lapply(1:ndevice, function(i) {
     mxnet:::mx.symbol.bind(symbol = symbol, arg.arrays = c(s, arg.params)[arg_update_idx], aux.arrays = aux.params, ctx=ctx[[i]], grad.req=grad_req)
   })
-
+  
   ### initialize the predict
   pred<- NULL
   label<- NULL
@@ -370,7 +365,7 @@ mx.rnn.infer.buckets <- function(infer_iter,
     ### get the new symbol
     ### Bind the arguments and symbol for the BucketID
     symbol <- sym_list[[names(infer_iter$bucketID())]]
-
+    
     train.execs <- lapply(1:ndevice, function(i) {
       if (ndevice>1) s <- lapply(slices, function(x) x[[i]]) else 
         s<- slices
