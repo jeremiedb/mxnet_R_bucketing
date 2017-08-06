@@ -31,10 +31,10 @@ mx.model.train.rnn.buckets <- function(ctx, sym_list, arg.params, aux.params, in
   
   train.execs <- lapply(1:ndevice, function(i) {
     s <- sapply(append(input_slice[[i]]$shape, output_slice[[i]]$shape), function(shape) {
-      mx.nd.zeros(shape = shape, ctx = mx.cpu())
+      mx.nd.zeros(shape = shape, ctx = ctx[[i]])
     })
     mxnet:::mx.symbol.bind(symbol = symbol, arg.arrays = c(s, arg.params)[arg_update_idx], 
-                           aux.arrays = aux.params, ctx = mx.cpu(), grad.req = grad_req)
+                           aux.arrays = aux.params, ctx = ctx[[i]], grad.req = grad_req)
   })
   
   # KVStore related stuffs

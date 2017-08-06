@@ -147,13 +147,13 @@ corpus_bucketed_train <- make_bucket_data(word_vec_list = corpus_preprocessed_tr
                                           labels = rep(0:1, each = 12500), 
                                           dic = corpus_preprocessed_train$dic, 
                                           seq_len = c(100, 150, 250, 400, 600), 
-                                          right_pad = F)
+                                          right_pad = T)
 
 corpus_bucketed_test <- make_bucket_data(word_vec_list = corpus_preprocessed_test$word_vec_list, 
                                          labels = rep(0:1, each = 12500), 
                                          dic = corpus_preprocessed_test$dic, 
                                          seq_len = c(100, 150, 250, 400, 600), 
-                                         right_pad = F)
+                                         right_pad = T)
 
-saveRDS(corpus_bucketed_train, file = "data/corpus_bucketed_train.rds")
-saveRDS(corpus_bucketed_test, file = "data/corpus_bucketed_test.rds")
+saveRDS(corpus_bucketed_train, file = "data/corpus_bucketed_train_right_pad.rds")
+saveRDS(corpus_bucketed_test, file = "data/corpus_bucketed_test_right_pad.rds")
