@@ -57,9 +57,9 @@ rnn.unroll.cudnn <- function(num.rnn.layer,
   for (seqidx in 1:seq.len) {
     hidden <- wordvec[[seqidx]]
     if (seqidx==1) {
-      next.state <- mx.symbol.RNN(data=hidden, state=rnn.state.weight, parameters=rnn.weight, state.size=num.hidden, num.layers=num.rnn.layer, bidirectional=F, mode=cell.type, state.outputs=T, p=dropout)
+      next.state <- mx.symbol.RNN(data=hidden, state=rnn.state.weight, parameters=rnn.weight, state.size=num.hidden, num.layers=num.rnn.layer, bidirectional=F, mode=cell.type, state.outputs=T, p=dropout, name=paste(cell.type, num.rnn.layer, "layer", seqidx, sep="_"))
     } else {
-      next.state <- mx.symbol.RNN(data=hidden, state=next.state[[2]], parameters=rnn.weight, state.size=num.hidden, num.layers=num.rnn.layer, bidirectional=F, mode=cell.type, state.outputs=T, p=dropout)
+      next.state <- mx.symbol.RNN(data=hidden, state=next.state[[2]], parameters=rnn.weight, state.size=num.hidden, num.layers=num.rnn.layer, bidirectional=F, mode=cell.type, state.outputs=T, p=dropout, name=paste(cell.type, num.rnn.layer, "layer", seqidx, sep="_"))
     }
     
     # Decoding
@@ -134,15 +134,15 @@ mx.rnn.buckets <- function(train.data,
   
   # get unrolled lstm symbol
   sym_list <- sapply(train.data$bucket_names, function(x) {
-    rnn.unroll(num.rnn.layer=num.rnn.layer,
-               num.hidden=num.hidden,
-               seq.len=as.integer(x),
-               input.size=input.size,
-               num.embed=num.embed,
-               num.label=num.label,
-               dropout=dropout,
-               cell.type=cell.type,
-               config = config)}, 
+    rnn.unroll.cudnn(num.rnn.layer=num.rnn.layer,
+                     num.hidden=num.hidden,
+                     seq.len=as.integer(x),
+                     input.size=input.size,
+                     num.embed=num.embed,
+                     num.label=num.label,
+                     dropout=dropout,
+                     cell.type=cell.type,
+                     config = config)}, 
     simplify = F, USE.NAMES = T)
   
   ##############################################################
