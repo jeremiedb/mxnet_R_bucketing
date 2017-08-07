@@ -216,15 +216,10 @@ rnn.unroll.cudnn <- function(num.rnn.layer,
   label <- mx.symbol.Variable("label")
   data <- mx.symbol.Variable("data")
   seq.mask <- mx.symbol.Variable("seq.mask")
-  # data_mask_array <- mx.symbol.Variable("data.mask.array")
-  # data_mask_array <- mx.symbol.stop_gradient(data_mask_array, name = "data.mask.array")
   
   data <- mx.symbol.transpose(data=data)
   embed <- mx.symbol.Embedding(data=data, input_dim=input.size,
                                weight=embed.weight, output_dim=num.embed, name="embed")
-  
-  # wordvec <- mx.symbol.split(data=embed, axis=1, num.outputs=seq.len, squeeze_axis=F)
-  # data_mask_split <- mx.symbol.split(data=data_mask_array, axis=1, num.outputs=seq.len, squeeze_axis=F)
   
   last.hidden <- list()
   last.states <- list()
@@ -241,8 +236,8 @@ rnn.unroll.cudnn <- function(num.rnn.layer,
   # }
   
   if (config=="seq-to-one") {
-    #last.seq <- mx.symbol.SequenceLast(data=rnn[[1]], sequence_length=seq.mask, use.sequence.length = T, name = "last.seq")
-    last.seq <- mx.symbol.SequenceLast(data=rnn[[1]], name = "last.seq")
+    last.seq <- mx.symbol.SequenceLast(data=rnn[[1]], sequence_length=seq.mask, use.sequence.length = T, name = "last.seq")
+    #last.seq <- mx.symbol.SequenceLast(data=rnn[[1]], name = "last.seq")
     fc <- mx.symbol.FullyConnected(data=last.seq,
                                    weight=cls.weight,
                                    bias=cls.bias,

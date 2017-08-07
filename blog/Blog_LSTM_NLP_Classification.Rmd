@@ -29,7 +29,7 @@ require("mxnet")
 Load utility functions
 
 ```{r, echo=T}
-source("mx.io.bucket.iter.no_mask.R")
+source("mx.io.bucket.iter.seq_len.R")
 source("rnn.unroll.R")
 source("rnn.R")
 source("rnn.train.R")
@@ -96,17 +96,20 @@ This pre-processing involves 2 scripts:
 
 #####################################################
 ### Load preprocessed data
-corpus_bucketed_train <- readRDS(file = "data/corpus_bucketed_train.rds")
-corpus_bucketed_test <- readRDS(file = "data/corpus_bucketed_test.rds")
+# corpus_bucketed_train <- readRDS(file = "data/corpus_bucketed_train.rds")
+# corpus_bucketed_test <- readRDS(file = "data/corpus_bucketed_test.rds")
+
+corpus_bucketed_train <- readRDS(file = "data/corpus_bucketed_train_right_pad.rds")
+corpus_bucketed_test <- readRDS(file = "data/corpus_bucketed_test_right_pad.rds")
 
 vocab <- length(corpus_bucketed_test$dic)
 
 ### Create iterators
 batch.size = 64
 
-train.data <- mx.io.bucket.iter(buckets = corpus_bucketed_train$buckets, batch.size = batch.size, shuffle = TRUE)
+train.data <- mx.io.bucket.iter(buckets = corpus_bucketed_train$buckets, batch.size = batch.size, data.mask.element = 0, shuffle = TRUE)
 
-eval.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.size = batch.size, shuffle = FALSE)
+eval.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.size = batch.size, data.mask.element = 0, shuffle = FALSE)
 
 ```
 
@@ -116,30 +119,33 @@ eval.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.siz
 
 devices <- mx.gpu(0)
 
-initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 1.5)
+initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
 
-# optimizer <- mx.opt.create("adadelta", rho=0.92, epsilon=1e-6, wd=1e-5, clip_gradient=NULL, rescale.grad=1/batch.size)
-
-optimizer <- mx.opt.create("rmsprop", learning.rate = 0.002, gamma1 = 0.95, gamma2 = 0.9, wd = 1e-5, clip_gradient=NULL, rescale.grad=1/batch.size)
+optimizer <- mx.opt.create("rmsprop", learning.rate = 0.001, gamma1 = 0.95, gamma2 = 0.9, wd = 1e-5, clip_gradient=NULL, rescale.grad=1/batch.size)
 
 batch.end.callback<- mx.callback.log.train.metric(period = 50)
 epoch.end.callback<- mx.callback.log.train.metric(period = 1)
 
-model_sentiment_rnn <- mx.rnn.buckets(train.data = train.data, eval.data = eval.data, 
-                                      num.round = 10, 
+model_sentiment_rnn <- mx.rnn.buckets(train.data = train.data, eval.data = eval.data,
+                                      num.round = 5, 
                                       ctx = devices, 
                                       metric = mx.metric.accuracy, 
-                                      initializer = initializer, optimizer = optimizer, 
+                                      initializer = initializer, 
+                                      optimizer = optimizer, 
                                       num.rnn.layer = 1, 
-                                      num.embed = 12, num.hidden = 8, 
-                                      num.label = 2, input.size = vocab, 
-                                      dropout = 0.5,
-                                      cell.type = "gru", config = "seq-to-one", 
+                                      num.embed = 5, 
+                                      num.hidden = 10, 
+                                      num.label = 2, 
+                                      input.size = vocab, 
+                                      dropout = 0.2,
+                                      cell.type = "gru", 
+                                      config = "seq-to-one", 
                                       batch.end.callback = batch.end.callback, 
                                       epoch.end.callback = epoch.end.callback,
-                                      verbose = TRUE, cudnn = TRUE)
+                                      verbose = TRUE, 
+                                      cudnn = TRUE)
 
-mx.model.save(model_sentiment_lstm, prefix = "../models/model_sentiment_lstm", iteration = 25)
+mx.model.save(model_sentiment_rnn, prefix = "../models/model_sentiment_rnn", iteration = 5)
 
 ```
 

@@ -1,3 +1,5 @@
+library(mxnet)
+
 BucketIter <- setRefClass("BucketIter", fields = c("buckets", "bucket.names", "batch.size", 
   "data.mask.element", "shuffle", "bucket.plan", "bucketID", "epoch", "batch", "batch.per.bucket", 
   "last.batch.pad", "batch.per.epoch", "seed"), contains = "Rcpp_MXArrayDataIter", methods = list(initialize = function(buckets, 

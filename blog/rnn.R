@@ -72,7 +72,7 @@ mx.rnn.buckets <- function(train.data, eval.data = NULL, num.rnn.layer, num.hidd
   symbol <- sym_list[[names(train.data$bucketID)]]
   
   arg.names <- symbol$arguments
-  input.names <- if (cudnn) c("data") else c("data", "data.mask.array")
+  input.names <- if (cudnn) c("data", "seq.mask") else c("data", "data.mask.array")
   input.shape <- sapply(input.names, function(n) {
     dim(train.data$value()[[n]])
   }, simplify = FALSE)
