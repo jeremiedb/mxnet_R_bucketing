@@ -75,8 +75,13 @@ rnn_graph_6 <- rnn.unroll.cudnn(seq.len=6,
                                 cell.type="gru",
                                 config = "seq-to-one")
 
+<<<<<<< HEAD
 graph.viz(rnn_graph_3, type = "graph", direction = "LR", graph.height.px = 200, graph.width.px = 700, shape=c(5, 32))
 graph.viz(rnn_graph_6, type = "graph", direction = "LR", graph.height.px = 250, graph.width.px = 700, shape=c(5, 32))
+=======
+graph.viz(rnn_graph_3, type = "graph", direction = "LR", graph.height.px = 200, graph.width.px = 700, shape=c(3, 64))
+graph.viz(rnn_graph_6, type = "graph", direction = "LR", graph.height.px = 250, graph.width.px = 700, shape=c(3, 64))
+>>>>>>> c91ab1fdd4395cbcb96a0e179463a88e8cffaf84
 
 ```
 
@@ -119,13 +124,17 @@ eval.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.siz
 
 devices <- mx.gpu(0)
 
+<<<<<<< HEAD
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
+
+# optimizer <- mx.opt.create("adadelta", rho=0.90, epsilon=1e-5, wd=1e-5, clip_gradient=NULL, rescale.grad=1/batch_size)
 
 optimizer <- mx.opt.create("rmsprop", learning.rate = 0.001, gamma1 = 0.95, gamma2 = 0.9, wd = 1e-5, clip_gradient=NULL, rescale.grad=1/batch.size)
 
 batch.end.callback<- mx.callback.log.train.metric(period = 50)
 epoch.end.callback<- mx.callback.log.train.metric(period = 1)
 
+<<<<<<< HEAD
 model_sentiment_rnn <- mx.rnn.buckets(train.data = train.data, eval.data = eval.data,
                                       num.round = 5, 
                                       ctx = devices, 
@@ -146,6 +155,7 @@ model_sentiment_rnn <- mx.rnn.buckets(train.data = train.data, eval.data = eval.
                                       cudnn = TRUE)
 
 mx.model.save(model_sentiment_rnn, prefix = "../models/model_sentiment_rnn", iteration = 5)
+
 
 ```
 

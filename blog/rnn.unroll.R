@@ -216,7 +216,7 @@ rnn.unroll.cudnn <- function(num.rnn.layer,
   label <- mx.symbol.Variable("label")
   data <- mx.symbol.Variable("data")
   seq.mask <- mx.symbol.Variable("seq.mask")
-  
+
   data <- mx.symbol.transpose(data=data)
   embed <- mx.symbol.Embedding(data=data, input_dim=input.size,
                                weight=embed.weight, output_dim=num.embed, name="embed")
@@ -227,9 +227,9 @@ rnn.unroll.cudnn <- function(num.rnn.layer,
   softmax <- list()
   fc <- list()
   
-  rnn.state.weight <- mx.symbol.zeros_like(rnn.state.weight)
+  # rnn.state.weight <- mx.symbol.zeros_like(rnn.state.weight)
   rnn <- mx.symbol.RNN(data=embed, state=rnn.state.weight, parameters=rnn.params.weight, state.size=num.hidden, num.layers=num.rnn.layer, bidirectional=F, mode=cell.type, state.outputs=F, p=dropout, name=paste(cell.type, num.rnn.layer, "layer", sep="_"))
-  
+
   # Decoding
   # if (config=="one-to-one") {
   #   last.hidden <- c(last.hidden, next.state[[1]])
@@ -238,6 +238,7 @@ rnn.unroll.cudnn <- function(num.rnn.layer,
   if (config=="seq-to-one") {
     last.seq <- mx.symbol.SequenceLast(data=rnn[[1]], sequence_length=seq.mask, use.sequence.length = T, name = "last.seq")
     #last.seq <- mx.symbol.SequenceLast(data=rnn[[1]], name = "last.seq")
+
     fc <- mx.symbol.FullyConnected(data=last.seq,
                                    weight=cls.weight,
                                    bias=cls.bias,
