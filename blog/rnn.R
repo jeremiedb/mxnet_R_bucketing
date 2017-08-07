@@ -1,24 +1,5 @@
 library(mxnet)
 
-is.MXSymbol <- function(x) {
-  inherits(x, "Rcpp_MXSymbol")
-}
-
-mx.model.init.params <- function(symbol, input.shape, output.shape, initializer, ctx) {
-  if (!is.MXSymbol(symbol)) stop("symbol need to be MXSymbol")
-  
-  arg_lst <- list(symbol = symbol)
-  arg_lst <- append(arg_lst, input.shape)
-  arg_lst <- append(arg_lst, output.shape)
-  
-  slist <- do.call(mx.symbol.infer.shape, arg_lst)
-  if (is.null(slist)) stop("Not enough information to get shapes")
-  arg.params <- mx.init.create(initializer, slist$arg.shapes, ctx, skip.unknown=TRUE)
-  aux.params <- mx.init.create(initializer, slist$aux.shapes, ctx, skip.unknown=FALSE)
-  return(list(arg.params=arg.params, aux.params=aux.params))
-}
-
-
 ########################################### mx.rnn.buckets
 mx.rnn.buckets <- function(train.data, eval.data = NULL, num.rnn.layer, num.hidden, 
                            num.embed, num.label, input.size, ctx = NULL, num.round = 1, initializer = mx.init.uniform(0.01), 

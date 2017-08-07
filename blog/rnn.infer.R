@@ -3,14 +3,18 @@ library(mxnet)
 source("rnn.R")
 
 mx.rnn.infer.buckets <- function(infer_iter, model, config, ctx = mx.cpu(), output_last_state = FALSE, 
-                                 init.state = NULL, cell.type = "lstm") {
+                                 init.state = NULL, cell.type = "gru", cudnn=FALSE, num.rnn.layer, num.hidden) {
   ### Infer parameters from model
-  if (cell.type == "lstm") {
-    num.rnn.layer <- round((length(model$arg.params) - 3)/4)
-    num.hidden <- dim(model$arg.params$l1.h2h.weight)[1]
-  } else if (cell.type == "gru") {
-    num.rnn.layer <- round((length(model$arg.params) - 3)/8)
-    num.hidden <- dim(model$arg.params$l1.gates.h2h.weight)[1]
+  if (cudnn) {
+    
+  } else {
+    if (cell.type == "lstm") {
+      num.rnn.layer <- round((length(model$arg.params) - 3)/4)
+      num.hidden <- dim(model$arg.params$l1.h2h.weight)[1]
+    } else if (cell.type == "gru") {
+      num.rnn.layer <- round((length(model$arg.params) - 3)/8)
+      num.hidden <- dim(model$arg.params$l1.gates.h2h.weight)[1]
+    }
   }
   
   input.size <- dim(model$arg.params$embed.weight)[2]
@@ -22,12 +26,14 @@ mx.rnn.infer.buckets <- function(infer_iter, model, config, ctx = mx.cpu(), outp
   infer_iter$iter.next()
   batch_size <- infer_iter$batch.size
   
-  # get unrolled lstm symbol
+  if (cudnn) unroll <- rnn.unroll.cudnn else 
+    unroll <- rnn.unroll
+  
+  # get unrolled rnn symbol
   sym_list <- sapply(infer_iter$bucket.names, function(x) {
-    rnn.unroll(num.rnn.layer = num.rnn.layer, num.hidden = num.hidden, seq.len = as.integer(x), 
-               input.size = input.size, num.embed = num.embed, num.label = num.label, 
-               config = config, dropout = 0, init.state = init.state, cell.type = cell.type, 
-               output_last_state = output_last_state)
+    unroll(num.rnn.layer = num.rnn.layer, num.hidden = num.hidden, seq.len = as.integer(x), 
+           input.size = input.size, num.embed = num.embed, num.label = num.label, 
+           config = config, dropout = 0, cell.type = cell.type)
   }, simplify = F, USE.NAMES = T)
   
   symbol <- sym_list[[names(infer_iter$bucketID)]]
