@@ -1,5 +1,6 @@
 ---
 title: "RNN for Text Classification with MXNet R"
+author: "Jeremie Desgagne-Bouchard"
 output:
   html_document:
     theme: paper
@@ -29,7 +30,7 @@ require("mxnet")
 Load utility functions
 
 ```{r, echo=T}
-source("mx.io.bucket.iter.R")
+source("mx.io.bucket.iter.seq_len.R")
 source("rnn.unroll.R")
 source("rnn.R")
 source("rnn.train.R")
@@ -131,8 +132,11 @@ This pre-processing involves 2 scripts:
 
 #####################################################
 ### Load preprocessed data
-corpus_bucketed_train <- readRDS(file = "data/corpus_bucketed_train.rds")
-corpus_bucketed_test <- readRDS(file = "data/corpus_bucketed_test.rds")
+# corpus_bucketed_train <- readRDS(file = "data/corpus_bucketed_train.rds")
+# corpus_bucketed_test <- readRDS(file = "data/corpus_bucketed_test.rds")
+
+corpus_bucketed_train <- readRDS(file = "data/corpus_bucketed_train_right_pad.rds")
+corpus_bucketed_test <- readRDS(file = "data/corpus_bucketed_test_right_pad.rds")
 
 vocab <- length(corpus_bucketed_test$dic)
 
@@ -147,67 +151,80 @@ eval.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.siz
 
 ## Model training
 
-```{r, echo=TRUE, eval=FALSE}
+```{r, echo=TRUE, eval=TRUE}
 
-devices <- mx.cpu()
+devices <- mx.gpu(0)
 
-initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "in", magnitude = 2)
+initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
 
-optimizer <- mx.opt.create("adadelta", rho=0.90, epsilon=1e-5, wd=1e-5, clip_gradient=NULL, rescale.grad=1/batch_size)
+# optimizer <- mx.opt.create("adadelta", rho=0.90, epsilon=1e-5, wd=1e-5, clip_gradient=NULL, rescale.grad=1/batch_size)
+
+optimizer <- mx.opt.create("rmsprop", learning.rate = 0.001, gamma1 = 0.95, gamma2 = 0.9, wd = 1e-5, clip_gradient=NULL, rescale.grad=1/batch.size)
 
 batch.end.callback<- mx.callback.log.train.metric(period = 50)
 epoch.end.callback<- mx.callback.log.train.metric(period = 1)
 
-model_sentiment_lstm <- mx.rnn.buckets(train.data = train.data, eval.data = eval.data, 
-                                       num.round = 25, 
-                                       ctx = devices, 
-                                       metric = mx.metric.accuracy, 
-                                       initializer = initializer, optimizer = optimizer, 
-                                       num.rnn.layer = 1, 
-                                       num.embed = 8, num.hidden = 8, 
-                                       num.label = 2, input.size = vocab, 
-                                       dropout = 0.25,
-                                       cell.type = "gru", config = "seq-to-one", 
-                                       batch.end.callback = batch.end.callback, 
-                                       epoch.end.callback = epoch.end.callback,
-                                       verbose = TRUE, cudnn = TRUE)
+model_sentiment_rnn <- mx.rnn.buckets(train.data = train.data, eval.data = eval.data,
+                                      num.round = 5, 
+                                      ctx = devices, 
+                                      metric = mx.metric.accuracy, 
+                                      initializer = initializer, 
+                                      optimizer = optimizer, 
+                                      num.rnn.layer = 1, 
+                                      num.embed = 4, 
+                                      num.hidden = 8, 
+                                      num.label = 2, 
+                                      input.size = vocab, 
+                                      dropout = 0.25,
+                                      cell.type = "gru", 
+                                      config = "seq-to-one", 
+                                      batch.end.callback = batch.end.callback, 
+                                      epoch.end.callback = epoch.end.callback,
+                                      verbose = TRUE, 
+                                      cudnn = TRUE)
 
-mx.model.save(model_sentiment_lstm, prefix = "../models/model_sentiment_lstm", iteration = 25)
+mx.model.save(model_sentiment_rnn, prefix = "models/model_sentiment_rnn", iteration = 5)
+
 
 ```
 
 
 ## Inference
 
-```{r, echo=TRUE}
+```{r, echo=TRUE, eval=FALSE}
 
 #####################################################
 ### Inference
-ctx <- list(mx.cpu())
-model_sentiment <- mx.model.load(prefix = "../models/model_sentiment_lstm", iteration = 16)
+ctx <- list(mx.gpu(0))
+model_sentiment <- mx.model.load(prefix = "models/model_sentiment_rnn", iteration = 5)
 
-corpus_bucketed_train <- readRDS(file = "../data/corpus_bucketed_train_100_200_300_500_800_left.rds")
-corpus_bucketed_test<- readRDS(file = "../data/corpus_bucketed_test_100_200_300_500_800_left.rds")
+corpus_bucketed_train <- readRDS(file = "data/corpus_bucketed_train_right_pad.rds")
+corpus_bucketed_test <- readRDS(file = "data/corpus_bucketed_test_right_pad.rds")
 
 ```
 
 
 ### Inference on train data
 
-```{r, echo=TRUE}
+```{r, echo=TRUE, eval=FALSE}
+
+source("rnn.infer.R")
 
 ###############################################
 ### Inference on train
 batch_size <- 64
 
-X_iter_train<- mx_io_bucket_iter(buckets = corpus_bucketed_train$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = F)
+train.data <- mx.io.bucket.iter(buckets = corpus_bucketed_train$buckets, batch.size = batch.size, data.mask.element = 0, shuffle = FALSE)
 
-infer_train <- mx.rnn.infer.buckets(infer_iter = X_iter_train, 
+infer_train <- mx.rnn.infer.buckets(infer_iter = train.data, 
                                     model = model_sentiment,
                                     config="seq-to-one",
                                     ctx = ctx, 
-                                    cell.type = "lstm",
-                                    kvstore="local")
+                                    cell.type = "gru",
+                                    kvstore="local",
+                                    cudnn = TRUE,
+                                    num.rnn.layer = 1, 
+                                    num.hidden = 8)
 
 pred_train<- apply(infer_train$pred, 1, which.max)-1
 label_train<- infer_train$label
@@ -219,19 +236,19 @@ auc_train<- auc(roc_train)
 
 ```
 
-Accuracy: `r percent(acc_train)`  
-AUC: `r signif(auc_train, 4)`
+Accuracy: 
+AUC: 
 
 
 ### Inference on test
 
-```{r, echo=TRUE}
+```{r, echo=TRUE, eval=FALSE}
 
 ###############################################
 ### Inference on test
-X_iter_test<- mx_io_bucket_iter(buckets = corpus_bucketed_test$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = F)
+test.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.size = batch.size, data.mask.element = 0, shuffle = FALSE)
 
-infer_test <- mx.rnn.infer.buckets(infer_iter = X_iter_test, 
+infer_test <- mx.rnn.infer.buckets(test.data, 
                                    model = model_sentiment,
                                    config="seq-to-one",
                                    ctx = ctx,
@@ -247,6 +264,6 @@ auc_test<- auc(roc_test)
 
 ```
 
-Accuracy: `r percent(acc_test)`  
-AUC: `r signif(auc_test, 4)`
+Accuracy: 
+AUC: 
 

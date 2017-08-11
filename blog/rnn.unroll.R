@@ -125,6 +125,7 @@ rnn.unroll.cudnn <- function(num.rnn.layer,
   # define input arguments
   label <- mx.symbol.Variable("label")
   data <- mx.symbol.Variable("data")
+  mask.idx <- mx.symbol.Variable("mask.idx")
   
   embed.weight <- mx.symbol.Variable("embed.weight")
   rnn.params.weight <- mx.symbol.Variable("rnn.params.weight")
@@ -132,14 +133,13 @@ rnn.unroll.cudnn <- function(num.rnn.layer,
   if (cell.type == "lstm") rnn.state.cell.weight <- mx.symbol.Variable("rnn.state.cell.weight")
   cls.weight <- mx.symbol.Variable("cls.weight")
   cls.bias <- mx.symbol.Variable("cls.bias")
-  
-  mask.idx <- mx.symbol.Variable("mask.idx")
+
+  data <- mx.symbol.transpose(data=data)  
   mask.idx <- mx.symbol.stop_gradient(mask.idx, name="mask.idx")
   
-  data <- mx.symbol.transpose(data=data)
   embed <- mx.symbol.Embedding(data=data, input_dim=input.size,
                                weight=embed.weight, output_dim=num.embed, name="embed")
-  
+
   if (config == "lstm") {
     rnn <- mx.symbol.RNN(data=embed, state=rnn.state.weight, state.cell = rnn.state.cell.weight, parameters=rnn.params.weight, state.size=num.hidden, num.layers=num.rnn.layer, bidirectional=F, mode=cell.type, state.outputs=F, p=dropout, name=paste(cell.type, num.rnn.layer, "layer", sep="_"))
     

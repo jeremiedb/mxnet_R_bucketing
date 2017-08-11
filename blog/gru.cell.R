@@ -47,7 +47,7 @@ gru.cell <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, dr
   }
   
   ### Add a mask - using the mask_array approach
-  data_mask_expand <- mx.symbol.Reshape(data = data_masking, shape = c(1, -2))
+  data_mask_expand <- mx.symbol.reshape(data = data_masking, shape = c(1, -2))
   next.h <- mx.symbol.broadcast_mul(lhs = next.h, rhs = data_mask_expand)
   
   return(list(h = next.h))

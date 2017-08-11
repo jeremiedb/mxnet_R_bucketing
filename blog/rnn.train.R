@@ -15,10 +15,7 @@ mx.model.train.rnn.buckets <- function(ctx, sym_list, arg.params, aux.params, in
   ndevice <- length(ctx)
   if (verbose) 
     message(paste0("Start training with ", ndevice, " devices"))
-  input_slice <- mxnet:::mx.model.slice.shape(input.shape, ndevice)
-  output_slice <- mxnet:::mx.model.slice.shape(output.shape, ndevice)
-  
-  
+
   # Grad request
   grad_req <- rep("write", length(symbol$arguments))
   # grad_null_idx <- match(c(input.names, output.names), symbol$arguments)
@@ -29,12 +26,19 @@ mx.model.train.rnn.buckets <- function(ctx, sym_list, arg.params, aux.params, in
   update_names <- c(input.names, output.names, arg.names)
   arg_update_idx <- match(symbol$arguments, update_names)
   
+  # Initial binding
+  dlist <- lapply(c(input.shape, output.shape), function(shape) {
+    mx.nd.zeros(shape = shape, ctx = mx.cpu()) 
+  })
+  
+  slices <- lapply(1:ndevice, function(i) {
+    sapply(names(dlist), function(n) mx.nd.split(data=dlist[[n]], num_outputs = ndevice, axis = 0, squeeze_axis = F))
+  })
+  
   train.execs <- lapply(1:ndevice, function(i) {
-    s <- sapply(append(input_slice[[i]]$shape, output_slice[[i]]$shape), function(shape) {
-      mx.nd.zeros(shape = shape, ctx = mx.cpu())
-    })
+    s <- slices[[i]]
     mxnet:::mx.symbol.bind(symbol = symbol, arg.arrays = c(s, arg.params)[arg_update_idx], 
-                           aux.arrays = aux.params, ctx = mx.cpu(), grad.req = grad_req)
+                           aux.arrays = aux.params, ctx = ctx[[i]], grad.req = grad_req)
   })
   
   # KVStore related stuffs
@@ -68,12 +72,10 @@ mx.model.train.rnn.buckets <- function(ctx, sym_list, arg.params, aux.params, in
     while (train.data$iter.next()) {
       dlist <- train.data$value()  #[input.names]
       symbol <- sym_list[[names(train.data$bucketID)]]
+      
+      # Slice inputs for multi-devices
       slices <- lapply(1:ndevice, function(i) {
-        s <- input_slice[[i]]
-        ret <- sapply(names(dlist), function(n) {
-          mxnet:::mx.nd.slice(dlist[[n]], s$begin, s$end)
-        })
-        return(ret)
+        sapply(names(dlist), function(n) mx.nd.split(data=dlist[[n]], num_outputs = ndevice, axis = 0, squeeze_axis = F))
       })
       
       train.execs <- lapply(1:ndevice, function(i) {
@@ -152,13 +154,8 @@ mx.model.train.rnn.buckets <- function(ctx, sym_list, arg.params, aux.params, in
         dlist <- eval.data$value()  #[input.names]
         symbol <- sym_list[[names(eval.data$bucketID)]]
         slices <- lapply(1:ndevice, function(i) {
-          s <- input_slice[[i]]
-          ret <- sapply(names(dlist), function(n) {
-            mxnet:::mx.nd.slice(dlist[[n]], s$begin, s$end)
-          })
-          return(ret)
+          sapply(names(dlist), function(n) mx.nd.split(data=dlist[[n]], num_outputs = ndevice, axis = 0, squeeze_axis = F))
         })
-        
         
         train.execs <- lapply(1:ndevice, function(i) {
           s <- slices[[i]]
