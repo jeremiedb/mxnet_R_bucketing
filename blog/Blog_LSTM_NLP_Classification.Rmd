@@ -53,7 +53,7 @@ For example, if we would be dealing with sequences of length 3 and 6, the two fo
 
 ```{r, echo=TRUE}
 
-rnn_graph_3 <- rnn.unroll.cudnn(seq.len=3, 
+rnn_graph_seq_one <- rnn.unroll.cudnn(seq.len=5, 
                                 num.rnn.layer = 2, 
                                 num.hidden = 20,
                                 input.size=100,
@@ -62,9 +62,31 @@ rnn_graph_3 <- rnn.unroll.cudnn(seq.len=3,
                                 dropout=0.5, 
                                 ignore_label = 0,
                                 cell.type="gru",
+                                masking = F,
                                 config = "seq-to-one")
 
-rnn_graph_6 <- rnn.unroll.cudnn(seq.len=6, 
+rnn_graph_seq_one_mask <- rnn.unroll.cudnn(seq.len=5, 
+                                num.rnn.layer = 2, 
+                                num.hidden = 20,
+                                input.size=100,
+                                num.embed=16, 
+                                num.label=2,
+                                dropout=0.5, 
+                                ignore_label = 0,
+                                masking = T,
+                                cell.type="lstm",
+                                config = "seq-to-one")
+
+graph.viz(rnn_graph_seq_one, type = "graph", direction = "LR", graph.height.px = 200, graph.width.px = 700, shape=c(5, 64))
+graph.viz(rnn_graph_seq_one_mask, type = "graph", direction = "LR", graph.height.px = 250, graph.width.px = 700, shape=c(5, 64))
+
+```
+
+
+
+```{r, echo=TRUE}
+
+rnn_graph_one_one <- rnn.unroll.cudnn(seq.len=5, 
                                 num.rnn.layer = 2, 
                                 num.hidden = 20,
                                 input.size=100,
@@ -73,10 +95,23 @@ rnn_graph_6 <- rnn.unroll.cudnn(seq.len=6,
                                 dropout=0.5, 
                                 ignore_label = 0,
                                 cell.type="gru",
-                                config = "seq-to-one")
+                                masking = F,
+                                config = "one-to-one")
 
-graph.viz(rnn_graph_3, type = "graph", direction = "LR", graph.height.px = 200, graph.width.px = 700, shape=c(3, 64))
-graph.viz(rnn_graph_6, type = "graph", direction = "LR", graph.height.px = 250, graph.width.px = 700, shape=c(3, 64))
+rnn_graph_one_one_mask <- rnn.unroll.cudnn(seq.len=5, 
+                                num.rnn.layer = 2, 
+                                num.hidden = 20,
+                                input.size=100,
+                                num.embed=16, 
+                                num.label=2,
+                                dropout=0.5, 
+                                ignore_label = 0,
+                                masking = T,
+                                cell.type="gru",
+                                config = "one-to-one")
+
+graph.viz(rnn_graph_one_one, type = "graph", direction = "LR", graph.height.px = 200, graph.width.px = 700, shape=c(5, 64))
+graph.viz(rnn_graph_one_one_mask, type = "graph", direction = "LR", graph.height.px = 250, graph.width.px = 700, shape=c(5, 64))
 
 ```
 
