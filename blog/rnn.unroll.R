@@ -125,7 +125,7 @@ rnn.unroll.cudnn <- function(num.rnn.layer,
   # define input arguments
   label <- mx.symbol.Variable("label")
   data <- mx.symbol.Variable("data")
-  mask.idx <- mx.symbol.Variable("mask.idx")
+  data.mask.element <- mx.symbol.Variable("data.mask.element")
   
   embed.weight <- mx.symbol.Variable("embed.weight")
   rnn.params.weight <- mx.symbol.Variable("rnn.params.weight")
@@ -135,7 +135,7 @@ rnn.unroll.cudnn <- function(num.rnn.layer,
   cls.bias <- mx.symbol.Variable("cls.bias")
 
   data <- mx.symbol.transpose(data=data)  
-  mask.idx <- mx.symbol.stop_gradient(mask.idx, name="mask.idx")
+  data.mask.element <- mx.symbol.stop_gradient(data.mask.element, name="data.mask.element")
   
   embed <- mx.symbol.Embedding(data=data, input_dim=input.size,
                                weight=embed.weight, output_dim=num.embed, name="embed")
@@ -149,7 +149,7 @@ rnn.unroll.cudnn <- function(num.rnn.layer,
   
   if (config=="seq-to-one") {
     
-    if (masking) mask <- mx.symbol.SequenceLast(data=rnn[[1]], use.sequence.length = T, sequence_length = mask.idx, name = "mask") else
+    if (masking) mask <- mx.symbol.SequenceLast(data=rnn[[1]], use.sequence.length = T, sequence_length = data.mask.element, name = "mask") else
       mask <- mx.symbol.identity(data = rnn[[1]], name = "mask")
     
     fc <- mx.symbol.FullyConnected(data=mask,
@@ -162,7 +162,7 @@ rnn.unroll.cudnn <- function(num.rnn.layer,
     
   } else if (config=="one-to-one"){
     
-    if (masking) mask <- mx.symbol.SequenceMask(data = rnn[[1]], use.sequence.length = T, sequence_length = mask.idx, name = "mask") else
+    if (masking) mask <- mx.symbol.SequenceMask(data = rnn[[1]], use.sequence.length = T, sequence_length = data.mask.element, name = "mask") else
       mask <- mx.symbol.identity(data = rnn[[1]], name = "mask")
     
     reshape = mx.symbol.reshape(mask, shape=c(num.hidden, -1))

@@ -30,7 +30,7 @@ require("mxnet")
 Load utility functions
 
 ```{r, echo=T}
-source("mx.io.bucket.iter.seq_len.R")
+source("mx.io.bucket.iter.mask.R")
 source("rnn.unroll.R")
 source("rnn.R")
 source("rnn.train.R")
