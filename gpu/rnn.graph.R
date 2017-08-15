@@ -17,7 +17,7 @@ rnn.graph <- function(num.rnn.layer,
   # define input arguments
   label <- mx.symbol.Variable("label")
   data <- mx.symbol.Variable("data")
-  data.mask.element <- mx.symbol.Variable("data.mask.element")
+  seq.mask <- mx.symbol.Variable("seq.mask")
   
   embed.weight <- mx.symbol.Variable("embed.weight")
   rnn.params.weight <- mx.symbol.Variable("rnn.params.weight")
@@ -27,13 +27,13 @@ rnn.graph <- function(num.rnn.layer,
   cls.bias <- mx.symbol.Variable("cls.bias")
   
   data <- mx.symbol.transpose(data=data)  
-  data.mask.element <- mx.symbol.stop_gradient(data.mask.element, name="data.mask.element")
+  # seq.mask <- mx.symbol.stop_gradient(seq.mask, name="seq.mask")
   
   embed <- mx.symbol.Embedding(data=data, input_dim=input.size,
                                weight=embed.weight, output_dim=num.embed, name="embed")
   
-  if (config == "lstm") {
-    rnn <- mx.symbol.RNN(data=embed, state=rnn.state.weight, state.cell = rnn.state.cell.weight, parameters=rnn.params.weight, state.size=num.hidden, num.layers=num.rnn.layer, bidirectional=F, mode=cell.type, state.outputs=F, p=dropout, name=paste(cell.type, num.rnn.layer, "layer", sep="_"))
+  if (cell.type == "lstm") {
+    rnn <- mx.symbol.RNN(data=embed, state=rnn.state.weight, state_cell = rnn.state.cell.weight, parameters=rnn.params.weight, state.size=num.hidden, num.layers=num.rnn.layer, bidirectional=F, mode=cell.type, state.outputs=F, p=dropout, name=paste(cell.type, num.rnn.layer, "layer", sep="_"))
     
   } else {
     rnn <- mx.symbol.RNN(data=embed, state=rnn.state.weight, parameters=rnn.params.weight, state.size=num.hidden, num.layers=num.rnn.layer, bidirectional=F, mode=cell.type, state.outputs=F, p=dropout, name=paste(cell.type, num.rnn.layer, "layer", sep="_"))
@@ -41,7 +41,7 @@ rnn.graph <- function(num.rnn.layer,
   
   if (config=="seq-to-one") {
     
-    if (masking) mask <- mx.symbol.SequenceLast(data=rnn[[1]], use.sequence.length = T, sequence_length = data.mask.element, name = "mask") else
+    if (masking) mask <- mx.symbol.SequenceLast(data=rnn[[1]], use.sequence.length = T, sequence_length = seq.mask, name = "mask") else
       mask <- mx.symbol.identity(data = rnn[[1]], name = "mask")
     
     fc <- mx.symbol.FullyConnected(data=mask,
@@ -54,7 +54,7 @@ rnn.graph <- function(num.rnn.layer,
     
   } else if (config=="one-to-one"){
     
-    if (masking) mask <- mx.symbol.SequenceMask(data = rnn[[1]], use.sequence.length = T, sequence_length = data.mask.element, name = "mask") else
+    if (masking) mask <- mx.symbol.SequenceMask(data = rnn[[1]], use.sequence.length = T, sequence_length = seq.mask, name = "mask") else
       mask <- mx.symbol.identity(data = rnn[[1]], name = "mask")
     
     reshape = mx.symbol.reshape(mask, shape=c(num.hidden, -1))

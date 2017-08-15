@@ -50,7 +50,6 @@ The bucketing involves training with multiple graphs, one for each bucket. Nonet
 
 When regular training, the symbol is binded once to the executors and then at each iteration, the data and the parameters are updated. With bucketing, a new symbol is binded to the executors at each iteration. 
 
-For example, if we would be dealing with sequences of length 3 and 6, the two following graphs would be defined prior to training:
 
 ```{r, echo=TRUE}
 

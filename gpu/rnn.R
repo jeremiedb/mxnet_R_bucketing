@@ -5,7 +5,7 @@ mx.rnn.buckets <- function(train.data, eval.data = NULL, num.rnn.layer, num.hidd
                            num.embed, num.label, input.size, ctx = NULL, num.round = 1, initializer = mx.init.uniform(0.01), 
                            dropout = 0, config = "one-to-one", optimizer = "sgd", batch.end.callback = NULL, 
                            epoch.end.callback = NULL, begin.round = 1, metric = mx.metric.rmse, cell.type = "lstm", 
-                           kvstore = "local", verbose = FALSE, cudnn = FALSE) {
+                           kvstore = "local", verbose = TRUE, cudnn = TRUE) {
   
   if (!train.data$iter.next()) {
     train.data$reset()
@@ -41,7 +41,7 @@ mx.rnn.buckets <- function(train.data, eval.data = NULL, num.rnn.layer, num.hidd
   
   # get unrolled lstm symbol
   sym_list <- sapply(train.data$bucket.names, function(x) {
-    rnn.graph(num.rnn.layer = num.rnn.layer, num.hidden = num.hidden, seq.len = as.integer(x), 
+    rnn.graph(num.rnn.layer = num.rnn.layer, num.hidden = num.hidden, 
               input.size = input.size, num.embed = num.embed, num.label = num.label, 
               dropout = dropout, cell.type = cell.type, config = config)
   }, simplify = F, USE.NAMES = T)
@@ -50,7 +50,7 @@ mx.rnn.buckets <- function(train.data, eval.data = NULL, num.rnn.layer, num.hidd
   symbol <- sym_list[[names(train.data$bucketID)]]
   
   arg.names <- symbol$arguments
-  input.names <- if (cudnn) c("data", "data.mask.element") else c("data", "data.mask.array")
+  input.names <- if (cudnn) c("data", "seq.mask") else c("data", "data.mask.array")
   input.shape <- sapply(input.names, function(n) {
     dim(train.data$value()[[n]])
   }, simplify = FALSE)

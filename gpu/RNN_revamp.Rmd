@@ -1,5 +1,5 @@
 ---
-title: "RNN for Text Classification with MXNet R"
+title: "RNN made easy with MXNet R"
 author: "Jeremie Desgagne-Bouchard"
 output:
   html_document:
@@ -10,7 +10,7 @@ output:
     code_folding: show
 ---
 
-> This tutorial presents the application of RNN for classifying texts using the padding and bucketing tricks to efficiently handle sequences of varying lengths using the MXNet R package. 
+> This tutorial presents an example of application of RNN to texts classification using padded and bucketed data to efficiently handle sequences of varying lengths. It requires running on a GPU with CUDA. 
 
 Example based on sentiment analysis on the [IMDB data](http://ai.stanford.edu/~amaas/data/sentiment/).
 
@@ -30,95 +30,44 @@ require("mxnet")
 Load utility functions
 
 ```{r, echo=T}
-source("mx.io.bucket.iter.mask.R")
+source("mx.io.bucket.iter.R")
 source("rnn.graph.R")
 source("rnn.R")
 source("rnn.train.R")
+source("rnn.infer.R")
 ```
 
-## Motivation for bucketing
+## What's special about sequence modeling?
 
 Whether we're working with text at the character or word level, NLP tasks naturally involves dealing with sequences of varying length. 
 
-This can present some challenges as the symbolic representation of a RNN model assumes a fixed length sequence. This can be circumvent in two ways: 
+This can present some challenges as the explicit representation of an unrolled RNN involves a fixed length sequence. Rather than defining new symbolic model for each sequence length, the `mx.symbol.RNN` operator simplifies the process by abstracting the recurring process into a single operator that accepts sequences of varying lengths.
+
+To efficiently feed the RNN network, two tricks can be used: 
 
 - Padding: fill the modeled sequences with an arbitrary word/character up to the longest sequence. This results in sequences of even lengths, but potentially of excessive size for an efficient training. 
 
 - Bucketing: apply the padding trick but to subgroups of samples split according to their lengths. This results in multiples trainings sets, or buckets, within which all samples are padded to an even length. 
 
-The bucketing involves training with multiple graphs, one for each bucket. Nonetheless, all these graphs are used to train the same set of parameters since RNNs, being recursive (!), reuse the same parameters for every element of the sequence independently of their numbers. 
+Below is the graph representation of a seq-to-one architecture. Note that input data is of shape `seq_length X batch.size` while ouput of the RNN operator is of shape `hidden.features X batch.size X seq_length`. 
 
-The regular regular training process involves binding the symbol to the executors only once. Then, at each iteration, the data and the parameters are updated. With bucketing, a new symbol is binded to the executors at each iteration. 
-
-For example, if we would be dealing with sequences of length 3 and 6, the two following graphs would be defined prior to training:
 
 ```{r, echo=TRUE}
 
-rnn_graph_seq_one <- rnn.unroll.cudnn(seq.len=5, 
-                                num.rnn.layer = 2, 
-                                num.hidden = 20,
-                                input.size=100,
-                                num.embed=16, 
-                                num.label=2,
-                                dropout=0.5, 
-                                ignore_label = 0,
-                                cell.type="gru",
-                                masking = F,
-                                config = "seq-to-one")
-
-rnn_graph_seq_one_mask <- rnn.unroll.cudnn(seq.len=5, 
-                                num.rnn.layer = 2, 
-                                num.hidden = 20,
-                                input.size=100,
-                                num.embed=16, 
-                                num.label=2,
-                                dropout=0.5, 
-                                ignore_label = 0,
-                                masking = T,
-                                cell.type="lstm",
-                                config = "seq-to-one")
+rnn_graph_seq_one <- rnn.graph(num.rnn.layer = 2, 
+                               num.hidden = 20,
+                               input.size=100,
+                               num.embed=16, 
+                               num.label=2,
+                               dropout=0.5, 
+                               ignore_label = 0,
+                               cell.type="lstm",
+                               masking = T,
+                               config = "seq-to-one")
 
 graph.viz(rnn_graph_seq_one, type = "graph", direction = "LR", graph.height.px = 200, graph.width.px = 700, shape=c(5, 64))
-graph.viz(rnn_graph_seq_one_mask, type = "graph", direction = "LR", graph.height.px = 250, graph.width.px = 700, shape=c(5, 64))
 
 ```
-
-
-
-
-
-```{r, echo=TRUE}
-
-rnn_graph_one_one <- rnn.unroll.cudnn(seq.len=5, 
-                                num.rnn.layer = 2, 
-                                num.hidden = 20,
-                                input.size=100,
-                                num.embed=16, 
-                                num.label=2,
-                                dropout=0.5, 
-                                ignore_label = 0,
-                                cell.type="gru",
-                                masking = F,
-                                config = "one-to-one")
-
-rnn_graph_one_one_mask <- rnn.unroll.cudnn(seq.len=5, 
-                                num.rnn.layer = 2, 
-                                num.hidden = 20,
-                                input.size=100,
-                                num.embed=16, 
-                                num.label=2,
-                                dropout=0.5, 
-                                ignore_label = 0,
-                                masking = T,
-                                cell.type="gru",
-                                config = "one-to-one")
-
-graph.viz(rnn_graph_one_one, type = "graph", direction = "LR", graph.height.px = 200, graph.width.px = 700, shape=c(5, 64))
-graph.viz(rnn_graph_one_one_mask, type = "graph", direction = "LR", graph.height.px = 250, graph.width.px = 700, shape=c(5, 64))
-
-```
-
-Then, during training, the iterator will feed a new batch of length 3 or 5 plus a bucket ID indicating the appropriate graph to bind to the executor this iteration. 
 
 ## Data preparation
 
@@ -134,13 +83,8 @@ The following steps are executed:
 
 ```{r, echo=TRUE}
 
-#####################################################
-### Load preprocessed data
-# corpus_bucketed_train <- readRDS(file = "data/corpus_bucketed_train.rds")
-# corpus_bucketed_test <- readRDS(file = "data/corpus_bucketed_test.rds")
-
-corpus_bucketed_train <- readRDS(file = "data/corpus_bucketed_train_right_pad.rds")
-corpus_bucketed_test <- readRDS(file = "data/corpus_bucketed_test_right_pad.rds")
+corpus_bucketed_train <- readRDS(file = "../data/corpus_bucketed_train.rds")
+corpus_bucketed_test <- readRDS(file = "../data/corpus_bucketed_test.rds")
 
 vocab <- length(corpus_bucketed_test$dic)
 
@@ -153,121 +97,155 @@ eval.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.siz
 
 ```
 
-## Model training
+
+## Fit a LSTM model
 
 ```{r, echo=TRUE, eval=TRUE}
-
 devices <- mx.gpu(0)
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
 
-# optimizer <- mx.opt.create("adadelta", rho=0.90, epsilon=1e-5, wd=1e-5, clip_gradient=NULL, rescale.grad=1/batch_size)
+optimizer <- mx.opt.create("rmsprop", learning.rate = 0.001, gamma1 = 0.95, gamma2 = 0.9, wd = 1e-4, clip_gradient=NULL, rescale.grad=1/batch.size)
 
-optimizer <- mx.opt.create("rmsprop", learning.rate = 0.001, gamma1 = 0.95, gamma2 = 0.9, wd = 1e-5, clip_gradient=NULL, rescale.grad=1/batch.size)
+logger <- mx.metric.logger()
+epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
+batch.end.callback <- mx.callback.log.train.metric(period = 50)
 
-batch.end.callback<- mx.callback.log.train.metric(period = 50)
-epoch.end.callback<- mx.callback.log.train.metric(period = 1)
+model <- mx.rnn.buckets(train.data = train.data, eval.data = eval.data,
+                        num.round = 10, 
+                        ctx = devices, 
+                        metric = mx.metric.accuracy, 
+                        initializer = initializer, 
+                        optimizer = optimizer, 
+                        num.rnn.layer = 1, 
+                        num.embed = 2, 
+                        num.hidden = 5, 
+                        num.label = 2, 
+                        input.size = vocab, 
+                        dropout = 0.25,
+                        cell.type = "lstm", 
+                        config = "seq-to-one", 
+                        batch.end.callback = NULL, 
+                        epoch.end.callback = epoch.end.callback,
+                        verbose = FALSE)
 
-model_sentiment_rnn <- mx.rnn.buckets(train.data = train.data, eval.data = eval.data,
-                                      num.round = 5, 
-                                      ctx = devices, 
-                                      metric = mx.metric.accuracy, 
-                                      initializer = initializer, 
-                                      optimizer = optimizer, 
-                                      num.rnn.layer = 1, 
-                                      num.embed = 4, 
-                                      num.hidden = 8, 
-                                      num.label = 2, 
-                                      input.size = vocab, 
-                                      dropout = 0.25,
-                                      cell.type = "gru", 
-                                      config = "seq-to-one", 
-                                      batch.end.callback = batch.end.callback, 
-                                      epoch.end.callback = epoch.end.callback,
-                                      verbose = TRUE, 
-                                      cudnn = TRUE)
+mx.model.save(model, prefix = "../models/model_sentiment_lstm", iteration = 10)
 
-mx.model.save(model_sentiment_rnn, prefix = "models/model_sentiment_rnn", iteration = 5)
+p <- plot_ly(x = seq_len(length(logger$train)), y = logger$train, type = "scatter", mode = "markers+lines", name = "train") %>% 
+  add_trace(y = logger$eval, type = "scatter", mode = "markers+lines", name = "eval")
 
-
+plotly::export(p, file = "logger_lstm.png")
 ```
 
+![](logger_lstm.png)
 
-## Inference
+## Fit a GRU model
 
-```{r, echo=TRUE, eval=FALSE}
+```{r, echo=TRUE, eval=TRUE}
+logger <- mx.metric.logger()
+epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
+batch.end.callback <- mx.callback.log.train.metric(period = 50)
 
-#####################################################
-### Inference
-ctx <- list(mx.gpu(0))
-model_sentiment <- mx.model.load(prefix = "models/model_sentiment_rnn", iteration = 5)
+model <- mx.rnn.buckets(train.data = train.data, eval.data = eval.data,
+                        num.round = 10, 
+                        ctx = devices, 
+                        metric = mx.metric.accuracy, 
+                        initializer = initializer, 
+                        optimizer = optimizer, 
+                        num.rnn.layer = 1, 
+                        num.embed = 2, 
+                        num.hidden = 5, 
+                        num.label = 2, 
+                        input.size = vocab, 
+                        dropout = 0.25,
+                        cell.type = "gru", 
+                        config = "seq-to-one", 
+                        batch.end.callback = NULL, 
+                        epoch.end.callback = epoch.end.callback,
+                        verbose = FALSE)
 
-corpus_bucketed_train <- readRDS(file = "data/corpus_bucketed_train_right_pad.rds")
-corpus_bucketed_test <- readRDS(file = "data/corpus_bucketed_test_right_pad.rds")
+mx.model.save(model, prefix = "../models/model_sentiment_gru", iteration = 10)
 
+p <- plot_ly(x = seq_len(length(logger$train)), y = logger$train, type = "scatter", mode = "markers+lines", name = "train") %>% 
+  add_trace(y = logger$eval, type = "scatter", mode = "markers+lines", name = "eval")
+
+plotly::export(p, file = "logger_gru.png")
 ```
 
+![](logger_gru.png)
 
-### Inference on train data
 
-```{r, echo=TRUE, eval=FALSE}
+## Plot word embeddings
 
-source("rnn.infer.R")
+Word representation can be visualised by looking at the assigned weights in any of the embedding dimensions. Here, we look simultaneously at the two embeddings learnt in the GRU model. 
 
-###############################################
-### Inference on train
-batch_size <- 64
+```{r, echo=FALSE}
+dic <- corpus_bucketed_train$dic
+rev_dic <- corpus_bucketed_train$rev_dic
 
-train.data <- mx.io.bucket.iter(buckets = corpus_bucketed_train$buckets, batch.size = batch.size, data.mask.element = 0, shuffle = FALSE)
+embeddings_weights <- t(as.array(model$arg.params$embed.weight))
 
-infer_train <- mx.rnn.infer.buckets(infer_iter = train.data, 
-                                    model = model_sentiment,
-                                    config="seq-to-one",
-                                    ctx = ctx, 
-                                    cell.type = "gru",
-                                    kvstore="local",
-                                    cudnn = TRUE,
-                                    num.rnn.layer = 1, 
-                                    num.hidden = 8)
+embeddings <- data.frame(label=rev_dic, embeddings_weights)
+embeddings <- embeddings[-1, ]
 
-pred_train<- apply(infer_train$pred, 1, which.max)-1
-label_train<- infer_train$label
+embeddings_sample <- embeddings[300:400,]
 
-acc_train<- sum(pred_train==label_train)/length(label_train)
-
-roc_train<- roc(predictions = infer_train$pred[,2], labels = factor(label_train))
-auc_train<- auc(roc_train)
-
+p <- ggplot(embeddings_sample, aes(x = X1, y = X2, label = label))
+p + geom_text(check_overlap = T, color="navy") + theme_bw() + theme(panel.grid=element_blank())
 ```
 
-Accuracy: 
-AUC: 
+## Inference on test data
 
+```{r, echo=TRUE}
+ctx <- mx.gpu(0)
+batch.size <- 64
 
-### Inference on test
+corpus_bucketed_test <- readRDS(file = "../data/corpus_bucketed_test.rds")
 
-```{r, echo=TRUE, eval=FALSE}
-
-###############################################
-### Inference on test
 test.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.size = batch.size, data.mask.element = 0, shuffle = FALSE)
+```
 
-infer_test <- mx.rnn.infer.buckets(test.data, 
-                                   model = model_sentiment,
-                                   config="seq-to-one",
-                                   ctx = ctx,
-                                   kvstore="local")
 
-pred_test<- apply(infer_test$pred, 1, which.max)-1
-label_test<- infer_test$label
+### LSTM
 
-acc_test<- sum(pred_test==label_test)/length(label_test)
+```{r, echo=TRUE, eval=TRUE}
+model <- mx.model.load(prefix = "../models/model_sentiment_lstm", iteration = 10)
+infer <- mx.rnn.infer.buckets(infer_iter = test.data, 
+                              model = model,
+                              ctx = ctx)
 
-roc_test<- roc(predictions = infer_test$pred[,2], labels = factor(label_test))
-auc_test<- auc(roc_test)
+pred_raw <- t(as.array(infer))
+pred <- max.col(pred_raw, tie = "first") - 1
+label <- unlist(lapply(corpus_bucketed_test$buckets, function(x) x$label))
+
+acc <- sum(label == pred)/length(label)
+roc <- roc(predictions = pred_raw[, 2], labels = factor(label))
+auc <- auc(roc)
 
 ```
 
-Accuracy: 
-AUC: 
+Accuracy: `r percent(acc)`  
+AUC: `r signif(auc, 4)` 
+
+
+### GRU
+
+```{r, echo=TRUE, eval=TRUE}
+model <- mx.model.load(prefix = "../models/model_sentiment_gru", iteration = 10)
+infer <- mx.rnn.infer.buckets(infer_iter = test.data, 
+                              model = model,
+                              ctx = ctx)
+
+pred_raw <- t(as.array(infer))
+pred <- max.col(pred_raw, tie = "first") - 1
+label <- unlist(lapply(corpus_bucketed_test$buckets, function(x) x$label))
+
+acc <- sum(label == pred)/length(label)
+roc <- roc(predictions = pred_raw[, 2], labels = factor(label))
+auc <- auc(roc)
+
+```
+
+Accuracy: `r percent(acc)`  
+AUC: `r signif(auc, 4)`
 

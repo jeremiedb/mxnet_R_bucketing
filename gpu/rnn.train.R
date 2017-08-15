@@ -19,8 +19,8 @@ mx.model.train.rnn.buckets <- function(ctx, sym_list, arg.params, aux.params, in
 
   # Grad request
   grad_req <- rep("write", length(symbol$arguments))
-  # grad_null_idx <- match(c(input.names, output.names), symbol$arguments)
-  grad_null_idx <- match(input.names, symbol$arguments)
+  grad_null_idx <- match(c(input.names, output.names), symbol$arguments)
+  # grad_null_idx <- match(input.names, symbol$arguments)
   grad_req[grad_null_idx] <- "null"
   
   # Arg array order
