@@ -55,8 +55,8 @@ rnn.graph <- function(num.rnn.layer,
     
   } else if (config=="one-to-one"){
     
-    if (masking) mask <- mx.symbol.SequenceMask(data = rnn[[1]], use.sequence.length = T, sequence_length = seq.mask, name = "mask") else
-      mask <- mx.symbol.identity(data = rnn[[1]], name = "mask")
+    if (masking) mask <- mx.symbol.SequenceMask(data = rnn[[1]], use.sequence.length = T, sequence_length = seq.mask, value = 0, name = "mask") else
+    mask <- mx.symbol.identity(data = rnn[[1]], name = "mask")
     
     reshape = mx.symbol.reshape(mask, shape=c(num.hidden, -1))
     
