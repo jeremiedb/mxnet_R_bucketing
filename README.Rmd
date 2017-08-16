@@ -25,8 +25,7 @@ Load utility functions
 ```{r, echo=T}
 source("mx.io.bucket.iter.R")
 source("rnn.graph.R")
-source("rnn.R")
-source("rnn.train.R")
+source("model.rnn.R")
 source("rnn.infer.R")
 ```
 
@@ -58,7 +57,7 @@ rnn_graph_seq_one <- rnn.graph(num.rnn.layer = 2,
                                masking = T,
                                config = "seq-to-one")
 
-graph.viz(rnn_graph_seq_one, type = "graph", direction = "LR", graph.height.px = 200, graph.width.px = 800, shape=c(5, 64))
+graph.viz(rnn_graph_seq_one, type = "graph", direction = "LR", graph.height.px = 50, graph.width.px = 800, shape=c(5, 64))
 
 ```
 
