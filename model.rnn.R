@@ -258,15 +258,13 @@ mx.rnn.buckets <- function(symbol, train.data, eval.data = NULL,
     optimizer <- mx.opt.create(optimizer, rescale.grad = (1/batchsize), ...)
   }
   
-  # get unrolled lstm symbol
-  sym_list <- sapply(train.data$bucket.names, function(x) {
-    rnn.graph(num.rnn.layer = num.rnn.layer, num.hidden = num.hidden, 
-              input.size = input.size, num.embed = num.embed, num.label = num.label, 
-              dropout = dropout, cell.type = cell.type, config = config)
-  }, simplify = F, USE.NAMES = T)
-  
-  # setup rnn model
-  symbol <- symbol
+  # get list of bucketed symbol - no longer needed with mx.symbol.RNN
+  # sym_list <- sapply(train.data$bucket.names, function(x) {
+  #   rnn.graph(num.rnn.layer = num.rnn.layer, num.hidden = num.hidden, 
+  #             input.size = input.size, num.embed = num.embed, num.label = num.label, 
+  #             dropout = dropout, cell.type = cell.type, config = config)
+  # }, simplify = F, USE.NAMES = T)
+  # symbol <- sym_list[[names(train.data$bucketID)]]
   
   input.names <- c("data", "seq.mask")
   input.shape <- sapply(input.names, function(n) {
