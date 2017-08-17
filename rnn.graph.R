@@ -1,6 +1,15 @@
 # 
 #' Generate a RNN symbolic model
-#'
+#' 
+#' @param config Either seq-to-one or one-to-one
+#' @param cell.type Type of RNN cell: either gru or lstm
+#' @param num.rnn.layer int, number of stacked layers
+#' @param num.hidden int, size of the state in each RNN layer
+#' @param num.embed  int, dimension of the embedding vectors
+#' @param num.label int, number of categories in labels
+#' @param input.size int, number of levels in the data
+#' @param dropout
+#' 
 #' @export
 rnn.graph <- function(num.rnn.layer, 
                       input.size,

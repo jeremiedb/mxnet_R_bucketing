@@ -1,13 +1,9 @@
-library(mxnet)
-
-source("rnn.R")
-
 # Internal function to do multiple device training on RNN
-mx.model.train.rnn.buckets <- function(ctx, sym_list, arg.params, aux.params, input.shape, 
+mx.model.train.rnn.buckets <- function(ctx, symbol, arg.params, aux.params, input.shape, 
                                        output.shape, begin.round, end.round, optimizer, train.data, eval.data, metric, 
                                        epoch.end.callback, batch.end.callback, kvstore, verbose = TRUE) {
   
-  symbol <- sym_list[[names(train.data$bucketID)]]
+  # symbol <- sym_list[[names(train.data$bucketID)]]
   
   input.names <- names(input.shape)
   output.names <- names(output.shape)
@@ -71,8 +67,9 @@ mx.model.train.rnn.buckets <- function(ctx, sym_list, arg.params, aux.params, in
     }
     train.data$reset()
     while (train.data$iter.next()) {
-      dlist <- train.data$value()  #[input.names]
-      symbol <- sym_list[[names(train.data$bucketID)]]
+      dlist <- train.data$value()
+      
+      # symbol <- sym_list[[names(train.data$bucketID)]]
       
       # Slice inputs for multi-devices
       slices <- lapply(1:ndevice, function(i) {
