@@ -25,7 +25,7 @@ mx.rnn.infer.buckets <- function(infer.data, model, ctx = mx.cpu()) {
   symbol <- model$symbol
   
   arguments <- symbol$arguments
-  input.names <- names(train.data$value())
+  input.names <- names(infer.data$value())
   
   input.shape <- sapply(input.names, function(n) {
     dim(infer.data$value()[[n]])

@@ -3,7 +3,7 @@ title: "RNN made easy with MXNet R"
 output: github_document
 ---
 
-> This tutorial presents an example of application of RNN to texts classification using padded and bucketed data to efficiently handle sequences of varying lengths. It requires running on a GPU with CUDA. 
+> This tutorial presents an example of application of RNN to text classification using padded and bucketed data to efficiently handle sequences of varying lengths. It requires running on a GPU with CUDA. 
 
 Example based on sentiment analysis on the [IMDB data](http://ai.stanford.edu/~amaas/data/sentiment/).
 
@@ -31,7 +31,7 @@ source("rnn.infer.R")
 
 ## What's special about sequence modeling?
 
-Whether we're working with text at the character or word level, NLP tasks naturally involves dealing with sequences of varying length. 
+Whether we're working with text at the character or word level, NLP tasks typically involves dealing with sequences of varying length. 
 
 This can present some challenges as the explicit representation of an unrolled RNN involves a fixed length sequence. Rather than defining new symbolic model for each sequence length, the `mx.symbol.RNN` operator simplifies the process by abstracting the recurring process into a single operator that accepts sequences of varying lengths.
 

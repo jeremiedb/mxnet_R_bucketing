@@ -3,6 +3,7 @@ mx.model.train.rnn.buckets <- function(ctx, symbol, arg.params, aux.params, inpu
                                        begin.round, end.round, optimizer, train.data, eval.data, metric, 
                                        epoch.end.callback, batch.end.callback, kvstore, verbose = TRUE) {
   
+  arguments <- symbol$arguments
   input.names <- names(input.shape)
   arg.params.names <- names(arg.params)
   
@@ -73,10 +74,12 @@ mx.model.train.rnn.buckets <- function(ctx, symbol, arg.params, aux.params, inpu
         sapply(names(dlist), function(n) mx.nd.split(data=dlist[[n]], num_outputs = ndevice, axis = 0, squeeze_axis = F))
       })
       
-      # Assign input to each executor
-      for (i in 1:ndevice) {
-        train.execs[[i]]$update.arg.arrays(arg.arrays = slices[[i]], match.name = TRUE, skip.null = FALSE)
-      }
+      # Assign input to each executor - bug on inference if using BatchNorm
+      train.execs <- lapply(1:ndevice, function(i) {
+        s <- slices[[i]]
+        mxnet:::mx.symbol.bind(symbol = symbol, arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.params.names])[arg_update_idx],
+                               aux.arrays = train.execs[[i]]$aux.arrays, ctx = ctx[[i]], grad.req = grad_req)
+      })
       
       for (texec in train.execs) {
         mx.exec.forward(texec, is.train = TRUE)
@@ -153,9 +156,11 @@ mx.model.train.rnn.buckets <- function(ctx, symbol, arg.params, aux.params, inpu
         })
         
         # Assign input to each executor
-        for (i in 1:ndevice) {
-          train.execs[[i]]$update.arg.arrays(arg.arrays = slices[[i]], match.name = TRUE, skip.null = FALSE)
-        }
+        train.execs <- lapply(1:ndevice, function(i) {
+          s <- slices[[i]]
+          mxnet:::mx.symbol.bind(symbol = symbol, arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.params.names])[arg_update_idx],
+                                 aux.arrays = train.execs[[i]]$aux.arrays, ctx = ctx[[i]], grad.req = grad_req)
+        })
         
         for (texec in train.execs) {
           mx.exec.forward(texec, is.train = FALSE)
