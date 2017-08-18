@@ -24,29 +24,26 @@ mx.rnn.infer.buckets <- function(infer.data, model, ctx = mx.cpu()) {
   ndevice <- length(ctx)
   symbol <- model$symbol
   
-  input.names <- c("data", "seq.mask")
+  arguments <- symbol$arguments
+  input.names <- names(train.data$value())
+  
   input.shape <- sapply(input.names, function(n) {
     dim(infer.data$value()[[n]])
   }, simplify = FALSE)
-  
-  output.names <- "label"
-  output.shape <- sapply(output.names, function(n) {
-    dim(infer.data$value()[[n]])
-  }, simplify = FALSE)
-  
+
   arg.params <- model$arg.params
   arg.params.names <- names(arg.params)
   aux.params <- model$aux.params
   
   # Grad request
-  grad_req <- rep("null", length(symbol$arguments))
+  grad_req <- rep("null", length(arguments))
   
   # Arg array order
-  update_names <- c(input.names, output.names, arg.params.names)
-  arg_update_idx <- match(symbol$arguments, update_names)
+  update_names <- c(input.names, arg.params.names)
+  arg_update_idx <- match(arguments, update_names)
   
   # Initial binding
-  dlist <- lapply(c(input.shape, output.shape), function(shape) {
+  dlist <- lapply(input.shape, function(shape) {
     mx.nd.zeros(shape = shape, ctx = mx.cpu()) 
   })
   
