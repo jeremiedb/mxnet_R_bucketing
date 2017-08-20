@@ -15,7 +15,6 @@ require("dplyr")
 require("plotly")
 require("stringr")
 require("stringi")
-require("AUC")
 require("scales")
 require("mxnet")
 ```
@@ -23,42 +22,10 @@ require("mxnet")
 Load utility functions
 
 ```{r, echo=T}
-source("mx.io.bucket.iter.R")
+source("mx.io.bucket.iter.nomask.R")
 source("rnn.graph.R")
 source("model.rnn.R")
 source("rnn.infer.R")
-```
-
-## What's special about sequence modeling?
-
-Whether we're working with text at the character or word level, NLP tasks naturally involves dealing with sequences of varying length. 
-
-This can present some challenges as the explicit representation of an unrolled RNN involves a fixed length sequence. Rather than defining new symbolic model for each sequence length, the `mx.symbol.RNN` operator simplifies the process by abstracting the recurring process into a single operator that accepts sequences of varying lengths.
-
-To efficiently feed the RNN network, two tricks can be used: 
-
-- Padding: fill the modeled sequences with an arbitrary word/character up to the longest sequence. This results in sequences of even lengths, but potentially of excessive size for an efficient training. 
-
-- Bucketing: apply the padding trick but to subgroups of samples split according to their lengths. This results in multiples trainings sets, or buckets, within which all samples are padded to an even length. 
-
-Below is the graph representation of a seq-to-one architecture. Note that input data is of shape `seq_length X batch.size` while ouput of the RNN operator is of shape `hidden.features X batch.size X seq_length`. 
-
-
-```{r, echo=TRUE, fig.height=1}
-
-rnn_graph_one_one <- rnn.graph(num.rnn.layer = 2, 
-                               num.hidden = 20,
-                               input.size=86,
-                               num.embed=16, 
-                               num.label=2,
-                               dropout=0.5, 
-                               ignore_label = 0,
-                               cell.type="lstm",
-                               masking = T,
-                               config = "one-to-one")
-
-graph.viz(rnn_graph_one_one, type = "graph", direction = "LR", graph.height.px = 100, graph.width.px = 800, shape=c(100, 64))
-
 ```
 
 ## Data preparation
@@ -74,19 +41,35 @@ The following steps are executed:
 
 
 ```{r, echo=TRUE}
-
 corpus_bucketed_train <- readRDS(file = "data/train_buckets_one_to_one.rds")
 corpus_bucketed_test <- readRDS(file = "data/eval_buckets_one_to_one.rds")
 
 vocab <- length(corpus_bucketed_test$dic)
 
 ### Create iterators
-batch.size = 64
+batch.size = 32
 
 train.data <- mx.io.bucket.iter(buckets = corpus_bucketed_train$buckets, batch.size = batch.size, data.mask.element = 0, shuffle = TRUE)
 
 eval.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.size = batch.size, data.mask.element = 0, shuffle = FALSE)
+```
 
+## Model arhcitecture
+
+```{r, echo=TRUE, fig.height=1}
+rnn_graph_one_one <- rnn.graph(num.rnn.layer = 2, 
+                               num.hidden = 128,
+                               input.size=vocab+1,
+                               num.embed=64, 
+                               num.label=vocab+1,
+                               dropout=0, 
+                               ignore_label = 0,
+                               cell.type="lstm",
+                               masking = F,
+                               config = "one-to-one")
+
+graph.viz(rnn_graph_one_one, type = "graph", direction = "LR", 
+          graph.height.px = 100, graph.width.px = 800, shape=c(100, 64))
 ```
 
 
@@ -95,42 +78,61 @@ eval.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.siz
 ```{r, echo=TRUE, eval=FALSE}
 devices <- mx.gpu(0)
 
-initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
+initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "in", magnitude = 2)
 
-optimizer <- mx.opt.create("rmsprop", learning.rate = 0.001, gamma1 = 0.95, gamma2 = 0.9, wd = 1e-4, clip_gradient=NULL, rescale.grad=1/batch.size)
+optimizer <- mx.opt.create("adadelta", rho = 0.92, eps = 1e-6, wd = 1e-8, clip_gradient=2, rescale.grad=1/batch.size)
+
+# optimizer <- mx.opt.create("adam", learning.rate = 0.001, beta1 = 0.9, beta2 = 0.999, epsilon = 1e-8, wd = 1e-5, rescale.grad = 1/batch.size, clip_gradient = 1)
+
+# optimizer <- mx.opt.create("rmsprop", learning.rate = 0.002, gamma1 = 0.95, gamma2 = 0.95, wd = 1e-5, clip_gradient=1, rescale.grad=1/batch.size)
 
 logger <- mx.metric.logger()
 epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
 batch.end.callback <- mx.callback.log.train.metric(period = 50)
 
-model <- mx.rnn.buckets(train.data = train.data, eval.data = eval.data,
-                        num.round = 10, 
-                        ctx = devices, 
-                        metric = mx.metric.accuracy, 
-                        initializer = initializer, 
-                        optimizer = optimizer, 
-                        num.rnn.layer = 1, 
-                        num.embed = 2, 
-                        num.hidden = 5, 
-                        num.label = 2, 
-                        input.size = vocab, 
-                        dropout = 0.25,
-                        cell.type = "lstm", 
-                        config = "seq-to-one", 
-                        batch.end.callback = NULL, 
-                        epoch.end.callback = epoch.end.callback,
-                        verbose = FALSE)
 
-mx.model.save(model, prefix = "models/model_sentiment_lstm", iteration = 10)
+mx.metric.custom_nd <- function(name, feval) {
+  init <- function() {
+    c(0, 0)
+  }
+  update <- function(label, pred, state) {
+    m <- feval(label, pred)
+    state <- c(state[[1]] + 1, state[[2]] + m)
+    return(state)
+  }
+  get <- function(state) {
+    list(name=name, value=(state[[2]]/state[[1]]))
+  }
+  ret <- (list(init=init, update=update, get=get))
+  class(ret) <- "mx.metric"
+  return(ret)
+}
+
+mx.metric.Perplexity <- mx.metric.custom_nd("Perplexity", function(label, pred) {
+  label_probs <- as.array(mx.nd.choose.element.0index(pred, label))
+  batch <- length(label_probs)
+  NLL <- -sum(log(pmax(1e-15, as.array(label_probs)))) / batch
+  Perplexity <- exp(NLL)
+  return(Perplexity)
+})
+
+model <- mx.rnn.buckets(symbol = rnn_graph_one_one,
+                        train.data = train.data, eval.data = eval.data,
+                        num.round = 24, ctx = devices, verbose = TRUE,
+                        metric = mx.metric.Perplexity, 
+                        initializer = initializer, optimizer = optimizer, 
+                        batch.end.callback = batch.end.callback, 
+                        epoch.end.callback = epoch.end.callback)
+
+mx.model.save(model, prefix = "models/model_one_to_one_lstm", iteration = 24)
 
 p <- plot_ly(x = seq_len(length(logger$train)), y = logger$train, type = "scatter", mode = "markers+lines", name = "train") %>% 
   add_trace(y = logger$eval, type = "scatter", mode = "markers+lines", name = "eval")
 
-plotly::export(p, file = "logger_lstm.png")
+plotly::export(p, file = "logger_one_to_one.png")
 ```
 
-![](logger_lstm.png)
-
+![](logger_one_to_one.png)
 
 ## Inference on test data
 

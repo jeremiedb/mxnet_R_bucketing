@@ -1,3 +1,8 @@
+require("readr")
+require("dplyr")
+require("stringr")
+require("stringi")
+
  # download the IMDB dataset
 if (!file.exists("data/char_lstm.zip")) {
   download.file("http://data.mxnet.io/data/char_lstm.zip", "data/char_lstm.zip")
@@ -9,16 +14,11 @@ list.of.packages <- c("readr", "dplyr", "stringr", "stringi")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[, "Package"])]
 if (length(new.packages)) install.packages(new.packages)
 
-require("readr")
-require("dplyr")
-require("stringr")
-require("stringi")
-
 make_dic <- function(text) {
   
   dic_labels <- sort(unique(text))
   dic <- 1:length(dic_labels)
-  names(dic)<- dic_labels
+  names(dic) <- dic_labels
   
   cat(paste0("Total unique char: ", length(dic), "\n"))
   return (dic)

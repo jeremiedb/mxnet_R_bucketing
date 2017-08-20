@@ -67,16 +67,18 @@ rnn.graph <- function(num.rnn.layer,
     if (masking) mask <- mx.symbol.SequenceMask(data = rnn[[1]], use.sequence.length = T, sequence_length = seq.mask, value = 0, name = "mask") else
     mask <- mx.symbol.identity(data = rnn[[1]], name = "mask")
     
-    reshape = mx.symbol.reshape(mask, shape=c(num.hidden, -1))
+    reshape = mx.symbol.transpose(mask)
+    flatten = mx.symbol.flatten(reshape)
+    transpose = mx.symbol.transpose(flatten)
     
-    fc <- mx.symbol.FullyConnected(data=reshape,
+    decode <- mx.symbol.FullyConnected(data=transpose,
                                    weight=cls.weight,
                                    bias=cls.bias,
                                    num.hidden=num.label,
                                    name = "decode")
     
     label <- mx.symbol.reshape(data=label, shape=c(-1))
-    loss <- mx.symbol.SoftmaxOutput(data=fc, name="sm", label=label, ignore_label=ignore_label)
+    loss <- mx.symbol.SoftmaxOutput(data=decode, label=label, ignore_label=ignore_label, name="decode")
     
   }
   
