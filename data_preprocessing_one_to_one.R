@@ -14,29 +14,29 @@ list.of.packages <- c("readr", "dplyr", "stringr", "stringi")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[, "Package"])]
 if (length(new.packages)) install.packages(new.packages)
 
-make_dic <- function(text) {
-  
-  dic_labels <- sort(unique(text))
-  dic <- 1:length(dic_labels)
-  names(dic) <- dic_labels
-  
-  cat(paste0("Total unique char: ", length(dic), "\n"))
-  return (dic)
-}
-
-
 make_data <- function(path, seq.len=32, dic=NULL) {
   
   text_vec <- read_file(file = path)
+  text_vec <- stri_enc_toascii(str = text_vec)
+  text_vec <- str_replace_all(string = text_vec, pattern = "[^[:print:]]", replacement = "")
   text_vec <- strsplit(text_vec, '') %>% unlist
   
   if (is.null(dic)) {
-    dic <- make_dic(text_vec)
-  }
+    char_keep <- sort(unique(text_vec))
+  } else char_keep <- names(dic)[!dic == 0]
   
-  rev_dic<- names(dic)
-  names(rev_dic)<- dic
+  ### Remove terms not part of dictionnary
+  text_vec <- text_vec[text_vec %in% char_keep]
   
+  ### Build dictionnary
+  dic <- 1:length(char_keep)
+  names(dic) <- char_keep
+  dic <- c(`¤` = 0, dic)
+  
+  ### reverse dictionnary
+  rev_dic <- names(dic)
+  names(rev_dic) <- dic
+
   ### Adjuste by -1 because need a 1-lag for labels
   num.seq <- as.integer(floor((length(text_vec)-1)/seq.len))
   

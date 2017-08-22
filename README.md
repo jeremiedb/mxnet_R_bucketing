@@ -43,7 +43,7 @@ To efficiently feed the RNN network, two tricks can be used:
 Data preparation
 ----------------
 
-Data preparation is performed by the script: `data.preprocessing.R`.
+Data preparation is performed by the script: `data_preprocessing_seq_to_one.R`.
 
 The following steps are executed:
 
@@ -99,9 +99,9 @@ Fit the model
 ``` r
 devices <- mx.gpu(0)
 
-initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2)
+initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 3)
 
-optimizer <- mx.opt.create("rmsprop", learning.rate = 0.001, gamma1 = 0.95, gamma2 = 0.95, wd = 5e-4, 
+optimizer <- mx.opt.create("rmsprop", learning.rate = 0.001, gamma1 = 0.95, gamma2 = 0.90, wd = 5e-4, 
                            clip_gradient=NULL, rescale.grad=1/batch.size)
 
 logger <- mx.metric.logger()
@@ -109,16 +109,12 @@ epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
 batch.end.callback <- mx.callback.log.train.metric(period = 50)
 
 model <- mx.rnn.buckets(symbol = graph_lstm,
-                        train.data = train.data, 
-                        eval.data = eval.data,
-                        num.round = 10, 
-                        ctx = devices, 
+                        train.data = train.data, eval.data = eval.data,
+                        num.round = 10, ctx = devices, verbose = TRUE,
                         metric = mx.metric.accuracy, 
-                        initializer = initializer, 
-                        optimizer = optimizer, 
+                        initializer = initializer, optimizer = optimizer, 
                         batch.end.callback = batch.end.callback, 
-                        epoch.end.callback = epoch.end.callback,
-                        verbose = TRUE)
+                        epoch.end.callback = epoch.end.callback)
 
 mx.model.save(model, prefix = "models/model_sentiment_lstm", iteration = 10)
 

@@ -44,7 +44,7 @@ To efficiently feed the RNN network, two tricks can be used:
 
 ## Data preparation
 
-Data preparation is performed by the script: `data.preprocessing.R`. 
+Data preparation is performed by the script: `data_preprocessing_seq_to_one.R`. 
 
 The following steps are executed: 
 
@@ -102,9 +102,9 @@ graph.viz(graph_lstm, type = "graph", direction = "LR",
 ```{r, echo=TRUE, eval=FALSE}
 devices <- mx.gpu(0)
 
-initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2)
+initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 3)
 
-optimizer <- mx.opt.create("rmsprop", learning.rate = 0.001, gamma1 = 0.95, gamma2 = 0.95, wd = 5e-4, 
+optimizer <- mx.opt.create("rmsprop", learning.rate = 0.001, gamma1 = 0.95, gamma2 = 0.90, wd = 5e-4, 
                            clip_gradient=NULL, rescale.grad=1/batch.size)
 
 logger <- mx.metric.logger()

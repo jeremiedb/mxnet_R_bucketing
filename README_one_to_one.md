@@ -1,15 +1,13 @@
----
-title: "RNN made easy with MXNet R"
-output: github_document
----
+RNN made easy with MXNet R
+================
 
-> This tutorial presents an example of application of one-to-one RNN applied to text generation using the reworked functionnalities in MXNet R package. Requires to train on GPU with CUDA.  
+> This tutorial presents an example of application of one-to-one RNN applied to text generation using the reworked functionnalities in MXNet R package. Requires to train on GPU with CUDA.
 
 Example based on [Obama's speech](http://data.mxnet.io/data/char_lstm.zip).
 
 Load some packages
 
-```{r, echo=T, message=F}
+``` r
 require("readr")
 require("dplyr")
 require("plotly")
@@ -21,26 +19,26 @@ require("mxnet")
 
 Load utility functions
 
-```{r, echo=T}
+``` r
 source("mx.io.bucket.iter.nomask.R")
 source("rnn.graph.R")
 source("model.rnn.R")
 source("rnn.infer.R")
 ```
 
-## Data preparation
+Data preparation
+----------------
 
-Data preparation is performed by the script: `data_preprocessing_one_to_one.R`. 
+Data preparation is performed by the script: `data_preprocessing_one_to_one.R`.
 
-The following steps are executed: 
+The following steps are executed:
 
-- Import speach data as a single character string. 
-- Remove non printable characters. 
-- Split text into individual characters. 
-- Group characters into sequences of a fixed length, each sequence being a sample to the model. 
+-   Import speach data as a single character string.
+-   Remove non printable characters.
+-   Split text into individual characters.
+-   Group characters into sequences of a fixed length, each sequence being a sample to the model.
 
-
-```{r, echo=TRUE}
+``` r
 corpus_bucketed_train <- readRDS(file = "data/train_buckets_one_to_one.rds")
 corpus_bucketed_test <- readRDS(file = "data/eval_buckets_one_to_one.rds")
 
@@ -56,13 +54,14 @@ eval.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.siz
                                data.mask.element = 0, shuffle = FALSE)
 ```
 
-## Model arhcitecture
+Model arhcitecture
+------------------
 
-A one-to-one model configuration is specified since for each character, we want to predict the next one. For a sequence of length 100, there are also 100 labels, corresponding the same sequence of characters but offset by a position of +1. 
+A one-to-one model configuration is specified since for each character, we want to predict the next one. For a sequence of length 100, there are also 100 labels, corresponding the same sequence of characters but offset by a position of +1.
 
-The parameters `output_last_state` is set to `TRUE` in order to access the state of the RNN cells when performing inference. 
+The parameters `output_last_state` is set to `TRUE` in order to access the state of the RNN cells when performing inference.
 
-```{r, echo=TRUE, fig.height=1}
+``` r
 rnn_graph_one_one <- rnn.graph(num.rnn.layer = 2, 
                                num.hidden = 80,
                                input.size=vocab+1,
@@ -79,10 +78,12 @@ graph.viz(rnn_graph_one_one, type = "graph", direction = "LR",
           graph.height.px = 100, graph.width.px = 800, shape=c(100, 64))
 ```
 
+![](README_one_to_one_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-4-1.png)
 
-## Fit a LSTM model
+Fit a LSTM model
+----------------
 
-```{r, echo=TRUE, eval=FALSE}
+``` r
 devices <- mx.gpu(0)
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 4)
@@ -142,11 +143,12 @@ plotly::export(p, file = "logger_one_to_one.png")
 
 ![](logger_one_to_one.png)
 
-## Inference on test data
+Inference on test data
+----------------------
 
-Setup inference data. Need to apply preprocessing to inference sequence and convert into a infer data iterator. 
+Setup inference data. Need to apply preprocessing to inference sequence and convert into a infer data iterator.
 
-```{r, echo=TRUE}
+``` r
 ctx <- mx.gpu(0)
 batch.size <- 1
 
@@ -166,12 +168,11 @@ infer.data <- mx.io.bucket.iter(buckets = infer_buckets$buckets, batch.size = 1,
                                 data.mask.element = 0, shuffle = FALSE)
 ```
 
-
 ### Inference with most likely term
 
-Here the predictions are performed by picking the character whose associated probablility is the highest. 
+Here the predictions are performed by picking the character whose associated probablility is the highest.
 
-```{r, echo=TRUE, eval=TRUE}
+``` r
 model <- mx.model.load(prefix = "models/model_one_to_one_lstm", iteration = 40)
 
 internals <- model$symbol$get.internals()
@@ -216,18 +217,17 @@ for (i in 1:100) {
 
 predict_txt <- paste0(rev_dic[as.character(predict)], collapse = "")
 predict_txt_tot <- paste0(infer_raw, predict_txt, collapse = "")
-
 ```
 
-Generated sequence: `r predict_txt_tot`
+Generated sequence: The United States are the progress the progress the progress the progress the progress the progress the progress the progr
 
-Key ideas appear somewhat overemphasized. 
+Key ideas appear somewhat overemphasized.
 
 ### Inference from random sample
 
-Noise is now inserted in the predictions by sampling each character based on their modeled probability. 
+Noise is now inserted in the predictions by sampling each character based on their modeled probability.
 
-```{r, echo=TRUE, eval=TRUE}
+``` r
 set.seed(4)
 
 infer_raw <- c("The United States are")
@@ -277,9 +277,8 @@ for (i in 1:100) {
 
 predict_txt <- paste0(rev_dic[as.character(predict)], collapse = "")
 predict_txt_tot <- paste0(infer_raw, predict_txt, collapse = "")
-
 ```
 
-Generated sequence: `r predict_txt_tot`
+Generated sequence: The United States are their numberal year Doi't Movementate Curplomy.They'll good togethering at the just through their mo
 
-Now we get a more alembicated political speech.   
+Now we get a more alembicated political speech.
