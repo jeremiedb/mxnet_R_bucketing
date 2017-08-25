@@ -95,7 +95,6 @@ gru.cell <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, dr
   return(list(h = next.h))
 }
 
-
 # unroll representation of RNN is running on non CUDA device
 rnn.unroll <- function(num.rnn.layer, 
                        seq.len, 
@@ -103,8 +102,8 @@ rnn.unroll <- function(num.rnn.layer,
                        num.embed, 
                        num.hidden,
                        num.label,
-                       dropout=0,
-                       ignore_label=0,
+                       dropout,
+                       ignore_label,
                        init.state=NULL,
                        config,
                        cell.type="lstm",
@@ -191,7 +190,7 @@ rnn.unroll <- function(num.rnn.layer,
                                    bias=cls.bias,
                                    num.hidden=num.label)
     
-    loss <- mx.symbol.SoftmaxOutput(data=fc, name="sm", label=label, ignore_label=ignore_label)
+    loss <- mx.symbol.SoftmaxOutput(data=fc, name="sm", label=label, use_ignore = !ignore_label == -1, ignore_label = ignore_label)
     
   } else if (config=="one-to-one"){
     
@@ -205,7 +204,7 @@ rnn.unroll <- function(num.rnn.layer,
                                    num.hidden=num.label)
     
     label <- mx.symbol.reshape(data=label, shape=c(-1))
-    loss <- mx.symbol.SoftmaxOutput(data=fc, name="sm", label=label, ignore_label=ignore_label)
+    loss <- mx.symbol.SoftmaxOutput(data=fc, name="sm", label=label, use_ignore = !ignore_label == -1, ignore_label = ignore_label)
     
   }
   
@@ -215,10 +214,9 @@ rnn.unroll <- function(num.rnn.layer,
   } else return(loss)
 }
 
-
 # get unrolled lstm symbol
-rnn.graph.cpu <- function(bucket_names, num.rnn.layer, num.hidden, seq.len, input.size, 
-                          num.embed, num.label, dropout, cell.type, config) {
+rnn.graph.cpu <- function(bucket_names, num.rnn.layer, num.hidden, input.size, ignore_label = -1, 
+                          num.embed, num.label, dropout = 0, cell.type, config) {
   
   sym_list <- sapply(bucket_names, function(x) {
     rnn.unroll(num.rnn.layer=num.rnn.layer,
@@ -229,7 +227,8 @@ rnn.graph.cpu <- function(bucket_names, num.rnn.layer, num.hidden, seq.len, inpu
                num.label=num.label,
                dropout=dropout,
                cell.type=cell.type,
-               config = config)}, 
+               config = config, 
+               ignore_label = ignore_label)}, 
     simplify = F, USE.NAMES = T)
   
   return(sym_list)

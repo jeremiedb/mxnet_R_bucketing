@@ -66,7 +66,7 @@ mx.model.train.rnn.buckets <- function(ctx, symbol,
     while (train.data$iter.next()) {
       
       # Get iterator data
-      dlist <- train.data$value()
+      dlist <- train.data$value()[input.names]
       
       # Slice inputs for multi-devices
       slices <- lapply(1:ndevice, function(i) {
@@ -82,10 +82,12 @@ mx.model.train.rnn.buckets <- function(ctx, symbol,
                                  aux.arrays = train.execs[[i]]$aux.arrays, ctx = ctx[[i]], grad.req = grad_req)
         })
       } else {
-        for (i in 1:ndevice) {
+        train.execs <- lapply(1:ndevice, function(i) {
           s <- slices[[i]]
-          mx.exec.update.arg.arrays(train.execs[[i]], s, match.name=TRUE)
-        }
+          mxnet:::mx.symbol.bind(symbol = symbol, 
+                                 arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.params.fix.names], train.execs[[i]]$arg.arrays[arg.params.names])[arg_update_idx],
+                                 aux.arrays = train.execs[[i]]$aux.arrays, ctx = ctx[[i]], grad.req = grad_req)
+        })
       }
       
       for (texec in train.execs) {
@@ -155,7 +157,7 @@ mx.model.train.rnn.buckets <- function(ctx, symbol,
       while (eval.data$iter.next()) {
         
         # Get iterator data
-        dlist <- eval.data$value()
+        dlist <- eval.data$value()[input.names]
         
         # Slice input to multiple devices
         slices <- lapply(1:ndevice, function(i) {
@@ -171,10 +173,12 @@ mx.model.train.rnn.buckets <- function(ctx, symbol,
                                    aux.arrays = train.execs[[i]]$aux.arrays, ctx = ctx[[i]], grad.req = grad_req)
           })
         } else {
-          for (i in 1:ndevice) {
+          train.execs <- lapply(1:ndevice, function(i) {
             s <- slices[[i]]
-            mx.exec.update.arg.arrays(train.execs[[i]], s, match.name=TRUE)
-          }
+            mxnet:::mx.symbol.bind(symbol = symbol, 
+                                   arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.params.fix.names], train.execs[[i]]$arg.arrays[arg.params.names])[arg_update_idx],
+                                   aux.arrays = train.execs[[i]]$aux.arrays, ctx = ctx[[i]], grad.req = grad_req)
+          })
         }
         
         for (texec in train.execs) {
@@ -280,7 +284,7 @@ mx.rnn.buckets <- function(symbol, train.data, eval.data = NULL, init.state = NU
   if (is.list(symbol)) sym_ini <- symbol[[names(train.data$bucketID())]] else sym_ini <- symbol
     
   arguments <- sym_ini$arguments
-  input.names <- names(train.data$value())
+  input.names <- intersect(names(train.data$value()), arguments)
   
   input.shape <- sapply(input.names, function(n) {
     dim(train.data$value()[[n]])
