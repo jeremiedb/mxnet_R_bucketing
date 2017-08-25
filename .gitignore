@@ -43,6 +43,7 @@ vignettes/*.pdf
 /submit/
 /test/
 /old/
+/aclImdb/
 
 /blog/aclImdb/
 /blog/data/

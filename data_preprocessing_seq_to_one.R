@@ -1,8 +1,8 @@
 # download the IMDB dataset
-if (!file.exists("aclImdb_v1.tar.gz")) {
+if (!file.exists("datas/aclImdb_v1.tar.gz")) {
   download.file("http://ai.stanford.edu/~amaas/data/sentiment/aclImdb_v1.tar.gz", 
-    "aclImdb_v1.tar.gz")
-  untar("aclImdb_v1.tar.gz")
+                "data/aclImdb_v1.tar.gz")
+  untar("data/aclImdb_v1.tar.gz")
 }
 
 # install required packages
@@ -90,7 +90,6 @@ make_bucket_data <- function(word_vec_list, labels, dic, seq_len = c(225), right
   word_vec_length <- lapply(word_vec_list, length) %>% unlist()
   bucketID <- cut(word_vec_length, breaks = c(0, seq_len, Inf), include.lowest = T, 
     labels = F)
-  # table(bucketID)
   
   ### Right or Left side Padding Pad sequences to their bucket length with
   ### dictionnary 0-label
@@ -113,13 +112,12 @@ make_bucket_data <- function(word_vec_list, labels, dic, seq_len = c(225), right
   ### Assign the dictionnary to each bucket terms
   unrolled_arrays_dic <- lapply(1:length(seq_len), function(x) dic[unrolled_arrays[[x]]])
   
-  # length(splitted_arrays_dic[[1]]) Reshape into arrays having each sequence into
-  # a column
-  features_arrays <- lapply(1:length(seq_len), function(x) array(unrolled_arrays_dic[[x]], 
-    dim = c(seq_len[x], length(unrolled_arrays_dic[[x]])/seq_len[x])))
+  # Reshape into arrays having each sequence into a row
+  features <- lapply(1:length(seq_len), function(x) {
+    t(array(unrolled_arrays_dic[[x]], 
+          dim = c(seq_len[x], length(unrolled_arrays_dic[[x]])/seq_len[x])))
+  })
   
-  features <- lapply(1:length(seq_len), function(x) features_arrays[[x]][1:seq_len[x], 
-    ])
   names(features) <- as.character(seq_len)
   
   ### Combine data and labels into buckets

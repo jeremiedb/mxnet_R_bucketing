@@ -40,7 +40,7 @@ rnn.graph <- function(num.rnn.layer,
   cls.weight <- mx.symbol.Variable("cls.weight")
   cls.bias <- mx.symbol.Variable("cls.bias")
   
-  data <- mx.symbol.transpose(data=data)  
+  # data <- mx.symbol.transpose(data=data)  
   embed <- mx.symbol.Embedding(data=data, input_dim=input.size,
                                weight=embed.weight, output_dim=num.embed, name="embed")
   
@@ -71,11 +71,11 @@ rnn.graph <- function(num.rnn.layer,
     if (masking) mask <- mx.symbol.SequenceMask(data = rnn[[1]], use.sequence.length = T, sequence_length = seq.mask, value = 0, name = "mask") else
     mask <- mx.symbol.identity(data = rnn[[1]], name = "mask")
     
-    reshape = mx.symbol.transpose(mask)
-    flatten = mx.symbol.flatten(reshape)
-    transpose = mx.symbol.transpose(flatten)
+    # reshape = mx.symbol.transpose(mask)
+    flatten = mx.symbol.flatten(mask)
+    # transpose = mx.symbol.transpose(flatten)
     
-    decode <- mx.symbol.FullyConnected(data=transpose,
+    decode <- mx.symbol.FullyConnected(data=flatten,
                                    weight=cls.weight,
                                    bias=cls.bias,
                                    num.hidden=num.label,
