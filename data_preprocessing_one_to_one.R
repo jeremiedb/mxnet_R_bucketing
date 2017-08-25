@@ -43,8 +43,8 @@ make_data <- function(path, seq.len=32, dic=NULL) {
   features <- dic[text_vec[1:(seq.len*num.seq)]] 
   labels <- dic[text_vec[1:(seq.len*num.seq)+1]]
   
-  features_array <- t(array(features, dim=c(seq.len, num.seq)))
-  labels_array <- t(array(labels, dim=c(seq.len, num.seq)))
+  features_array <- (array(features, dim=c(seq.len, num.seq)))
+  labels_array <- (array(labels, dim=c(seq.len, num.seq)))
   
   return (list(features_array=features_array, labels_array=labels_array, dic=dic, rev_dic=rev_dic))
 }
