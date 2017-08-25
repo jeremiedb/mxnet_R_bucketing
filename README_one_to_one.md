@@ -8,19 +8,19 @@ Example based on [Obama's speech](http://data.mxnet.io/data/char_lstm.zip).
 Load some packages
 
 ``` r
-require("readr")
-require("dplyr")
-require("plotly")
-require("stringr")
-require("stringi")
-require("scales")
-require("mxnet")
+library("readr")
+library("dplyr")
+library("plotly")
+library("stringr")
+library("stringi")
+library("scales")
+library("mxnet")
 ```
 
 Load utility functions
 
 ``` r
-source("mx.io.bucket.iter.nomask.R")
+source("mx.io.bucket.iter.R")
 source("rnn.graph.R")
 source("model.rnn.R")
 source("rnn.infer.R")
@@ -91,11 +91,6 @@ initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnit
 optimizer <- mx.opt.create("adadelta", rho = 0.90, eps = 1e-5, wd = 1e-8,
                            clip_gradient = 5, rescale.grad = 1/batch.size)
 
-# optimizer <- mx.opt.create("adam", learning.rate = 0.001, beta1 = 0.9, beta2 = 0.999, epsilon = 1e-8, wd = 1e-5, rescale.grad = 1/batch.size, clip_gradient = 1)
-
-# optimizer <- mx.opt.create("rmsprop", learning.rate = 0.002, gamma1 = 0.95, gamma2 = 0.95,
-#                            wd = 1e-8, clip_gradient=NULL, rescale.grad=1/batch.size)
-
 logger <- mx.metric.logger()
 epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
 batch.end.callback <- mx.callback.log.train.metric(period = 50)
@@ -160,12 +155,8 @@ infer_raw <- c("The United States are")
 infer_split <- dic[strsplit(infer_raw, '') %>% unlist]
 infer_length <- length(infer_split)
 
-infer_buckets <- list("21"=list(data=matrix(infer_split, ncol=1), 
-                                label=matrix(infer_split, ncol=1)))
-infer_buckets <- list(buckets = infer_buckets, dic = dic, rev_dic = rev_dic)
-
-infer.data <- mx.io.bucket.iter(buckets = infer_buckets$buckets, batch.size = 1, 
-                                data.mask.element = 0, shuffle = FALSE)
+infer.data <- mx.io.arrayiter(data = matrix(infer_split), label = matrix(infer_split),  
+                              batch.size = 1, shuffle = FALSE)
 ```
 
 ### Inference with most likely term
@@ -196,11 +187,9 @@ pred <- mx.nd.argmax(data = pred_prob, axis = 1, keepdims = T)
 predict <- c(predict, as.numeric(as.array(pred)))
 
 for (i in 1:100) {
-  
-  infer_buckets <- list("1"=list(data=as.matrix(pred), label=as.matrix(pred)))
-  infer_buckets <- list(buckets = infer_buckets, dic = dic, rev_dic = rev_dic)
-  infer.data <- mx.io.bucket.iter(buckets = infer_buckets$buckets, batch.size = 1, 
-                                  data.mask.element = 0, shuffle = FALSE)
+
+  infer.data <- mx.io.arrayiter(data = as.matrix(pred), label = as.matrix(pred),  
+                              batch.size = 1, shuffle = FALSE)
   
   infer <- mx.rnn.infer.buckets.one(infer.data = infer.data, 
                                     symbol = symbol,
@@ -219,7 +208,7 @@ predict_txt <- paste0(rev_dic[as.character(predict)], collapse = "")
 predict_txt_tot <- paste0(infer_raw, predict_txt, collapse = "")
 ```
 
-Generated sequence: The United States are the progress the progress the progress the progress the progress the progress the progress the progr
+Generated sequence: The United States are started the problems that we can be the problems that we can be the problems that we can be the prob
 
 Key ideas appear somewhat overemphasized.
 
@@ -228,18 +217,15 @@ Key ideas appear somewhat overemphasized.
 Noise is now inserted in the predictions by sampling each character based on their modeled probability.
 
 ``` r
-set.seed(4)
+set.seed(44)
 
 infer_raw <- c("The United States are")
 infer_split <- dic[strsplit(infer_raw, '') %>% unlist]
 infer_length <- length(infer_split)
 
-infer_buckets <- list("21"=list(data=matrix(infer_split, ncol=1), 
-                                label=matrix(infer_split, ncol=1)))
-infer_buckets <- list(buckets = infer_buckets, dic = dic, rev_dic = rev_dic)
+infer.data <- mx.io.arrayiter(data = matrix(infer_split), label = matrix(infer_split),  
+                              batch.size = 1, shuffle = FALSE)
 
-infer.data <- mx.io.bucket.iter(buckets = infer_buckets$buckets, batch.size = 1, 
-                                data.mask.element = 0, shuffle = FALSE)
 
 predict <- numeric()
 
@@ -257,10 +243,8 @@ predict <- c(predict, pred)
 
 for (i in 1:100) {
   
-  infer_buckets <- list("1"=list(data=as.matrix(pred), label=as.matrix(pred)))
-  infer_buckets <- list(buckets = infer_buckets, dic = dic, rev_dic = rev_dic)
-  infer.data <- mx.io.bucket.iter(buckets = infer_buckets$buckets, batch.size = 1, 
-                                  data.mask.element = 0, shuffle = FALSE)
+  infer.data <- mx.io.arrayiter(data = as.matrix(pred), label = as.matrix(pred),  
+                              batch.size = 1, shuffle = FALSE)
   
   infer <- mx.rnn.infer.buckets.one(infer.data = infer.data, 
                                     symbol = symbol,
@@ -279,6 +263,6 @@ predict_txt <- paste0(rev_dic[as.character(predict)], collapse = "")
 predict_txt_tot <- paste0(infer_raw, predict_txt, collapse = "")
 ```
 
-Generated sequence: The United States are their numberal year Doi't Movementate Curplomy.They'll good togethering at the just through their mo
+Generated sequence: The United States are and the result the enough being, ank not when we can imaged or roopias for our. She coutderes or the
 
 Now we get a more alembicated political speech.

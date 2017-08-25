@@ -55,7 +55,6 @@ The following steps are executed:
 
 
 ```{r, echo=TRUE}
-
 corpus_bucketed_train <- readRDS(file = "data/corpus_bucketed_train.rds")
 corpus_bucketed_test <- readRDS(file = "data/corpus_bucketed_test.rds")
 
@@ -69,7 +68,6 @@ train.data <- mx.io.bucket.iter(buckets = corpus_bucketed_train$buckets, batch.s
 
 eval.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.size = batch.size, 
                                data.mask.element = 0, shuffle = FALSE)
-
 ```
 
 
@@ -104,8 +102,8 @@ devices <- mx.gpu(0)
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 3)
 
-optimizer <- mx.opt.create("rmsprop", learning.rate = 0.001, gamma1 = 0.95, gamma2 = 0.90, wd = 5e-4, 
-                           clip_gradient = NULL, rescale.grad=1/batch.size)
+optimizer <- mx.opt.create("rmsprop", learning.rate = 0.001, gamma1 = 0.95, gamma2 = 0.9, 
+                           wd = 1e-3, clip_gradient = NULL, rescale.grad=1/batch.size)
 
 logger <- mx.metric.logger()
 epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
@@ -130,24 +128,6 @@ plotly::export(p, file = "logger_lstm.png")
 
 ![](logger_lstm.png)
 
-## Unfused GRU - CPU Compatible
-
-### Define the architecture
-
-```{r, echo=TRUE, fig.height=1}
-source("rnn.graph.cpu.R")
-
-sym_list <- rnn.graph.cpu(bucket_names = train.data$bucket.names,  
-                          config = "seq-to-one", 
-                          cell.type = "gru", 
-                          num.rnn.layer = 1, 
-                          num.embed = 2, 
-                          num.hidden = 4, 
-                          num.label = 2, 
-                          input.size = vocab, 
-                          dropout = 0.5,
-                          ignore_label = -1)
-```
 
 ## Plot word embeddings
 

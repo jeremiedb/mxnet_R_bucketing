@@ -8,14 +8,14 @@ Example based on sentiment analysis on the [IMDB data](http://ai.stanford.edu/~a
 Load some packages
 
 ``` r
-require("readr")
-require("dplyr")
-require("plotly")
-require("stringr")
-require("stringi")
-require("AUC")
-require("scales")
-require("mxnet")
+library("readr")
+library("dplyr")
+library("plotly")
+library("stringr")
+library("stringi")
+library("AUC")
+library("scales")
+library("mxnet")
 ```
 
 Load utility functions
@@ -84,7 +84,7 @@ graph_lstm <- rnn.graph(config = "seq-to-one",
                         num.label = 2, 
                         input.size = vocab, 
                         dropout = 0.5,
-                        ignore_label = 0,
+                        ignore_label = -1,
                         masking = T)
 
 graph.viz(graph_lstm, type = "graph", direction = "LR", 
@@ -101,8 +101,8 @@ devices <- mx.gpu(0)
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 3)
 
-optimizer <- mx.opt.create("rmsprop", learning.rate = 0.001, gamma1 = 0.95, gamma2 = 0.90, wd = 5e-4, 
-                           clip_gradient=NULL, rescale.grad=1/batch.size)
+optimizer <- mx.opt.create("rmsprop", learning.rate = 0.001, gamma1 = 0.95, gamma2 = 0.9, 
+                           wd = 1e-3, clip_gradient = NULL, rescale.grad=1/batch.size)
 
 logger <- mx.metric.logger()
 epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
@@ -127,60 +127,12 @@ plotly::export(p, file = "logger_lstm.png")
 
 ![](logger_lstm.png)
 
-GRU model
----------
-
-### Define the architecture
-
-``` r
-graph_gru <- rnn.graph(config = "seq-to-one",
-                        cell.type = "gru", 
-                        num.rnn.layer = 1, 
-                        num.embed = 2, 
-                        num.hidden = 4, 
-                        num.label = 2, 
-                        input.size = vocab, 
-                        dropout = 0.5,
-                        ignore_label = 0,
-                        masking = T)
-```
-
-### Fit the model
-
-``` r
-logger <- mx.metric.logger()
-epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
-batch.end.callback <- mx.callback.log.train.metric(period = 50)
-
-model <- mx.rnn.buckets(symbol = graph_gru,
-                        train.data = train.data, 
-                        eval.data = eval.data,
-                        num.round = 10, 
-                        ctx = devices, 
-                        metric = mx.metric.accuracy, 
-                        initializer = initializer, 
-                        optimizer = optimizer, 
-                        batch.end.callback = batch.end.callback, 
-                        epoch.end.callback = epoch.end.callback,
-                        verbose = TRUE)
-
-mx.model.save(model, prefix = "models/model_sentiment_gru", iteration = 10)
-
-p <- plot_ly(x = seq_len(length(logger$train)), y = logger$train, 
-             type = "scatter", mode = "markers+lines", name = "train") %>% 
-  add_trace(y = logger$eval, type = "scatter", mode = "markers+lines", name = "eval")
-
-plotly::export(p, file = "logger_gru.png")
-```
-
-![](logger_gru.png)
-
 Plot word embeddings
 --------------------
 
-Word representation can be visualized by looking at the assigned weights in any of the embedding dimensions. Here, we look simultaneously at the two embeddings learnt in the GRU model.
+Word representation can be visualized by looking at the assigned weights in any of the embedding dimensions. Here, we look simultaneously at the two embeddings learnt in the LSTM model.
 
-![](README_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-8-1.png)
+![](README_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-6-1.png)
 
 Inference on test data
 ----------------------
@@ -212,27 +164,6 @@ roc <- roc(predictions = pred_raw[, 2], labels = factor(label))
 auc <- auc(roc)
 ```
 
-Accuracy: 87.2%
+Accuracy: 87.1%
 
-AUC: 0.9427
-
-### GRU
-
-``` r
-model <- mx.model.load(prefix = "models/model_sentiment_gru", iteration = 10)
-infer <- mx.rnn.infer.buckets(infer.data = test.data, 
-                              model = model,
-                              ctx = ctx)
-
-pred_raw <- t(as.array(infer))
-pred <- max.col(pred_raw, tie = "first") - 1
-label <- unlist(lapply(corpus_bucketed_test$buckets, function(x) x$label))
-
-acc <- sum(label == pred)/length(label)
-roc <- roc(predictions = pred_raw[, 2], labels = factor(label))
-auc <- auc(roc)
-```
-
-Accuracy: 86.5%
-
-AUC: 0.9359
+AUC: 0.9399

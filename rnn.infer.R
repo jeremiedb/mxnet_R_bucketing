@@ -46,7 +46,7 @@ mx.rnn.infer.buckets <- function(infer.data, model, ctx = mx.cpu()) {
   dlist <- arguments.ini[input.names]
   
   # Assign fixed parameters to their value and keep non initialized arguments to zero
-  arg.params.fix.names <- setdiff(arguments, c(names(arg.params), input.names))
+  arg.params.fix.names <- setdiff(arguments, c(arg.params.names, input.names))
   
   # Assign zeros to non initialized arg parameters
   arg.params.fix <- arguments.ini[arg.params.fix.names]
@@ -107,10 +107,9 @@ mx.rnn.infer.buckets.one <- function(infer.data,
     stop("ctx must be mx.context or list of mx.context")
   
   ndevice <- length(ctx)
-  # symbol <- model$symbol
   
   arguments <- symbol$arguments
-  input.names <- names(infer.data$value())
+  input.names <- intersect(names(infer.data$value()), arguments)
   
   input.shape <- sapply(input.names, function(n) {
     dim(infer.data$value()[[n]])
@@ -124,19 +123,17 @@ mx.rnn.infer.buckets.one <- function(infer.data,
   })
   
   arg.params <- arg.params
+  arg.params.names <- names(arg.params)
   
   dlist <- arguments.ini[input.names]
   
   # Assign fixed parameters to their value and keep non initialized arguments to zero
-  arg.params.fix.names <- unique(c(names(input.params), setdiff(arguments, c(names(arg.params), input.names))))
+  arg.params.fix.names <- unique(c(names(input.params), setdiff(arguments, c(arg.params.names, input.names))))
   
   # Assign zeros to non initialized arg parameters
   arg.params.fix <- arguments.ini[arg.params.fix.names]
   # Assign weights to arguments specifies by input.params
   arg.params.fix[names(input.params)] <- input.params
-  
-  # arg.params <- model$arg.params
-  arg.params.names <- names(arg.params)
   
   aux.params <- aux.params
   
@@ -148,10 +145,6 @@ mx.rnn.infer.buckets.one <- function(infer.data,
   arg_update_idx <- match(arguments, update_names)
   
   # Initial binding
-  dlist <- lapply(input.shape, function(shape) {
-    mx.nd.zeros(shape = shape, ctx = mx.cpu()) 
-  })
-  
   execs <- mxnet:::mx.symbol.bind(symbol = symbol, 
                                   arg.arrays = c(dlist, arg.params.fix, arg.params)[arg_update_idx], 
                                   aux.arrays = aux.params, ctx = ctx[[1]], grad.req = grad_req)
@@ -159,12 +152,11 @@ mx.rnn.infer.buckets.one <- function(infer.data,
   # Initial input shapes - need to be adapted for multi-devices - divide highest
   # dimension by device nb
   
-  packer <- mxnet:::mx.nd.arraypacker()
   infer.data$reset()
   while (infer.data$iter.next()) {
     
     # Get input data slice
-    dlist <- infer.data$value()  #[input.names]
+    dlist <- infer.data$value()[input.names]
     
     execs <- mxnet:::mx.symbol.bind(symbol = symbol, 
                                     arg.arrays = c(dlist, execs$arg.arrays[arg.params.fix.names], execs$arg.arrays[arg.params.names])[arg_update_idx],
@@ -179,14 +171,7 @@ mx.rnn.infer.buckets.one <- function(infer.data,
     out <- lapply(execs$ref.outputs, function(out) {
       mx.nd.copyto(out, mx.cpu())
     })
-    
-    # padded <- infer.data$num.pad()
-    # oshape <- dim(out.pred)
-    # ndim <- length(oshape)
-    # packer$push(mx.nd.slice.axis(data = out.pred, axis = 0, begin = 0, end = oshape[[ndim]] - padded))
-    
   }
   infer.data$reset()
-  # return(packer$get())
   return(out)
 }
