@@ -9,8 +9,8 @@ lstm.cell <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, d
   
   if (!is.null(prev.state)) {
     h2h <- mx.symbol.FullyConnected(data = prev.state$h, weight = param$h2h.weight, 
-                                    bias = param$h2h.bias, num.hidden = num.hidden * 4, name = paste0("t", 
-                                                                                                      seqidx, ".l", layeridx, ".h2h"))
+                                    bias = param$h2h.bias, num.hidden = num.hidden * 4, 
+                                    name = paste0("t", seqidx, ".l", layeridx, ".h2h"))
     gates <- i2h + h2h
   } else {
     gates <- i2h
@@ -44,16 +44,16 @@ lstm.cell <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, d
 gru.cell <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, dropout = 0, 
                      data_masking) {
   i2h <- mx.symbol.FullyConnected(data = indata, weight = param$gates.i2h.weight, 
-                                  bias = param$gates.i2h.bias, num.hidden = num.hidden * 2, name = paste0("t", 
-                                                                                                          seqidx, ".l", layeridx, ".gates.i2h"))
+                                  bias = param$gates.i2h.bias, num.hidden = num.hidden * 2, 
+                                  name = paste0("t", seqidx, ".l", layeridx, ".gates.i2h"))
   
   if (dropout > 0) 
     i2h <- mx.symbol.Dropout(data = i2h, p = dropout)
   
   if (!is.null(prev.state)) {
     h2h <- mx.symbol.FullyConnected(data = prev.state$h, weight = param$gates.h2h.weight, 
-                                    bias = param$gates.h2h.bias, num.hidden = num.hidden * 2, name = paste0("t", 
-                                                                                                            seqidx, ".l", layeridx, ".gates.h2h"))
+                                    bias = param$gates.h2h.bias, num.hidden = num.hidden * 2, 
+                                    name = paste0("t", seqidx, ".l", layeridx, ".gates.h2h"))
     gates <- i2h + h2h
   } else {
     gates <- i2h
@@ -66,8 +66,8 @@ gru.cell <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, dr
   reset.gate <- mx.symbol.Activation(split.gates[[2]], act.type = "sigmoid")
   
   htrans.i2h <- mx.symbol.FullyConnected(data = indata, weight = param$trans.i2h.weight, 
-                                         bias = param$trans.i2h.bias, num.hidden = num.hidden, name = paste0("t", 
-                                                                                                             seqidx, ".l", layeridx, ".trans.i2h"))
+                                         bias = param$trans.i2h.bias, num.hidden = num.hidden, 
+                                         name = paste0("t", seqidx, ".l", layeridx, ".trans.i2h"))
   
   if (is.null(prev.state)) {
     h.after.reset <- reset.gate * 0
@@ -76,8 +76,8 @@ gru.cell <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, dr
   }
   
   htrans.h2h <- mx.symbol.FullyConnected(data = h.after.reset, weight = param$trans.h2h.weight, 
-                                         bias = param$trans.h2h.bias, num.hidden = num.hidden, name = paste0("t", 
-                                                                                                             seqidx, ".l", layeridx, ".trans.h2h"))
+                                         bias = param$trans.h2h.bias, num.hidden = num.hidden, 
+                                         name = paste0("t", seqidx, ".l", layeridx, ".trans.h2h"))
   
   h.trans <- htrans.i2h + htrans.h2h
   h.trans.active <- mx.symbol.Activation(h.trans, act.type = "tanh")
@@ -231,5 +231,7 @@ rnn.graph.cpu <- function(bucket_names, num.rnn.layer, num.hidden, seq.len, inpu
                cell.type=cell.type,
                config = config)}, 
     simplify = F, USE.NAMES = T)
+  
+  return(sym_list)
   
 }
