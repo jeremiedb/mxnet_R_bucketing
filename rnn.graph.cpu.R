@@ -214,7 +214,7 @@ rnn.unroll <- function(num.rnn.layer,
   } else return(loss)
 }
 
-# get unrolled lstm symbol
+# get list of unrolled rnn symbol
 rnn.graph.cpu <- function(bucket_names, num.rnn.layer, num.hidden, input.size, ignore_label = -1, 
                           num.embed, num.label, dropout = 0, cell.type, config) {
   
