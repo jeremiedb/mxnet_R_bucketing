@@ -23,7 +23,7 @@ Load utility functions
 
 ```{r, echo=T}
 source("mx.io.bucket.iter.R")
-source("rnn.graph.cpu.R")
+source("rnn.graph.R")
 source("model.rnn.R")
 source("rnn.infer.R")
 ```
