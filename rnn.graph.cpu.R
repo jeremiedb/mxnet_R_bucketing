@@ -1,6 +1,5 @@
 # LSTM cell symbol
-lstm.cell <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, dropout = 0, 
-                      data_masking) {
+lstm.cell <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, dropout = 0) {
   i2h <- mx.symbol.FullyConnected(data = indata, weight = param$i2h.weight, bias = param$i2h.bias, 
                                   num.hidden = num.hidden * 4, name = paste0("t", seqidx, ".l", layeridx, ".i2h"))
   
@@ -32,17 +31,11 @@ lstm.cell <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, d
   
   next.h <- out.gate * mx.symbol.Activation(next.c, act.type = "tanh")
   
-  ### Add a mask - using the mask_array approach
-  data_mask_expand <- mx.symbol.reshape(data = data_masking, shape = c(1, -2))
-  next.c <- mx.symbol.broadcast_mul(lhs = next.c, rhs = data_mask_expand)
-  next.h <- mx.symbol.broadcast_mul(lhs = next.h, rhs = data_mask_expand)
-  
   return(list(c = next.c, h = next.h))
 }
 
 # GRU cell symbol
-gru.cell <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, dropout = 0, 
-                     data_masking) {
+gru.cell <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, dropout = 0) {
   i2h <- mx.symbol.FullyConnected(data = indata, weight = param$gates.i2h.weight, 
                                   bias = param$gates.i2h.bias, num.hidden = num.hidden * 2, 
                                   name = paste0("t", seqidx, ".l", layeridx, ".gates.i2h"))
@@ -87,11 +80,7 @@ gru.cell <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, dr
   } else {
     next.h <- prev.state$h + update.gate * (h.trans.active - prev.state$h)
   }
-  
-  ### Add a mask - using the mask_array approach
-  data_mask_expand <- mx.symbol.reshape(data = data_masking, shape = c(1, -2))
-  next.h <- mx.symbol.broadcast_mul(lhs = next.h, rhs = data_mask_expand)
-  
+
   return(list(h = next.h))
 }
 
@@ -136,21 +125,14 @@ rnn.unroll <- function(num.rnn.layer,
   # embeding layer
   label <- mx.symbol.Variable("label")
   data <- mx.symbol.Variable("data")
-  data_mask <- mx.symbol.Variable("data_mask")
-  data_mask_array <- mx.symbol.Variable("data_mask_array")
-  data_mask_array<- mx.symbol.stop_gradient(data_mask_array, name="data_mask_array")
   
   embed <- mx.symbol.Embedding(data=data, input_dim=input.size,
                                weight=embed.weight, output_dim=num.embed, name="embed")
   
   wordvec <- mx.symbol.split(data=embed, axis=1, num.outputs=seq.len, squeeze_axis=T)
-  data_mask_split <- mx.symbol.split(data=data_mask_array, axis=1, num.outputs=seq.len, squeeze_axis=T)
-  
+
   last.hidden <- list()
   last.states <- list()
-  decode <- list()
-  softmax <- list()
-  fc <- list()
   
   for (seqidx in 1:seq.len) {
     hidden <- wordvec[[seqidx]]
@@ -171,8 +153,7 @@ rnn.unroll <- function(num.rnn.layer,
                                 param=param.cells[[i]],
                                 seqidx=seqidx, 
                                 layeridx=i,
-                                dropout=dropout,
-                                data_masking=data_mask_split[[seqidx]])
+                                dropout=dropout)
       hidden <- next.state$h
       #if (dropout > 0) hidden <- mx.symbol.Dropout(data=hidden, p=dropout)
       last.states[[i]] <- next.state
@@ -207,30 +188,5 @@ rnn.unroll <- function(num.rnn.layer,
     loss <- mx.symbol.SoftmaxOutput(data=fc, name="sm", label=label, use_ignore = !ignore_label == -1, ignore_label = ignore_label)
     
   }
-  
-  if (output_last_state){
-    group<- mx.symbol.Group(c(unlist(last.states), loss))
-    return(group)
-  } else return(loss)
-}
-
-# get list of unrolled rnn symbol
-rnn.graph.cpu <- function(bucket_names, num.rnn.layer, num.hidden, input.size, ignore_label = -1, 
-                          num.embed, num.label, dropout = 0, cell.type, config) {
-  
-  sym_list <- sapply(bucket_names, function(x) {
-    rnn.unroll(num.rnn.layer=num.rnn.layer,
-               num.hidden=num.hidden,
-               seq.len=as.integer(x),
-               input.size=input.size,
-               num.embed=num.embed,
-               num.label=num.label,
-               dropout=dropout,
-               cell.type=cell.type,
-               config = config, 
-               ignore_label = ignore_label)}, 
-    simplify = F, USE.NAMES = T)
-  
-  return(sym_list)
-  
+  return(loss)
 }

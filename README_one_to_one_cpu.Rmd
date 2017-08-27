@@ -1,0 +1,285 @@
+---
+title: "RNN made easy with MXNet R"
+output: github_document
+---
+
+> This tutorial presents an example of application of one-to-one RNN applied to text generation using the reworked functionnalities in MXNet R package. Requires to train on GPU with CUDA.  
+
+Example based on [Obama's speech](http://data.mxnet.io/data/char_lstm.zip).
+
+Load some packages
+
+```{r, echo=T, message=F}
+library("readr")
+library("dplyr")
+library("plotly")
+library("stringr")
+library("stringi")
+library("scales")
+library("mxnet")
+```
+
+Load utility functions
+
+```{r, echo=T}
+source("mx.io.bucket.iter.R")
+source("rnn.graph.cpu.R")
+source("model.rnn.R")
+source("rnn.infer.R")
+```
+
+## Data preparation
+
+Data preparation is performed by the script: `data_preprocessing_one_to_one.R`. 
+
+The following steps are executed: 
+
+- Import speach data as a single character string. 
+- Remove non printable characters. 
+- Split text into individual characters. 
+- Group characters into sequences of a fixed length, each sequence being a sample to the model. 
+
+
+```{r, echo=TRUE}
+corpus_bucketed_train <- readRDS(file = "data/train_buckets_one_to_one.rds")
+corpus_bucketed_test <- readRDS(file = "data/eval_buckets_one_to_one.rds")
+
+vocab <- length(corpus_bucketed_test$dic)
+
+### Create iterators
+batch.size = 32
+
+train.data <- mx.io.bucket.iter(buckets = corpus_bucketed_train$buckets, batch.size = batch.size, 
+                                data.mask.element = 0, shuffle = TRUE)
+
+eval.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.size = batch.size,
+                               data.mask.element = 0, shuffle = FALSE)
+```
+
+## Model arhcitecture
+
+A one-to-one model configuration is specified since for each character, we want to predict the next one. For a sequence of length 100, there are also 100 labels, corresponding the same sequence of characters but offset by a position of +1. 
+
+The parameters `output_last_state` is set to `TRUE` in order to access the state of the RNN cells when performing inference. 
+
+```{r, echo=TRUE, fig.height=8}
+rnn_graph_one_one <- rnn.unroll(seq.len = 2,
+                                num.rnn.layer = 1, 
+                                num.hidden = 80,
+                                input.size=vocab+1,
+                                num.embed=50, 
+                                num.label=vocab,
+                                dropout=0.5, 
+                                ignore_label = 0,
+                                cell.type="lstm",
+                                output_last_state = T,
+                                config = "one-to-one")
+
+graph.viz(rnn_graph_one_one, type = "graph", direction = "TD", 
+          graph.height.px = 800, graph.width.px = 800, shape=c(2, 64))
+```
+
+
+## Fit a LSTM model
+
+
+Unroll the RNN to the length of the input sequence.
+
+```{r, echo=FALSE}
+rnn_graph_one_one <- rnn.unroll(seq.len = as.integer(train.data$bucket.names),
+                                num.rnn.layer = 1, 
+                                num.hidden = 50,
+                                input.size=vocab+1,
+                                num.embed=40, 
+                                num.label=vocab,
+                                dropout=0.5, 
+                                ignore_label = 0,
+                                cell.type="lstm",
+                                output_last_state = T,
+                                config = "one-to-one")
+```
+
+
+```{r, echo=TRUE, eval=FALSE}
+devices <- mx.cpu()
+
+initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 4)
+
+optimizer <- mx.opt.create("adadelta", rho = 0.92, eps = 1e-5, wd = 1e-8,
+                           clip_gradient = 5, rescale.grad = 1/batch.size)
+
+logger <- mx.metric.logger()
+epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
+batch.end.callback <- mx.callback.log.train.metric(period = 20)
+
+mx.metric.custom_nd <- function(name, feval) {
+  init <- function() {
+    c(0, 0)
+  }
+  update <- function(label, pred, state) {
+    m <- feval(label, pred)
+    state <- c(state[[1]] + 1, state[[2]] + m)
+    return(state)
+  }
+  get <- function(state) {
+    list(name=name, value=(state[[2]]/state[[1]]))
+  }
+  ret <- (list(init=init, update=update, get=get))
+  class(ret) <- "mx.metric"
+  return(ret)
+}
+
+mx.metric.Perplexity <- mx.metric.custom_nd("Perplexity", function(label, pred) {
+  label_probs <- as.array(mx.nd.choose.element.0index(pred, label))
+  batch <- length(label_probs)
+  NLL <- -sum(log(pmax(1e-15, as.array(label_probs)))) / batch
+  Perplexity <- exp(NLL)
+  return(Perplexity)
+})
+
+model <- mx.model.buckets(symbol = rnn_graph_one_one,
+                          train.data = train.data, eval.data = eval.data, 
+                          num.round = 1, ctx = devices, verbose = TRUE,
+                          metric = mx.metric.Perplexity, 
+                          initializer = initializer, optimizer = optimizer, 
+                          batch.end.callback = batch.end.callback, 
+                          epoch.end.callback = epoch.end.callback)
+
+mx.model.save(model, prefix = "models/model_one_to_one_lstm", iteration = 20)
+
+p <- plot_ly(x = seq_len(length(logger$train)), y = logger$train, type = "scatter", mode = "markers+lines", name = "train") %>% 
+  add_trace(y = logger$eval, type = "scatter", mode = "markers+lines", name = "eval")
+
+plotly::export(p, file = "logger_one_to_one.png")
+```
+
+![](logger_one_to_one.png)
+
+## Inference on test data
+
+Setup inference data. Need to apply preprocessing to inference sequence and convert into a infer data iterator. 
+
+```{r, echo=TRUE}
+ctx <- mx.gpu(0)
+batch.size <- 1
+
+corpus_bucketed_train <- readRDS(file = "data/train_buckets_one_to_one.rds")
+dic <- corpus_bucketed_train$dic
+rev_dic <- corpus_bucketed_train$rev_dic
+
+infer_raw <- c("The United States are")
+infer_split <- dic[strsplit(infer_raw, '') %>% unlist]
+infer_length <- length(infer_split)
+
+infer.data <- mx.io.arrayiter(data = matrix(infer_split), label = matrix(infer_split),  
+                              batch.size = 1, shuffle = FALSE)
+```
+
+
+### Inference with most likely term
+
+Here the predictions are performed by picking the character whose associated probablility is the highest. 
+
+```{r, echo=TRUE, eval=TRUE}
+model <- mx.model.load(prefix = "models/model_one_to_one_lstm", iteration = 20)
+
+internals <- model$symbol$get.internals()
+
+sym_state <- internals$get.output(which(internals$outputs %in% "lstm_2_layer_state"))
+sym_state_cell <- internals$get.output(which(internals$outputs %in% "lstm_2_layer_state_cell"))
+sym_output <- internals$get.output(which(internals$outputs %in% "loss_output"))
+symbol <- mx.symbol.Group(sym_output, sym_state, sym_state_cell)
+
+predict <- numeric()
+
+infer <- mx.rnn.infer.buckets.one(infer.data = infer.data, 
+                                  symbol = symbol,
+                                  arg.params = model$arg.params,
+                                  aux.params = model$aux.params,
+                                  input.params = NULL, 
+                                  ctx = ctx)
+
+pred_prob <- mx.nd.slice.axis(infer$loss_output, axis=0, begin = infer_length-1, end = infer_length)
+pred <- mx.nd.argmax(data = pred_prob, axis = 1, keepdims = T)
+predict <- c(predict, as.numeric(as.array(pred)))
+
+for (i in 1:100) {
+
+  infer.data <- mx.io.arrayiter(data = as.matrix(pred), label = as.matrix(pred),  
+                              batch.size = 1, shuffle = FALSE)
+  
+  infer <- mx.rnn.infer.buckets.one(infer.data = infer.data, 
+                                    symbol = symbol,
+                                    arg.params = model$arg.params,
+                                    aux.params = model$aux.params,
+                                    input.params = list(rnn.state = infer[[2]], 
+                                                        rnn.state.cell = infer[[3]]), 
+                                    ctx = ctx)
+  
+  pred <- mx.nd.argmax(data = infer$loss_output, axis = 1, keepdims = T)
+  predict <- c(predict, as.numeric(as.array(pred)))
+  
+}
+
+predict_txt <- paste0(rev_dic[as.character(predict)], collapse = "")
+predict_txt_tot <- paste0(infer_raw, predict_txt, collapse = "")
+```
+
+Generated sequence: `r predict_txt_tot`
+
+Key ideas appear somewhat overemphasized. 
+
+### Inference from random sample
+
+Noise is now inserted in the predictions by sampling each character based on their modeled probability. 
+
+```{r, echo=TRUE, eval=TRUE}
+set.seed(44)
+
+infer_raw <- c("The United States are")
+infer_split <- dic[strsplit(infer_raw, '') %>% unlist]
+infer_length <- length(infer_split)
+
+infer.data <- mx.io.arrayiter(data = matrix(infer_split), label = matrix(infer_split),  
+                              batch.size = 1, shuffle = FALSE)
+
+
+predict <- numeric()
+
+infer <- mx.rnn.infer.buckets.one(infer.data = infer.data, 
+                                  symbol = symbol,
+                                  arg.params = model$arg.params,
+                                  aux.params = model$aux.params,
+                                  input.params = NULL, 
+                                  ctx = ctx)
+
+pred_prob <- as.numeric(as.array(mx.nd.slice.axis(
+  infer$loss_output, axis=0, begin = infer_length-1, end = infer_length)))
+pred <- sample(length(pred_prob), prob = pred_prob, size = 1) - 1
+predict <- c(predict, pred)
+
+for (i in 1:100) {
+  
+  infer.data <- mx.io.arrayiter(data = as.matrix(pred), label = as.matrix(pred),  
+                              batch.size = 1, shuffle = FALSE)
+  
+  infer <- mx.rnn.infer.buckets.one(infer.data = infer.data, 
+                                    symbol = symbol,
+                                    arg.params = model$arg.params,
+                                    aux.params = model$aux.params,
+                                    input.params = list(rnn.state = infer[[2]], 
+                                                        rnn.state.cell = infer[[3]]), 
+                                    ctx = ctx)
+  
+  pred_prob <- as.numeric(as.array(infer$loss_output))
+  pred <- sample(length(pred_prob), prob = pred_prob, size = 1, replace = T) - 1
+  predict <- c(predict, pred)
+}
+
+predict_txt <- paste0(rev_dic[as.character(predict)], collapse = "")
+predict_txt_tot <- paste0(infer_raw, predict_txt, collapse = "")
+```
+
+Generated sequence: `r predict_txt_tot`
+
+Now we get a more alembicated political speech.   
