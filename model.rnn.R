@@ -1,38 +1,23 @@
 # Internal function to do multiple device training on RNN
-mx.model.train.rnn.buckets <- function(ctx, symbol, 
-                                       arg.params, aux.params, 
-                                       dlist, arg.params.fix, 
-                                       begin.round, end.round, optimizer, train.data, eval.data, metric, 
-                                       epoch.end.callback, batch.end.callback, kvstore, verbose = TRUE) {
+mx.model.train.buckets <- function(symbol, ctx, train.data, eval.data, 
+                                   dlist, arg.params, aux.params, 
+                                   grad.req, arg.update.idx, 
+                                   begin.round, end.round, optimizer, metric, 
+                                   epoch.end.callback, batch.end.callback, kvstore, verbose = TRUE) {
+  
+  input.names <- names(dlist)
+  arg.params.names <- names(arg.params)
   
   if (is.list(symbol)) sym_ini <- symbol[[names(train.data$bucketID())]] else sym_ini <- symbol
   
-  arguments <- sym_ini$arguments
-  arg.params.fix.names <- names(arg.params.fix)
-  arg.params.names <- names(arg.params)
-  input.names <- names(dlist)
-  
-  ndevice <- length(ctx)
-  if (verbose) 
-    message(paste0("Start training with ", ndevice, " devices"))
-  
-  # Grad request
-  grad_req <- rep("null", length(arguments))
-  grad.req.write <- arguments %in% names(arg.params)
-  grad_req[grad.req.write] <- "write"
-  
-  # Arg array order
-  update_names <- c(input.names, arg.params.fix.names, arg.params.names)
-  arg_update_idx <- match(arguments, update_names)
-
   slices <- lapply(1:ndevice, function(i) {
     sapply(names(dlist), function(n) mx.nd.split(data=dlist[[n]], num_outputs = ndevice, axis = 0, squeeze_axis = F))
   })
   
   train.execs <- lapply(1:ndevice, function(i) {
     s <- slices[[i]]
-    mxnet:::mx.symbol.bind(symbol = symbol, arg.arrays = c(s, arg.params.fix, arg.params)[arg_update_idx], 
-                           aux.arrays = aux.params, ctx = ctx[[i]], grad.req = grad_req)
+    mxnet:::mx.symbol.bind(symbol = symbol, arg.arrays = c(s, arg.params)[arg.update.idx], 
+                           aux.arrays = aux.params, ctx = ctx[[i]], grad.req = grad.req)
   })
   
   # KVStore related stuffs
@@ -57,6 +42,10 @@ mx.model.train.rnn.buckets <- function(ctx, symbol,
   }
   
   # train over specified number of epochs
+  ndevice <- length(ctx)
+  if (verbose) 
+    message(paste0("Start training with ", ndevice, " devices"))
+  
   for (iteration in begin.round:end.round) {
     nbatch <- 0
     if (!is.null(metric)) {
@@ -78,15 +67,15 @@ mx.model.train.rnn.buckets <- function(ctx, symbol,
         train.execs <- lapply(1:ndevice, function(i) {
           s <- slices[[i]]
           mxnet:::mx.symbol.bind(symbol = symbol[[names(train.data$bucketID())]], 
-                                 arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.params.fix.names], train.execs[[i]]$arg.arrays[arg.params.names])[arg_update_idx],
-                                 aux.arrays = train.execs[[i]]$aux.arrays, ctx = ctx[[i]], grad.req = grad_req)
+                                 arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.params.names])[arg.update.idx],
+                                 aux.arrays = train.execs[[i]]$aux.arrays, ctx = ctx[[i]], grad.req = grad.req)
         })
       } else {
         train.execs <- lapply(1:ndevice, function(i) {
           s <- slices[[i]]
           mxnet:::mx.symbol.bind(symbol = symbol, 
-                                 arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.params.fix.names], train.execs[[i]]$arg.arrays[arg.params.names])[arg_update_idx],
-                                 aux.arrays = train.execs[[i]]$aux.arrays, ctx = ctx[[i]], grad.req = grad_req)
+                                 arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.params.names])[arg.update.idx],
+                                 aux.arrays = train.execs[[i]]$aux.arrays, ctx = ctx[[i]], grad.req = grad.req)
         })
       }
       
@@ -169,15 +158,15 @@ mx.model.train.rnn.buckets <- function(ctx, symbol,
           train.execs <- lapply(1:ndevice, function(i) {
             s <- slices[[i]]
             mxnet:::mx.symbol.bind(symbol = symbol[[names(eval.data$bucketID())]], 
-                                   arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.params.fix.names], train.execs[[i]]$arg.arrays[arg.params.names])[arg_update_idx],
-                                   aux.arrays = train.execs[[i]]$aux.arrays, ctx = ctx[[i]], grad.req = grad_req)
+                                   arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.params.names])[arg.update.idx],
+                                   aux.arrays = train.execs[[i]]$aux.arrays, ctx = ctx[[i]], grad.req = grad.req)
           })
         } else {
           train.execs <- lapply(1:ndevice, function(i) {
             s <- slices[[i]]
             mxnet:::mx.symbol.bind(symbol = symbol, 
-                                   arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.params.fix.names], train.execs[[i]]$arg.arrays[arg.params.names])[arg_update_idx],
-                                   aux.arrays = train.execs[[i]]$aux.arrays, ctx = ctx[[i]], grad.req = grad_req)
+                                   arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.params.names])[arg.update.idx],
+                                   aux.arrays = train.execs[[i]]$aux.arrays, ctx = ctx[[i]], grad.req = grad.req)
           })
         }
         
@@ -242,12 +231,12 @@ mx.model.train.rnn.buckets <- function(ctx, symbol,
 #' @param verbose
 #'
 #' @export
-mx.rnn.buckets <- function(symbol, train.data, eval.data = NULL, init.state = NULL, 
-                           ctx = NULL, num.round = 1, begin.round = 1, 
-                           initializer = mx.init.uniform(0.01), optimizer = "sgd", metric = mx.metric.rmse, 
-                           batch.end.callback = NULL, epoch.end.callback = NULL, 
-                           kvstore = "local", verbose = TRUE,
-                           input.params = NULL) {
+mx.model.buckets <- function(symbol, train.data, eval.data = NULL, metric = NULL, 
+                             arg.params = NULL, aux.params = NULL, fixed.params = NULL, 
+                             num.round = 1, begin.round = 1, 
+                             initializer = mx.init.uniform(0.01), optimizer = "sgd", ctx = NULL, 
+                             batch.end.callback = NULL, epoch.end.callback = NULL, 
+                             kvstore = "local", verbose = TRUE) {
   
   if (!train.data$iter.next()) {
     train.data$reset()
@@ -282,7 +271,7 @@ mx.rnn.buckets <- function(symbol, train.data, eval.data = NULL, init.state = NU
   }
   
   if (is.list(symbol)) sym_ini <- symbol[[names(train.data$bucketID())]] else sym_ini <- symbol
-    
+  
   arguments <- sym_ini$arguments
   input.names <- intersect(names(train.data$value()), arguments)
   
@@ -292,22 +281,38 @@ mx.rnn.buckets <- function(symbol, train.data, eval.data = NULL, init.state = NU
   
   shapes <- sym_ini$infer.shape(input.shape)
   
+  # assig arg.params and aux.params arguments to arg.params.input and aux.params.input
+  arg.params.input <- arg.params
+  aux.params.input <- aux.params
+  
   # initialize all arguments with zeros
-  arguments.ini <- lapply(shapes$arg.shapes, function(shape) {
+  arg.params <- lapply(shapes$arg.shapes, function(shape) {
     mx.nd.zeros(shape = shape, ctx = mx.cpu())
   })
-    
-  arg.params <- mx.init.create(initializer = initializer, shape.array = shapes$arg.shapes, ctx = mx.cpu(), skip.unknown = TRUE)
   
-  dlist <- arguments.ini[input.names]
+  # initialize input parameters
+  dlist <- arg.params[input.names]
   
-  # Assign fixed parameters to their value and keep non initialized arguments to zero
-  arg.params.fix.names <- unique(c(names(input.params), setdiff(arguments, c(names(arg.params), input.names))))
+  # initialize parameters - only argument endind with _weight and _bias are initialized
+  arg.params.ini <- mx.init.create(initializer = initializer, shape.array = shapes$arg.shapes, ctx = mx.cpu(), skip.unknown = TRUE)
   
-  # Assign zeros to non initialized arg parameters
-  arg.params.fix <- arguments.ini[arg.params.fix.names]
-  # Assign weights to arguments specifies by input.params
-  arg.params.fix[names(input.params)] <- input.params
+  # assign initilized parameters to arg.params
+  arg.params[names(arg.params.ini)] <- arg.params.ini
+  
+  # assign input params to arg.params
+  arg.params[names(arg.params.input)] <- arg.params.input
+  
+  # remove input params from arg.params
+  arg.params[input.names] <- NULL
+  
+  # Grad request
+  grad.req <- rep("null", length(arguments))
+  grad.req.write <- arguments %in% setdiff(names(arg.params), fixed.params)
+  grad.req[grad.req.write] <- "write"
+  
+  # Arg array order
+  update_names <- c(input.names, names(arg.params))
+  arg.update.idx <- match(arguments, update_names)
   
   # aux parameters setup
   aux.params <- lapply(shapes$aux.shapes, function(shape) {
@@ -319,17 +324,20 @@ mx.rnn.buckets <- function(symbol, train.data, eval.data = NULL, init.state = NU
     aux.params[names(aux.params.ini)] <- aux.params.ini
   } else aux.params <- NULL
   
+  aux.params[names(aux.params.input)] <- aux.params.input
+  
+  # kvstore initialization
   kvstore <- mxnet:::mx.model.create.kvstore(kvstore, params$arg.params, length(ctx), 
                                              verbose = verbose)
   
   ### Execute training
-  model <- mx.model.train.rnn.buckets(symbol = symbol, 
-                                      arg.params = arg.params, aux.params = aux.params, 
-                                      dlist = dlist, arg.params.fix = arg.params.fix,   
-                                      optimizer = optimizer, train.data = train.data, eval.data = eval.data, 
-                                      begin.round = begin.round, end.round = num.round, metric = metric, ctx = ctx, 
-                                      batch.end.callback = batch.end.callback, epoch.end.callback = epoch.end.callback, 
-                                      kvstore = kvstore, verbose = verbose)
+  model <- mx.model.train.buckets(symbol = symbol, ctx = ctx,  train.data = train.data, eval.data = eval.data, 
+                                  dlist = dlist,  arg.params = arg.params, aux.params = aux.params, 
+                                  grad.req = grad.req, arg.update.idx = arg.update.idx, 
+                                  optimizer = optimizer, metric = metric, 
+                                  begin.round = begin.round, end.round = num.round, 
+                                  batch.end.callback = batch.end.callback, epoch.end.callback = epoch.end.callback, 
+                                  kvstore = kvstore, verbose = verbose)
   
   return(model)
 }

@@ -20,8 +20,7 @@ rnn.graph <- function(num.rnn.layer,
                       ignore_label = -1,
                       config,
                       cell.type,
-                      masking = T,
-                      output_last_state = F) {
+                      masking = T) {
   
   # define input arguments
   label <- mx.symbol.Variable("label")
@@ -85,13 +84,6 @@ rnn.graph <- function(num.rnn.layer,
     loss <- mx.symbol.SoftmaxOutput(data=decode, label=label, use_ignore = !ignore_label == -1, ignore_label = ignore_label, name = "loss")
     
   }
-  
-  if (output_last_state){
-    # WIP for one-to-one
-    # if (cell.type == "lstm") group <- mx.symbol.Group(rnn[[2]], rnn[[3]], loss) else 
-    #   group <- mx.symbol.Group(rnn[[2]], loss)
-    # return(group)
-    return(loss)
-  } else return(loss)
+  return(loss)
 }
 
