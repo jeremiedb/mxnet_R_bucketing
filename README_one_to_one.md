@@ -88,7 +88,7 @@ devices <- mx.gpu(0)
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 4)
 
-optimizer <- mx.opt.create("adadelta", rho = 0.90, eps = 1e-5, wd = 1e-8,
+optimizer <- mx.opt.create("adadelta", rho = 0.92, eps = 1e-5, wd = 1e-8,
                            clip_gradient = 5, rescale.grad = 1/batch.size)
 
 logger <- mx.metric.logger()
@@ -120,15 +120,15 @@ mx.metric.Perplexity <- mx.metric.custom_nd("Perplexity", function(label, pred) 
   return(Perplexity)
 })
 
-model <- mx.rnn.buckets(symbol = rnn_graph_one_one,
-                        train.data = train.data, eval.data = eval.data,
-                        num.round = 40, ctx = devices, verbose = TRUE,
-                        metric = mx.metric.Perplexity, 
-                        initializer = initializer, optimizer = optimizer, 
-                        batch.end.callback = batch.end.callback, 
-                        epoch.end.callback = epoch.end.callback)
+model <- mx.model.buckets(symbol = rnn_graph_one_one,
+                          train.data = train.data, eval.data = eval.data, 
+                          num.round = 20, ctx = devices, verbose = TRUE,
+                          metric = mx.metric.Perplexity, 
+                          initializer = initializer, optimizer = optimizer, 
+                          batch.end.callback = batch.end.callback, 
+                          epoch.end.callback = epoch.end.callback)
 
-mx.model.save(model, prefix = "models/model_one_to_one_lstm", iteration = 40)
+mx.model.save(model, prefix = "models/model_one_to_one_lstm", iteration = 20)
 
 p <- plot_ly(x = seq_len(length(logger$train)), y = logger$train, type = "scatter", mode = "markers+lines", name = "train") %>% 
   add_trace(y = logger$eval, type = "scatter", mode = "markers+lines", name = "eval")
@@ -164,7 +164,7 @@ infer.data <- mx.io.arrayiter(data = matrix(infer_split), label = matrix(infer_s
 Here the predictions are performed by picking the character whose associated probablility is the highest.
 
 ``` r
-model <- mx.model.load(prefix = "models/model_one_to_one_lstm", iteration = 40)
+model <- mx.model.load(prefix = "models/model_one_to_one_lstm", iteration = 20)
 
 internals <- model$symbol$get.internals()
 
@@ -208,7 +208,7 @@ predict_txt <- paste0(rev_dic[as.character(predict)], collapse = "")
 predict_txt_tot <- paste0(infer_raw, predict_txt, collapse = "")
 ```
 
-Generated sequence: The United States are started the problems that we can be the problems that we can be the problems that we can be the prob
+Generated sequence: The United States are seen the country that we can come that the country that we can come that the country that we can com
 
 Key ideas appear somewhat overemphasized.
 
@@ -263,6 +263,6 @@ predict_txt <- paste0(rev_dic[as.character(predict)], collapse = "")
 predict_txt_tot <- paste0(infer_raw, predict_txt, collapse = "")
 ```
 
-Generated sequence: The United States are and the result the enough being, ank not when we can imaged or roopias for our. She coutderes or the
+Generated sequence: The United States are the particular the American like thy Americans who had republes.So spondent through then sendeds, th
 
 Now we get a more alembicated political speech.

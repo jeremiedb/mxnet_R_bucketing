@@ -5,10 +5,14 @@ mx.model.train.buckets <- function(symbol, ctx, train.data, eval.data,
                                    begin.round, end.round, optimizer, metric, 
                                    epoch.end.callback, batch.end.callback, kvstore, verbose = TRUE) {
   
+  ndevice <- length(ctx)
+  if (verbose) 
+    message(paste0("Start training with ", ndevice, " devices"))
+  
   input.names <- names(dlist)
   arg.params.names <- names(arg.params)
   
-  if (is.list(symbol)) sym_ini <- symbol[[names(train.data$bucketID())]] else sym_ini <- symbol
+  if (is.list(symbol)) sym_ini <- symbol[[names(train.data$bucketID)]] else sym_ini <- symbol
   
   slices <- lapply(1:ndevice, function(i) {
     sapply(names(dlist), function(n) mx.nd.split(data=dlist[[n]], num_outputs = ndevice, axis = 0, squeeze_axis = F))
@@ -16,7 +20,7 @@ mx.model.train.buckets <- function(symbol, ctx, train.data, eval.data,
   
   train.execs <- lapply(1:ndevice, function(i) {
     s <- slices[[i]]
-    mxnet:::mx.symbol.bind(symbol = symbol, arg.arrays = c(s, arg.params)[arg.update.idx], 
+    mxnet:::mx.symbol.bind(symbol = sym_ini, arg.arrays = c(s, arg.params)[arg.update.idx], 
                            aux.arrays = aux.params, ctx = ctx[[i]], grad.req = grad.req)
   })
   
@@ -42,10 +46,6 @@ mx.model.train.buckets <- function(symbol, ctx, train.data, eval.data,
   }
   
   # train over specified number of epochs
-  ndevice <- length(ctx)
-  if (verbose) 
-    message(paste0("Start training with ", ndevice, " devices"))
-  
   for (iteration in begin.round:end.round) {
     nbatch <- 0
     if (!is.null(metric)) {
@@ -66,7 +66,7 @@ mx.model.train.buckets <- function(symbol, ctx, train.data, eval.data,
       if (is.list(symbol)) {
         train.execs <- lapply(1:ndevice, function(i) {
           s <- slices[[i]]
-          mxnet:::mx.symbol.bind(symbol = symbol[[names(train.data$bucketID())]], 
+          mxnet:::mx.symbol.bind(symbol = symbol[[names(train.data$bucketID)]], 
                                  arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.params.names])[arg.update.idx],
                                  aux.arrays = train.execs[[i]]$aux.arrays, ctx = ctx[[i]], grad.req = grad.req)
         })
@@ -155,7 +155,7 @@ mx.model.train.buckets <- function(symbol, ctx, train.data, eval.data,
         if (is.list(symbol)) {
           train.execs <- lapply(1:ndevice, function(i) {
             s <- slices[[i]]
-            mxnet:::mx.symbol.bind(symbol = symbol[[names(eval.data$bucketID())]], 
+            mxnet:::mx.symbol.bind(symbol = symbol[[names(eval.data$bucketID)]], 
                                    arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.params.names])[arg.update.idx],
                                    aux.arrays = train.execs[[i]]$aux.arrays, ctx = ctx[[i]], grad.req = grad.req)
           })
@@ -194,7 +194,7 @@ mx.model.train.buckets <- function(symbol, ctx, train.data, eval.data,
       eval.metric <- NULL
     }
     # get the model out
-    model <- mxnet:::mx.model.extract.model(symbol, train.execs)
+    model <- mxnet:::mx.model.extract.model(sym_ini, train.execs)
     
     epoch_continue <- TRUE
     if (!is.null(epoch.end.callback)) {
@@ -266,7 +266,7 @@ mx.model.buckets <- function(symbol, train.data, eval.data = NULL, metric = NULL
     optimizer <- mx.opt.create(optimizer, rescale.grad = (1/batchsize), ...)
   }
   
-  if (is.list(symbol)) sym_ini <- symbol[[names(train.data$bucketID())]] else sym_ini <- symbol
+  if (is.list(symbol)) sym_ini <- symbol[[names(train.data$bucketID)]] else sym_ini <- symbol
   
   arguments <- sym_ini$arguments
   input.names <- intersect(names(train.data$value()), arguments)
@@ -303,7 +303,7 @@ mx.model.buckets <- function(symbol, train.data, eval.data = NULL, metric = NULL
   
   # Grad request
   grad.req <- rep("null", length(arguments))
-  grad.req.write <- arguments %in% setdiff(names(arg.params), fixed.params)
+  grad.req.write <- arguments %in% setdiff(names(arg.params.ini), fixed.params)
   grad.req[grad.req.write] <- "write"
   
   # Arg array order

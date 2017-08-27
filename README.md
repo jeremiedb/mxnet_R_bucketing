@@ -76,18 +76,23 @@ LSTM model
 Below is the graph representation of a seq-to-one architecture with LSTM cells. Note that input data is of shape `seq_length X batch.size` while the output of the RNN operator is of shape `hidden.features X batch.size X seq_length`.
 
 ``` r
-graph_lstm <- rnn.graph(config = "seq-to-one",
-                        cell.type = "lstm", 
-                        num.rnn.layer = 1, 
-                        num.embed = 2, 
-                        num.hidden = 4, 
-                        num.label = 2, 
-                        input.size = vocab, 
-                        dropout = 0.5,
-                        ignore_label = -1,
-                        masking = T)
+bucket_list <- unique(c(train.data$bucket.names, eval.data$bucket.names))
 
-graph.viz(graph_lstm, type = "graph", direction = "LR", 
+sym_list <- sapply(bucket_list, function(seq) {
+  rnn.graph(config = "seq-to-one",
+            cell.type = "lstm", 
+            num.rnn.layer = 1, 
+            num.embed = 2, 
+            num.hidden = 4, 
+            num.label = 2, 
+            input.size = vocab, 
+            dropout = 0.5,
+            ignore_label = -1,
+            output_last_state = F, 
+            masking = T)
+})
+
+graph.viz(sym_list[[1]], type = "graph", direction = "LR", 
           graph.height.px = 50, graph.width.px = 800, shape=c(5, 64))
 ```
 
@@ -102,21 +107,21 @@ devices <- mx.gpu(0)
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 3)
 
 optimizer <- mx.opt.create("rmsprop", learning.rate = 0.001, gamma1 = 0.95, gamma2 = 0.9, 
-                           wd = 1e-3, clip_gradient = NULL, rescale.grad=1/batch.size)
+                           wd = 1e-5, clip_gradient = 5, rescale.grad=1/batch.size)
 
 logger <- mx.metric.logger()
 epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
 batch.end.callback <- mx.callback.log.train.metric(period = 50)
 
-model <- mx.rnn.buckets(symbol = graph_lstm,
-                        train.data = train.data, eval.data = eval.data,
-                        num.round = 10, ctx = devices, verbose = TRUE,
-                        metric = mx.metric.accuracy, 
-                        initializer = initializer, optimizer = optimizer, 
-                        batch.end.callback = batch.end.callback, 
-                        epoch.end.callback = epoch.end.callback)
+model <- mx.model.buckets(symbol = sym_list,
+                          train.data = train.data, eval.data = eval.data,
+                          num.round = 8, ctx = devices, verbose = TRUE,
+                          metric = mx.metric.accuracy, optimizer = optimizer,  
+                          initializer = initializer,
+                          batch.end.callback = batch.end.callback, 
+                          epoch.end.callback = epoch.end.callback)
 
-mx.model.save(model, prefix = "models/model_sentiment_lstm", iteration = 10)
+mx.model.save(model, prefix = "models/model_sentiment_lstm", iteration = 8)
 
 p <- plot_ly(x = seq_len(length(logger$train)), y = logger$train, 
              type = "scatter", mode = "markers+lines", name = "train") %>% 
@@ -150,10 +155,8 @@ test.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.siz
 ### LSTM
 
 ``` r
-model <- mx.model.load(prefix = "models/model_sentiment_lstm", iteration = 10)
-infer <- mx.rnn.infer.buckets(infer.data = test.data, 
-                              model = model,
-                              ctx = ctx)
+model <- mx.model.load(prefix = "models/model_sentiment_lstm", iteration = 8)
+infer <- mx.rnn.infer.buckets(infer.data = test.data, model = model, ctx = ctx)
 
 pred_raw <- t(as.array(infer))
 pred <- max.col(pred_raw, tie = "first") - 1
@@ -166,4 +169,4 @@ auc <- auc(roc)
 
 Accuracy: 87.1%
 
-AUC: 0.9399
+AUC: 0.9405

@@ -20,7 +20,8 @@ rnn.graph <- function(num.rnn.layer,
                       ignore_label = -1,
                       config,
                       cell.type,
-                      masking = T) {
+                      masking = F,
+                      output_last_state = F) {
   
   # define input arguments
   label <- mx.symbol.Variable("label")
