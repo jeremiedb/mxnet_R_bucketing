@@ -85,7 +85,7 @@ gru.cell <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, dr
 }
 
 # 
-#' unroll representation of RNN running on non CUDA device
+#' unroll representation of RNN running on non CUDA device - under development
 #' 
 #' @export
 rnn.unroll <- function(num.rnn.layer, 
@@ -98,7 +98,8 @@ rnn.unroll <- function(num.rnn.layer,
                        ignore_label,
                        init.state=NULL,
                        config,
-                       cell.type="lstm",
+                       cell.type="lstm", 
+                       masking = F, 
                        output_last_state=F) {
   
   embed.weight <- mx.symbol.Variable("embed.weight")
