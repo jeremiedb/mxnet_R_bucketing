@@ -84,7 +84,10 @@ gru.cell <- function(num.hidden, indata, prev.state, param, seqidx, layeridx, dr
   return(list(h = next.h))
 }
 
-# unroll representation of RNN is running on non CUDA device
+# 
+#' unroll representation of RNN running on non CUDA device
+#' 
+#' @export
 rnn.unroll <- function(num.rnn.layer, 
                        seq.len, 
                        input.size,
