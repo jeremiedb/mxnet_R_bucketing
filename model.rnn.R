@@ -71,12 +71,10 @@ mx.model.train.buckets <- function(symbol, ctx, train.data, eval.data,
                                  aux.arrays = train.execs[[i]]$aux.arrays, ctx = ctx[[i]], grad.req = grad.req)
         })
       } else {
-        train.execs <- lapply(1:ndevice, function(i) {
+        for (i in 1:ndevice) {
           s <- slices[[i]]
-          mxnet:::mx.symbol.bind(symbol = symbol, 
-                                 arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.params.names])[arg.update.idx],
-                                 aux.arrays = train.execs[[i]]$aux.arrays, ctx = ctx[[i]], grad.req = grad.req)
-        })
+          mx.exec.update.arg.arrays(train.execs[[i]], s, match.name=TRUE)
+        }
       }
       
       for (texec in train.execs) {
@@ -162,12 +160,10 @@ mx.model.train.buckets <- function(symbol, ctx, train.data, eval.data,
                                    aux.arrays = train.execs[[i]]$aux.arrays, ctx = ctx[[i]], grad.req = grad.req)
           })
         } else {
-          train.execs <- lapply(1:ndevice, function(i) {
+          for (i in 1:ndevice) {
             s <- slices[[i]]
-            mxnet:::mx.symbol.bind(symbol = symbol, 
-                                   arg.arrays = c(s, train.execs[[i]]$arg.arrays[arg.params.names])[arg.update.idx],
-                                   aux.arrays = train.execs[[i]]$aux.arrays, ctx = ctx[[i]], grad.req = grad.req)
-          })
+            mx.exec.update.arg.arrays(train.execs[[i]], s, match.name=TRUE)
+          }
         }
         
         for (texec in train.execs) {

@@ -31,7 +31,7 @@ rnn.graph <- function(num.rnn.layer,
   rnn.params.weight <- mx.symbol.Variable("rnn.params.weight")
   
   rnn.state <- mx.symbol.Variable("rnn.state")
-
+  
   if (cell.type == "lstm") {
     rnn.state.cell <- mx.symbol.Variable("rnn.state.cell")
   }
@@ -68,17 +68,17 @@ rnn.graph <- function(num.rnn.layer,
   } else if (config=="one-to-one"){
     
     if (masking) mask <- mx.symbol.SequenceMask(data = rnn[[1]], use.sequence.length = T, sequence_length = seq.mask, value = 0, name = "mask") else
-    mask <- mx.symbol.identity(data = rnn[[1]], name = "mask")
+      mask <- mx.symbol.identity(data = rnn[[1]], name = "mask")
     
     reshape = mx.symbol.transpose(mask)
     flatten = mx.symbol.flatten(reshape)
     transpose = mx.symbol.transpose(flatten)
     
     decode <- mx.symbol.FullyConnected(data=transpose,
-                                   weight=cls.weight,
-                                   bias=cls.bias,
-                                   num.hidden=num.label,
-                                   name = "decode")
+                                       weight=cls.weight,
+                                       bias=cls.bias,
+                                       num.hidden=num.label,
+                                       name = "decode")
     
     label <- mx.symbol.reshape(data=label, shape=c(-1))
     loss <- mx.symbol.SoftmaxOutput(data=decode, label=label, use_ignore = !ignore_label == -1, ignore_label = ignore_label, name = "loss")
@@ -86,4 +86,3 @@ rnn.graph <- function(num.rnn.layer,
   }
   return(loss)
 }
-
