@@ -50,7 +50,7 @@ vocab <- length(corpus_bucketed_test$dic)
 batch.size = 32
 
 train.data <- mx.io.bucket.iter(buckets = corpus_bucketed_train$buckets, batch.size = batch.size, 
-                                data.mask.element = 0, shuffle = TRUE)
+                                data.mask.element = 0, shuffle = FALSE)
 
 eval.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.size = batch.size,
                                data.mask.element = 0, shuffle = FALSE)
@@ -65,34 +65,33 @@ The parameters `output_last_state` is set to `TRUE` in order to access the state
 ```{r, echo=TRUE, fig.height=8}
 rnn_graph_one_one <- rnn.unroll(seq.len = 2,
                                 num.rnn.layer = 1, 
-                                num.hidden = 80,
-                                input.size=vocab+1,
-                                num.embed=50, 
-                                num.label=vocab,
-                                dropout=0.5, 
+                                num.hidden = 50,
+                                input.size = vocab,
+                                num.embed = 40, 
+                                num.label = vocab,
+                                dropout = 0, 
                                 ignore_label = 0,
-                                cell.type="lstm",
+                                cell.type = "lstm",
                                 output_last_state = T,
                                 config = "one-to-one")
 
 graph.viz(rnn_graph_one_one, type = "graph", direction = "TD", 
-          graph.height.px = 800, graph.width.px = 800, shape=c(2, 64))
+          graph.height.px = 800, graph.width.px = 800, shape=c(64, 2))
 ```
 
 
 ## Fit a LSTM model
 
-
 Unroll the RNN to the length of the input sequence.
 
 ```{r, echo=FALSE}
-rnn_graph_one_one <- rnn.unroll(seq.len = as.integer(train.data$bucket.names),
+symbol <- rnn.unroll(seq.len = as.integer(train.data$bucket.names),
                                 num.rnn.layer = 1, 
                                 num.hidden = 50,
-                                input.size=vocab+1,
-                                num.embed=40, 
-                                num.label=vocab,
-                                dropout=0.5, 
+                                input.size = vocab,
+                                num.embed = 40, 
+                                num.label = vocab,
+                                dropout = 0, 
                                 ignore_label = 0,
                                 cell.type="lstm",
                                 output_last_state = T,
@@ -105,12 +104,12 @@ devices <- mx.cpu()
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 4)
 
-optimizer <- mx.opt.create("adadelta", rho = 0.92, eps = 1e-5, wd = 1e-8,
+optimizer <- mx.opt.create("adadelta", rho = 0.90, eps = 1e-5, wd = 1e-8,
                            clip_gradient = 5, rescale.grad = 1/batch.size)
 
 logger <- mx.metric.logger()
 epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
-batch.end.callback <- mx.callback.log.train.metric(period = 20)
+batch.end.callback <- mx.callback.log.train.metric(period = 50)
 
 mx.metric.custom_nd <- function(name, feval) {
   init <- function() {
@@ -130,6 +129,7 @@ mx.metric.custom_nd <- function(name, feval) {
 }
 
 mx.metric.Perplexity <- mx.metric.custom_nd("Perplexity", function(label, pred) {
+  label <- mx.nd.reshape(label, shape = -1)
   label_probs <- as.array(mx.nd.choose.element.0index(pred, label))
   batch <- length(label_probs)
   NLL <- -sum(log(pmax(1e-15, as.array(label_probs)))) / batch
@@ -137,15 +137,15 @@ mx.metric.Perplexity <- mx.metric.custom_nd("Perplexity", function(label, pred) 
   return(Perplexity)
 })
 
-model <- mx.model.buckets(symbol = rnn_graph_one_one,
+model <- mx.model.buckets(symbol = symbol,
                           train.data = train.data, eval.data = eval.data, 
-                          num.round = 1, ctx = devices, verbose = TRUE,
+                          num.round = 15, ctx = devices, verbose = TRUE,
                           metric = mx.metric.Perplexity, 
                           initializer = initializer, optimizer = optimizer, 
                           batch.end.callback = batch.end.callback, 
                           epoch.end.callback = epoch.end.callback)
 
-mx.model.save(model, prefix = "models/model_one_to_one_lstm", iteration = 20)
+mx.model.save(model, prefix = "models/model_one_to_one_lstm", iteration = 15)
 
 p <- plot_ly(x = seq_len(length(logger$train)), y = logger$train, type = "scatter", mode = "markers+lines", name = "train") %>% 
   add_trace(y = logger$eval, type = "scatter", mode = "markers+lines", name = "eval")

@@ -114,7 +114,7 @@ make_bucket_data <- function(word_vec_list, labels, dic, seq_len = c(225), right
   
   # Reshape into arrays having each sequence into a row
   features <- lapply(1:length(seq_len), function(x) {
-    (array(unrolled_arrays_dic[[x]], 
+    t(array(unrolled_arrays_dic[[x]], 
           dim = c(seq_len[x], length(unrolled_arrays_dic[[x]])/seq_len[x])))
   })
   
