@@ -112,6 +112,7 @@ mx.metric.custom_nd <- function(name, feval) {
 }
 
 mx.metric.Perplexity <- mx.metric.custom_nd("Perplexity", function(label, pred) {
+  label = mx.nd.reshape(label, shape = -1)
   label_probs <- as.array(mx.nd.choose.element.0index(pred, label))
   batch <- length(label_probs)
   NLL <- -sum(log(pmax(1e-15, as.array(label_probs)))) / batch
@@ -174,12 +175,12 @@ symbol <- mx.symbol.Group(sym_output, sym_state, sym_state_cell)
 
 predict <- numeric()
 
-infer <- mx.rnn.infer.buckets.one(infer.data = infer.data, 
-                                  symbol = symbol,
-                                  arg.params = model$arg.params,
-                                  aux.params = model$aux.params,
-                                  input.params = NULL, 
-                                  ctx = ctx)
+infer <- mx.infer.buckets.one(infer.data = infer.data, 
+                              symbol = symbol,
+                              arg.params = model$arg.params,
+                              aux.params = model$aux.params,
+                              input.params = NULL, 
+                              ctx = ctx)
 
 pred_prob <- mx.nd.slice.axis(infer$loss_output, axis=0, begin = infer_length-1, end = infer_length)
 pred <- mx.nd.argmax(data = pred_prob, axis = 1, keepdims = T)
@@ -190,13 +191,13 @@ for (i in 1:100) {
   infer.data <- mx.io.arrayiter(data = as.matrix(pred), label = as.matrix(pred),  
                               batch.size = 1, shuffle = FALSE)
   
-  infer <- mx.rnn.infer.buckets.one(infer.data = infer.data, 
-                                    symbol = symbol,
-                                    arg.params = model$arg.params,
-                                    aux.params = model$aux.params,
-                                    input.params = list(rnn.state = infer[[2]], 
-                                                        rnn.state.cell = infer[[3]]), 
-                                    ctx = ctx)
+  infer <- mx.infer.buckets.one(infer.data = infer.data, 
+                                symbol = symbol,
+                                arg.params = model$arg.params,
+                                aux.params = model$aux.params,
+                                input.params = list(rnn.state = infer[[2]], 
+                                                    rnn.state.cell = infer[[3]]), 
+                                ctx = ctx)
   
   pred <- mx.nd.argmax(data = infer$loss_output, axis = 1, keepdims = T)
   predict <- c(predict, as.numeric(as.array(pred)))
@@ -228,12 +229,12 @@ infer.data <- mx.io.arrayiter(data = matrix(infer_split), label = matrix(infer_s
 
 predict <- numeric()
 
-infer <- mx.rnn.infer.buckets.one(infer.data = infer.data, 
-                                  symbol = symbol,
-                                  arg.params = model$arg.params,
-                                  aux.params = model$aux.params,
-                                  input.params = NULL, 
-                                  ctx = ctx)
+infer <- mx.infer.buckets.one(infer.data = infer.data, 
+                              symbol = symbol,
+                              arg.params = model$arg.params,
+                              aux.params = model$aux.params,
+                              input.params = NULL, 
+                              ctx = ctx)
 
 pred_prob <- as.numeric(as.array(mx.nd.slice.axis(
   infer$loss_output, axis=0, begin = infer_length-1, end = infer_length)))
@@ -245,7 +246,7 @@ for (i in 1:100) {
   infer.data <- mx.io.arrayiter(data = as.matrix(pred), label = as.matrix(pred),  
                               batch.size = 1, shuffle = FALSE)
   
-  infer <- mx.rnn.infer.buckets.one(infer.data = infer.data, 
+  infer <- mx.infer.buckets.one(infer.data = infer.data, 
                                     symbol = symbol,
                                     arg.params = model$arg.params,
                                     aux.params = model$aux.params,

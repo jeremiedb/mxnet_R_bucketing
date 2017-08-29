@@ -155,3 +155,20 @@ corpus_bucketed_test <- make_bucket_data(word_vec_list = corpus_preprocessed_tes
 
 saveRDS(corpus_bucketed_train, file = "data/corpus_bucketed_train.rds")
 saveRDS(corpus_bucketed_test, file = "data/corpus_bucketed_test.rds")
+
+
+
+corpus_single_train <- make_bucket_data(word_vec_list = corpus_preprocessed_train$word_vec_list, 
+                                          labels = rep(0:1, each = 12500), 
+                                          dic = corpus_preprocessed_train$dic, 
+                                          seq_len = c(600), 
+                                          right_pad = T)
+
+corpus_single_test <- make_bucket_data(word_vec_list = corpus_preprocessed_test$word_vec_list, 
+                                         labels = rep(0:1, each = 12500), 
+                                         dic = corpus_preprocessed_test$dic, 
+                                         seq_len = c(600), 
+                                         right_pad = T)
+
+saveRDS(corpus_single_train, file = "data/corpus_single_train.rds")
+saveRDS(corpus_single_test, file = "data/corpus_single_test.rds")

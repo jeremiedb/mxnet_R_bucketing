@@ -1,38 +1,16 @@
 RNN made easy with MXNet R
 ================
 
-> This tutorial presents an example of application of RNN to text classification using padded and bucketed data to efficiently handle sequences of varying lengths. It requires running on a GPU with CUDA.
+This tutorial presents an example of application of RNN to text classification using padded and bucketed data to efficiently handle sequences of varying lengths. Some functionalities require running on a GPU with CUDA.
 
 Example based on sentiment analysis on the [IMDB data](http://ai.stanford.edu/~amaas/data/sentiment/).
-
-Load some packages
-
-``` r
-library("readr")
-library("dplyr")
-library("plotly")
-library("stringr")
-library("stringi")
-library("AUC")
-library("scales")
-library("mxnet")
-```
-
-Load utility functions
-
-``` r
-source("mx.io.bucket.iter.R")
-source("rnn.graph.R")
-source("model.rnn.R")
-source("rnn.infer.R")
-```
 
 What's special about sequence modeling?
 ---------------------------------------
 
-Whether we're working with text at the character or word level, NLP tasks typically involves dealing with sequences of varying length.
+Whether we're working with times series or text at the character or word level, modeling sequences typically involves dealing with samples of varying length.
 
-This can present some challenges as the explicit representation of an unrolled RNN involves a fixed length sequence. Rather than defining new symbolic model for each sequence length, the `mx.symbol.RNN` operator simplifies the process by abstracting the recurring process into a single operator that accepts sequences of varying lengths.
+This can present some challenges as the explicit representation of an unrolled RNN involves a fixed length sequence. The operator `mx.symbol.RNN` simplifies the process by abstracting the recurrent cells into a single operator that accepts sequences of varying lengths.
 
 To efficiently feed the RNN network, two tricks can be used:
 
@@ -43,14 +21,19 @@ To efficiently feed the RNN network, two tricks can be used:
 Data preparation
 ----------------
 
-Data preparation is performed by the script: `data_preprocessing_seq_to_one.R`.
+Data preparation is performed by the script `data_preprocessing_seq_to_one.R` which involves the following steps:
 
-The following steps are executed:
-
--   import IMDB.
--   pre-process into lists whose elements are the buckets containing the samples and their associated labels.
+-   Import IMDB data
 -   Split each review into word vectors and apply some common cleansing (remove special characters, lower case, remove extra blank space...)
+-   Convert words into integers and define a dictionary to map the resulting indices with former words
 -   Aggregate the buckets of samples and labels into a list
+
+To illustrate the benefit of bucketing, two datasets are created:
+
+-   `corpus_single_train.rds`: no bucketing, all samples are padded/trimmed to 600 words.
+-   `corpus_bucketed_train.rds`: samples split into 5 buckets of length 100, 150, 250, 400 and 600.
+
+Below is the example of the assignation of the bucketed data and labels into `mx.io.bucket.iter` iterator. This iterator behaves essentially the same as the `mx.io.arrayiter` except that is pushes samples coming from the different buckets along with a bucketID to identify the appropriate network to use.
 
 ``` r
 corpus_bucketed_train <- readRDS(file = "data/corpus_bucketed_train.rds")
@@ -61,86 +44,123 @@ vocab <- length(corpus_bucketed_test$dic)
 ### Create iterators
 batch.size = 64
 
-train.data <- mx.io.bucket.iter(buckets = corpus_bucketed_train$buckets, batch.size = batch.size, 
+train.data.bucket <- mx.io.bucket.iter(buckets = corpus_bucketed_train$buckets, batch.size = batch.size, 
                                 data.mask.element = 0, shuffle = TRUE)
 
-eval.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.size = batch.size, 
+eval.data.bucket <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.size = batch.size, 
                                data.mask.element = 0, shuffle = FALSE)
 ```
 
-LSTM model
-----------
+Define the architecture
+-----------------------
 
-### Define the architecture
+Below are the graph representations of a seq-to-one architecture with LSTM cells. Note that input data is of shape `batch.size x seq.length` while the output of the RNN operator is of shape `hidden.features X batch.size X seq.length`.
 
-Below is the graph representation of a seq-to-one architecture with LSTM cells. Note that input data is of shape `seq_length X batch.size` while the output of the RNN operator is of shape `hidden.features X batch.size X seq_length`.
+For bucketing, a list of symbols is defined, one for each bucket length. At training time, the appropriate symbol will be bind at each batch according the the bucketID provided by the iterator.
 
 ``` r
-bucket_list <- unique(c(train.data$bucket.names, eval.data$bucket.names))
-
-sym_list <- sapply(bucket_list, function(seq) {
-  rnn.graph(config = "seq-to-one",
-            cell.type = "lstm", 
-            num.rnn.layer = 1, 
-            num.embed = 2, 
-            num.hidden = 4, 
-            num.label = 2, 
-            input.size = vocab, 
-            dropout = 0.5,
-            ignore_label = -1,
-            output_last_state = F, 
-            masking = T)
-})
-
-graph.viz(sym_list[[1]], type = "graph", direction = "LR", 
-          graph.height.px = 50, graph.width.px = 800, shape=c(5, 64))
+symbol_single <- rnn.graph(config = "seq-to-one", cell.type = "lstm", 
+                           num.rnn.layer = 1, num.embed = 2, num.hidden = 4, num.label = 2, 
+                           input.size = vocab, dropout = 0.5, ignore_label = -1,
+                           output_last_state = F, masking = T)
 ```
 
-![](README_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-4-1.png)
+``` r
+bucket_list <- unique(c(train.data.bucket$bucket.names, eval.data.bucket$bucket.names))
 
-Fit the model
--------------
+symbol_buckets <- sapply(bucket_list, function(seq) {
+  rnn.graph(config = "seq-to-one", cell.type = "lstm", 
+            num.rnn.layer = 1, num.embed = 2, num.hidden = 4, num.label = 2, 
+            input.size = vocab, dropout = 0.5, ignore_label = -1,
+            output_last_state = F, masking = T)
+})
+
+graph.viz(symbol_buckets[[1]], type = "graph", direction = "LR", 
+          graph.height.px = 50, graph.width.px = 800, shape=c(64, 5))
+```
+
+![](README_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-6-1.png)
+
+Train the model
+---------------
+
+First the non bucketed model is trained for 5 epochs:
 
 ``` r
 devices <- mx.gpu(0)
 
-initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 3)
+initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
 
-optimizer <- mx.opt.create("rmsprop", learning.rate = 0.001, gamma1 = 0.95, gamma2 = 0.9, 
-                           wd = 1e-5, clip_gradient = 5, rescale.grad=1/batch.size)
+optimizer <- mx.opt.create("rmsprop", learning.rate = 1e-3, gamma1 = 0.95, gamma2 = 0.95, 
+                           wd = 1e-4, clip_gradient = 5, rescale.grad=1/batch.size)
 
 logger <- mx.metric.logger()
 epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
 batch.end.callback <- mx.callback.log.train.metric(period = 50)
 
-model <- mx.model.buckets(symbol = sym_list,
-                          train.data = train.data, eval.data = eval.data,
-                          num.round = 8, ctx = devices, verbose = TRUE,
-                          metric = mx.metric.accuracy, optimizer = optimizer,  
-                          initializer = initializer,
-                          batch.end.callback = batch.end.callback, 
-                          epoch.end.callback = epoch.end.callback)
-
-mx.model.save(model, prefix = "models/model_sentiment_lstm", iteration = 8)
-
-p <- plot_ly(x = seq_len(length(logger$train)), y = logger$train, 
-             type = "scatter", mode = "markers+lines", name = "train") %>% 
-  add_trace(y = logger$eval, type = "scatter", mode = "markers+lines", name = "eval")
-
-plotly::export(p, file = "logger_lstm.png")
+system.time(
+  model <- mx.model.buckets(symbol = symbol_single,
+                            train.data = train.data.single, eval.data = eval.data.single,
+                            num.round = 5, ctx = devices, verbose = FALSE,
+                            metric = mx.metric.accuracy, optimizer = optimizer,  
+                            initializer = initializer,
+                            batch.end.callback = NULL, 
+                            epoch.end.callback = epoch.end.callback)
+)
 ```
 
-![](logger_lstm.png)
+    ##    user  system elapsed 
+    ## 166.588  20.236 176.745
+
+![](README_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-8-1.png)
+
+Now training with the bucketing trick. Note that no additional effort is required: just need to provide a list of symbols rather than a single one and have an iterator pushing samples from the different buckets.
+
+``` r
+devices <- mx.gpu(0)
+
+initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
+
+optimizer <- mx.opt.create("rmsprop", learning.rate = 1e-3, gamma1 = 0.95, gamma2 = 0.95, 
+                           wd = 1e-4, clip_gradient = 5, rescale.grad=1/batch.size)
+
+logger <- mx.metric.logger()
+epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
+batch.end.callback <- mx.callback.log.train.metric(period = 50)
+
+system.time(
+  model <- mx.model.buckets(symbol = symbol_buckets,
+                            train.data = train.data.bucket, eval.data = eval.data.bucket,
+                            num.round = 5, ctx = devices, verbose = FALSE,
+                            metric = mx.metric.accuracy, optimizer = optimizer,  
+                            initializer = initializer,
+                            batch.end.callback = NULL, 
+                            epoch.end.callback = epoch.end.callback)
+)
+```
+
+    ##    user  system elapsed 
+    ## 103.189  14.169 104.127
+
+``` r
+mx.model.save(model, prefix = "models/model_sentiment_lstm", iteration = 5)
+```
+
+![](README_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-10-1.png)
+
+The speedup is substantial, around 100 sec. instead of 175 sec., over 40% time reduction with little effort!
 
 Plot word embeddings
 --------------------
 
 Word representation can be visualized by looking at the assigned weights in any of the embedding dimensions. Here, we look simultaneously at the two embeddings learnt in the LSTM model.
 
-![](README_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-6-1.png)
+![](README_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-11-1.png)
 
 Inference on test data
 ----------------------
+
+The utility function `mx.infer.buckets` has been added to simplify inference on RNN with bucketed data.
 
 ``` r
 ctx <- mx.gpu(0)
@@ -152,11 +172,9 @@ test.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.siz
                                data.mask.element = 0, shuffle = FALSE)
 ```
 
-### LSTM
-
 ``` r
-model <- mx.model.load(prefix = "models/model_sentiment_lstm", iteration = 8)
-infer <- mx.rnn.infer.buckets(infer.data = test.data, model = model, ctx = ctx)
+model <- mx.model.load(prefix = "models/model_sentiment_lstm", iteration = 5)
+infer <- mx.infer.buckets(infer.data = test.data, model = model, ctx = ctx)
 
 pred_raw <- t(as.array(infer))
 pred <- max.col(pred_raw, tie = "first") - 1
@@ -167,6 +185,6 @@ roc <- roc(predictions = pred_raw[, 2], labels = factor(label))
 auc <- auc(roc)
 ```
 
-Accuracy: 87.1%
+Accuracy: 88.3%
 
-AUC: 0.9405
+AUC: 0.9512
