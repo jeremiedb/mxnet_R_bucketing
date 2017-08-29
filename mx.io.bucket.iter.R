@@ -78,7 +78,7 @@ BucketIter <- setRefClass("BucketIter", fields = c("buckets", "bucket.names", "b
                               }
                               
                               data <- .self$buckets[[names(.self$bucketID)]]$data[idx, , drop = F]
-                              seq.mask <- as.integer(names(bucketID)) - apply(data==.self$data.mask.element, 2, sum)
+                              seq.mask <- as.integer(names(bucketID)) - apply(data==.self$data.mask.element, 1, sum)
                               if (length(dim(.self$buckets[[names(.self$bucketID)]]$label)) == 0) {
                                 label <- .self$buckets[[names(.self$bucketID)]]$label[idx]
                               } else {
