@@ -30,7 +30,7 @@ source("rnn.infer.R")
 
 Whether working with times series or text at the character or word level, modeling sequences typically involves dealing with samples of varying length. 
 
-To efficiently feed the Recurrent Neural Network (RNN), two tricks can be used: 
+To efficiently feed the Recurrent Neural Network (RNN) with samples of even length within each batch, two tricks can be used: 
 
 - Padding: fill the modeled sequences with an arbitrary word/character up to the longest sequence. This results in sequences of even lengths, but potentially of excessive size for an efficient training. 
 
@@ -89,7 +89,7 @@ graph2 <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed 
 render_graph(graph2, height = 180)
 ```
 
-Non numeric features such as words need to be transformed into a numeric representation. This task is commonly performed by the embedding operator which first requires to convert words into a 0 based index. The embedding will map a vector of features based on that index. 
+Non numeric features such as words need to be transformed into a numeric representation. This task is commonly performed by the embedding operator which first requires to convert words into a 0 based index. The embedding will map a vector of features based on that index. In the example below, the embedding projects each word into 2 new numeric features. 
 
 ```{r bucket2, echo = FALSE, fig.height=1}
 # sample 1
@@ -178,7 +178,7 @@ eval.data.bucket <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, ba
 
 Below are the graph representations of a seq-to-one architecture with LSTM cells. Note that input data is of shape `batch.size X seq.length` while the output of the RNN operator is of shape `hidden.features X batch.size X seq.length`. 
 
-For bucketing, a list of symbols is defined, one for each bucket length. During training, at each batch the appropriate symbol is binded according to the bucketID provided by the iterator. 
+For bucketing, a list of symbols is defined, one for each bucket length. During training, at each batch the appropriate symbol is bound according to the bucketID provided by the iterator. 
 
 ```{r, echo=TRUE, fig.height=1}
 symbol_single <- rnn.graph(config = "seq-to-one", cell.type = "lstm", 
@@ -207,7 +207,7 @@ The representation of an unrolled RNN typically assumes a fixed length sequence.
 
 First the non bucketed model is trained for 5 epochs: 
 
-```{r, echo=TRUE, eval=FALSE}
+```{r, echo=TRUE, eval=TRUE}
 devices <- mx.gpu(0)
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
@@ -230,7 +230,7 @@ system.time(
 )
 ```
 
-```{r, echo = FALSE, eval = FALSE}
+```{r logger1, echo=FALSE, eval=TRUE}
 p <- plot_ly(x = seq_len(length(logger$train)), y = logger$train, 
              type = "scatter", mode = "markers+lines", name = "train") %>% 
   add_trace(y = logger$eval, type = "scatter", mode = "markers+lines", name = "eval")
@@ -240,7 +240,7 @@ plotly::export(p, file = "logger_lstm_single.png")
 
 Then training with the bucketing trick. Note that no additional effort is required: just need to provide a list of symbols rather than a single one and have an iterator pushing samples from the different buckets. 
 
-```{r, echo=TRUE, eval=FALSE}
+```{r, echo=TRUE, eval=TRUE}
 devices <- mx.gpu(0)
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
@@ -265,7 +265,7 @@ system.time(
 mx.model.save(model, prefix = "models/model_sentiment_lstm", iteration = 5)
 ```
 
-```{r, echo = FALSE, eval = FALSE}
+```{r logger2, echo = FALSE, eval = TRUE}
 p <- plot_ly(x = seq_len(length(logger$train)), y = logger$train, 
              type = "scatter", mode = "markers+lines", name = "train") %>% 
   add_trace(y = logger$eval, type = "scatter", mode = "markers+lines", name = "eval")
@@ -279,7 +279,7 @@ The speedup is substantial, around 100 sec. instead of 175 sec., a 40% speedup w
 
 Word representation can be visualized by looking at the assigned weights in any of the embedding dimensions. Here, we look simultaneously at the two embeddings learnt in the LSTM model. 
 
-```{r, echo=FALSE, eval = FALSE}
+```{r embed, echo=FALSE, eval = TRUE}
 model <- mx.model.load(prefix = "models/model_sentiment_lstm", iteration = 5)
 
 dic <- corpus_bucketed_train$dic
@@ -309,7 +309,7 @@ test.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.siz
 ```
 
 
-```{r, echo=TRUE, eval=FALSE}
+```{r, echo=TRUE, eval=TRUE}
 model <- mx.model.load(prefix = "models/model_sentiment_lstm", iteration = 5)
 infer <- mx.infer.buckets(infer.data = test.data, model = model, ctx = ctx)
 
@@ -322,9 +322,9 @@ roc <- roc(predictions = pred_raw[, 2], labels = factor(label))
 auc <- auc(roc)
 ```
 
-Accuracy: `r #percent(acc)`  
+Accuracy: `r percent(acc)`  
 
-AUC: `r #signif(auc, 4)` 
+AUC: `r signif(auc, 4)` 
 
 
 
