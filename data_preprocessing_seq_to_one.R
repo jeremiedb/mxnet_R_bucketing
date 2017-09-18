@@ -1,5 +1,5 @@
 # download the IMDB dataset
-if (!file.exists("datas/aclImdb_v1.tar.gz")) {
+if (!file.exists("data/aclImdb_v1.tar.gz")) {
   download.file("http://ai.stanford.edu/~amaas/data/sentiment/aclImdb_v1.tar.gz", 
                 "data/aclImdb_v1.tar.gz")
   untar("data/aclImdb_v1.tar.gz")
@@ -15,11 +15,11 @@ require("dplyr")
 require("stringr")
 require("stringi")
 
-negative_train_list <- list.files("./aclImdb/train/neg/", full.names = T)
-positive_train_list <- list.files("./aclImdb/train/pos/", full.names = T)
+negative_train_list <- list.files("data/aclImdb/train/neg/", full.names = T)
+positive_train_list <- list.files("data/aclImdb/train/pos/", full.names = T)
 
-negative_test_list <- list.files("./aclImdb/test/neg/", full.names = T)
-positive_test_list <- list.files("./aclImdb/test/pos/", full.names = T)
+negative_test_list <- list.files("data/aclImdb/test/neg/", full.names = T)
+positive_test_list <- list.files("data/aclImdb/test/pos/", full.names = T)
 
 file_import <- function(file_list) {
   import <- sapply(file_list, read_file)

@@ -8,23 +8,29 @@ Example based on sentiment analysis on the [IMDB data](http://ai.stanford.edu/~a
 What's special about sequence modeling?
 ---------------------------------------
 
-Whether we're working with times series or text at the character or word level, modeling sequences typically involves dealing with samples of varying length.
+Whether working with times series or text at the character or word level, modeling sequences typically involves dealing with samples of varying length.
 
-This can present some challenges as the explicit representation of an unrolled RNN involves a fixed length sequence. The operator `mx.symbol.RNN` simplifies the process by abstracting the recurrent cells into a single operator that accepts sequences of varying lengths.
-
-To efficiently feed the RNN network, two tricks can be used:
+To efficiently feed the Recurrent Neural Network (RNN), two tricks can be used:
 
 -   Padding: fill the modeled sequences with an arbitrary word/character up to the longest sequence. This results in sequences of even lengths, but potentially of excessive size for an efficient training.
 
--   Bucketing: apply the padding trick but to subgroups of samples split according to their lengths. This results in multiples training sets, or buckets, within which all samples are padded to an even length.
+![](README_files/figure-markdown_github-ascii_identifiers/pad-1.png)![](README_files/figure-markdown_github-ascii_identifiers/pad-2.png)
+
+-   Bucketing: apply the padding trick to subgroups of samples split according to their lengths. It results in multiple training sets, or buckets, within which all samples are padded to an even length. Diagram below illustrates how the two previous samples would be pre-processed if using buckets of size 4 and 6.
+
+![](README_files/figure-markdown_github-ascii_identifiers/bucket1-1.png)![](README_files/figure-markdown_github-ascii_identifiers/bucket1-2.png)
+
+Non numeric features such as words need to be transformed into a numeric representation. This task is commonly performed by the embedding operator which first requires to convert words into a 0 based index. The embedding will map a vector of features based on that index.
+
+![](README_files/figure-markdown_github-ascii_identifiers/bucket2-1.png)![](README_files/figure-markdown_github-ascii_identifiers/bucket2-2.png)
 
 Data preparation
 ----------------
 
-Data preparation is performed by the script `data_preprocessing_seq_to_one.R` which involves the following steps:
+For this demo, the data preparation is performed by the script `data_preprocessing_seq_to_one.R` which involves the following steps:
 
--   Import IMDB data
--   Split each review into word vectors and apply some common cleansing (remove special characters, lower case, remove extra blank space...)
+-   Import IMDB movie reviews
+-   Split each review into a word vector and apply some common cleansing (remove special characters, lower case, remove extra blank space...)
 -   Convert words into integers and define a dictionary to map the resulting indices with former words
 -   Aggregate the buckets of samples and labels into a list
 
@@ -54,9 +60,9 @@ eval.data.bucket <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, ba
 Define the architecture
 -----------------------
 
-Below are the graph representations of a seq-to-one architecture with LSTM cells. Note that input data is of shape `batch.size x seq.length` while the output of the RNN operator is of shape `hidden.features X batch.size X seq.length`.
+Below are the graph representations of a seq-to-one architecture with LSTM cells. Note that input data is of shape `batch.size X seq.length` while the output of the RNN operator is of shape `hidden.features X batch.size X seq.length`.
 
-For bucketing, a list of symbols is defined, one for each bucket length. At training time, the appropriate symbol will be bind at each batch according the the bucketID provided by the iterator.
+For bucketing, a list of symbols is defined, one for each bucket length. During training, at each batch the appropriate symbol is binded according to the bucketID provided by the iterator.
 
 ``` r
 symbol_single <- rnn.graph(config = "seq-to-one", cell.type = "lstm", 
@@ -79,7 +85,9 @@ graph.viz(symbol_buckets[[1]], type = "graph", direction = "LR",
           graph.height.px = 50, graph.width.px = 800, shape=c(64, 5))
 ```
 
-![](README_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-6-1.png)
+![](README_files/figure-markdown_github-ascii_identifiers/architect-1.png)
+
+The representation of an unrolled RNN typically assumes a fixed length sequence. The operator `mx.symbol.RNN` simplifies the process by abstracting the recurrent cells into a single operator that accepts batches of varying length (each batch contains sequences of identical length).
 
 Train the model
 ---------------
@@ -109,12 +117,7 @@ system.time(
 )
 ```
 
-    ##    user  system elapsed 
-    ## 166.588  20.236 176.745
-
-![](README_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-8-1.png)
-
-Now training with the bucketing trick. Note that no additional effort is required: just need to provide a list of symbols rather than a single one and have an iterator pushing samples from the different buckets.
+Then training with the bucketing trick. Note that no additional effort is required: just need to provide a list of symbols rather than a single one and have an iterator pushing samples from the different buckets.
 
 ``` r
 devices <- mx.gpu(0)
@@ -137,25 +140,16 @@ system.time(
                             batch.end.callback = NULL, 
                             epoch.end.callback = epoch.end.callback)
 )
-```
 
-    ##    user  system elapsed 
-    ## 103.189  14.169 104.127
-
-``` r
 mx.model.save(model, prefix = "models/model_sentiment_lstm", iteration = 5)
 ```
 
-![](README_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-10-1.png)
-
-The speedup is substantial, around 100 sec. instead of 175 sec., over 40% time reduction with little effort!
+The speedup is substantial, around 100 sec. instead of 175 sec., a 40% speedup with little effort.
 
 Plot word embeddings
 --------------------
 
 Word representation can be visualized by looking at the assigned weights in any of the embedding dimensions. Here, we look simultaneously at the two embeddings learnt in the LSTM model.
-
-![](README_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-11-1.png)
 
 Inference on test data
 ----------------------
@@ -185,6 +179,6 @@ roc <- roc(predictions = pred_raw[, 2], labels = factor(label))
 auc <- auc(roc)
 ```
 
-Accuracy: 88.3%
+Accuracy:
 
-AUC: 0.9512
+AUC:
