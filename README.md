@@ -118,7 +118,7 @@ system.time(
 ```
 
     ##    user  system elapsed 
-    ## 161.372  20.650 172.173
+    ## 171.113  21.147 181.645
 
 ![](README_files/figure-markdown_github-ascii_identifiers/logger1-1.png)
 
@@ -148,7 +148,7 @@ system.time(
 ```
 
     ##    user  system elapsed 
-    ##  96.690  15.855  99.760
+    ## 120.638  17.927 123.983
 
 ``` r
 mx.model.save(model, prefix = "models/model_sentiment_lstm", iteration = 5)
