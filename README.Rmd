@@ -21,8 +21,8 @@ library("DiagrammeR")
 
 ```{r, echo=FALSE}
 # source("mx.io.bucket.iter.R")
-source("rnn.graph.R")
-source("old/patch_initializer.R")
+# source("rnn.graph.R")
+# source("old/patch_initializer.R")
 # source("model.rnn.R")
 # source("rnn.infer.R")
 ```
@@ -36,8 +36,8 @@ To efficiently feed the Recurrent Neural Network (RNN) with samples of even leng
 - Padding: fill the modeled sequences with an arbitrary word/character up to the longest sequence. This results in sequences of even lengths, but potentially of excessive size for an efficient training. 
 
 ```{r pad, echo = FALSE, fig.height=2}
-nodes_1 <- DiagrammeR::create_node_df(n = 1, label = c("this movie is a great movie"), level = 1, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue")
-nodes_2 <- DiagrammeR::create_node_df(n = 6, label = c("this", "movie", "is", "a", "great", "movie"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue")
+nodes_1 <- DiagrammeR::create_node_df(n = 1, label = c("this movie is a great movie"), level = 1, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
+nodes_2 <- DiagrammeR::create_node_df(n = 6, label = c("this", "movie", "is", "a", "great", "movie"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
 
 nodes <- combine_ndfs(nodes_1, nodes_2)
 edges <- create_edge_df(from = c(rep(1,6)), to= c(2:7))
@@ -48,8 +48,8 @@ graph1 <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed 
 
 render_graph(graph1, height = 120)
 
-nodes_3 <- DiagrammeR::create_node_df(n = 1, label = c("worst movie ever"), level = 1, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue")
-nodes_4 <- DiagrammeR::create_node_df(n = 6, label = c("worst", "movie", "ever", "<PAD>", "<PAD>", "<PAD>"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue")
+nodes_3 <- DiagrammeR::create_node_df(n = 1, label = c("worst movie ever"), level = 1, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
+nodes_4 <- DiagrammeR::create_node_df(n = 6, label = c("worst", "movie", "ever", "<PAD>", "<PAD>", "<PAD>"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
 
 nodes <- combine_ndfs(nodes_3, nodes_4)
 edges <- create_edge_df(from = c(rep(1,6)), to= c(2:7))
@@ -65,8 +65,8 @@ render_graph(graph2, height = 120)
 - Bucketing: apply the padding trick to subgroups of samples split according to their lengths. It results in multiple training sets, or buckets, within which all samples are padded to an even length. Diagram below illustrates how the two previous samples would be pre-processed if using buckets of size 4 and 6. 
 
 ```{r bucket1, echo = FALSE, fig.height=2}
-nodes_1 <- DiagrammeR::create_node_df(n = 2, label = c("this movie is a great movie", "Bucket_6"), level = 1, fillcolor = adjustcolor(c("lightblue", "lightgreen"), alpha.f = 0.25), style = "filled", shape = "box", color = c("lightblue", "lightgreen"))
-nodes_2 <- DiagrammeR::create_node_df(n = 6, label = c("this", "movie", "is", "a", "great", "movie"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue")
+nodes_1 <- DiagrammeR::create_node_df(n = 2, label = c("this movie is a great movie", "Bucket_6"), level = 1, fillcolor = adjustcolor(c("lightblue", "lightgreen"), alpha.f = 0.25), style = "filled", shape = "box", color = c("lightblue", "lightgreen"), fontcolor = "black")
+nodes_2 <- DiagrammeR::create_node_df(n = 6, label = c("this", "movie", "is", "a", "great", "movie"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
 
 nodes <- combine_ndfs(nodes_1, nodes_2)
 edges <- create_edge_df(from = c(1, rep(2,6)), to= c(2, 3:8), color = "black")
@@ -77,8 +77,8 @@ graph1 <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed 
 
 render_graph(graph1, height = 180)
 
-nodes_3 <- DiagrammeR::create_node_df(n = 2, label = c("worst movie ever", "Bucket_4"), level = 1, fillcolor = adjustcolor(c("lightblue", "lightgreen"), alpha.f = 0.25), style = "filled", shape = "box", color = c("lightblue", "lightgreen"))
-nodes_4 <- DiagrammeR::create_node_df(n = 4, label = c("worst", "movie", "ever", "<PAD>"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue")
+nodes_3 <- DiagrammeR::create_node_df(n = 2, label = c("worst movie ever", "Bucket_4"), level = 1, fillcolor = adjustcolor(c("lightblue", "lightgreen"), alpha.f = 0.25), style = "filled", shape = "box", color = c("lightblue", "lightgreen"), fontcolor = "black")
+nodes_4 <- DiagrammeR::create_node_df(n = 4, label = c("worst", "movie", "ever", "<PAD>"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
 
 nodes <- combine_ndfs(nodes_3, nodes_4)
 edges <- create_edge_df(from = c(1, rep(2,4)), to= c(2, 3:6), color = "black")
@@ -94,9 +94,9 @@ Non numeric features such as words need to be transformed into a numeric represe
 
 ```{r bucket2, echo = FALSE, fig.height=1}
 # sample 1
-nodes_1 <- DiagrammeR::create_node_df(n = 6, label = c("this", "movie", "is", "a", "great", "movie"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue")
-nodes_2 <- DiagrammeR::create_node_df(n = 6, label = c("1", "2", "3", "4", "5", "2"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue")
-nodes_3 <- DiagrammeR::create_node_df(n = 6, label = c("0.11\n0.65", "-0.21\n0.52", "-0.44\n0.84", "0.89\n0.04", "1.88\n2.59", "-0.21\n1.52"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue")
+nodes_1 <- DiagrammeR::create_node_df(n = 6, label = c("this", "movie", "is", "a", "great", "movie"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
+nodes_2 <- DiagrammeR::create_node_df(n = 6, label = c("1", "2", "3", "4", "5", "2"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
+nodes_3 <- DiagrammeR::create_node_df(n = 6, label = c("0.11\n0.65", "-0.21\n0.52", "-0.44\n0.84", "0.89\n0.04", "1.88\n2.59", "-0.21\n1.52"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
 
 nodes <- combine_ndfs(nodes_1, nodes_2, nodes_3)
 edges <- create_edge_df(from = c(1:12), to= c(7:18), label = NA)
@@ -110,9 +110,9 @@ graph <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed =
 render_graph(graph, height = 200)
 
 # sample 2
-nodes_1 <- DiagrammeR::create_node_df(n = 4, label = c("worst", "movie", "ever", "<PAD>"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue")
-nodes_2 <- DiagrammeR::create_node_df(n = 4, label = c("7", "2", "8", "0"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue")
-nodes_3 <- DiagrammeR::create_node_df(n = 4, label = c("0.77\n0.35", "-0.21\n0.52", "-0.14\n-0.49", "0.00\n0.00"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue")
+nodes_1 <- DiagrammeR::create_node_df(n = 4, label = c("worst", "movie", "ever", "<PAD>"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
+nodes_2 <- DiagrammeR::create_node_df(n = 4, label = c("7", "2", "8", "0"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
+nodes_3 <- DiagrammeR::create_node_df(n = 4, label = c("0.77\n0.35", "-0.21\n0.52", "-0.14\n-0.49", "0.00\n0.00"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
 
 nodes <- combine_ndfs(nodes_1, nodes_2, nodes_3)
 edges <- create_edge_df(from = c(1:8), to= c(5:12), label = NA)
