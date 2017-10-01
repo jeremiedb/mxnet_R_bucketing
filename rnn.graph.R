@@ -25,8 +25,8 @@ rnn.graph <- function(num.rnn.layer,
                       output_last_state = F) {
   
   # define input arguments
-  label <- mx.symbol.Variable("label")
   data <- mx.symbol.Variable("data")
+  label <- mx.symbol.Variable("label")
   seq.mask <- mx.symbol.Variable("seq.mask")
   
   if (!is.null(num.embed)) embed.weight <- mx.symbol.Variable("embed.weight")
@@ -63,7 +63,7 @@ rnn.graph <- function(num.rnn.layer,
     decode <- mx.symbol.FullyConnected(data=mask,
                                        weight=cls.weight,
                                        bias=cls.bias,
-                                       num.hidden=num.label,
+                                       num.hidden=num.decode,
                                        name = "decode")
     
     if (!is.null(loss_output)) {
@@ -235,8 +235,9 @@ rnn.graph.unroll <- function(num.rnn.layer,
   })
   
   # embeding layer
-  label <- mx.symbol.Variable("label")
   data <- mx.symbol.Variable("data")
+  label <- mx.symbol.Variable("label")
+  seq.mask <- mx.symbol.Variable("seq.mask")
   
   if (!is.null(num.embed)) {
     data <- mx.symbol.Embedding(data = data, input_dim = input.size,
@@ -272,14 +273,20 @@ rnn.graph.unroll <- function(num.rnn.layer,
       last.states[[i]] <- next.state
     }
     
-    # Decoding
-    if (config=="one-to-one"){
-      last.hidden <- c(last.hidden, hidden)
-    }
+    # Aggregate outputs from each timestep
+    last.hidden <- c(last.hidden, hidden)
   }
   
+  # concat hidden units - concat seq.len blocks of dimension num.hidden x batch.size
+  concat <- mx.symbol.concat(data = last.hidden, num.args = seq.len, dim = 0, name = "concat")
+  concat <- mx.symbol.reshape(data = concat, shape = c(num.hidden, -1, seq.len), name = "rnn_reshape")
+  
   if (config=="seq-to-one"){
-    decode <- mx.symbol.FullyConnected(data = hidden,
+    
+    if (masking) mask <- mx.symbol.SequenceLast(data=concat, use.sequence.length = T, sequence_length = seq.mask, name = "mask") else
+      mask <- mx.symbol.SequenceLast(data=concat, use.sequence.length = F, name = "mask")
+    
+    decode <- mx.symbol.FullyConnected(data = mask,
                                        weight = cls.weight,
                                        bias = cls.bias,
                                        num.hidden = num.decode,
@@ -296,10 +303,12 @@ rnn.graph.unroll <- function(num.rnn.layer,
     
   } else if (config=="one-to-one"){
     
-    # concat hidden units - concat seq.len blocks of dimension num.hidden x batch.size
-    concat <- mx.symbol.concat(data = last.hidden, num.args = seq.len, dim = 0, name = "concat")
+    if (masking) mask <- mx.symbol.SequenceMask(data = concat, use.sequence.length = T, sequence_length = seq.mask, value = 0, name = "mask") else
+      mask <- mx.symbol.identity(data = concat, name = "mask")
     
-    decode <- mx.symbol.FullyConnected(data = concat,
+    mask = mx.symbol.reshape(mask, shape=c(num.hidden, -1))
+    
+    decode <- mx.symbol.FullyConnected(data = mask,
                                        weight = cls.weight,
                                        bias = cls.bias,
                                        num.hidden = num.decode,

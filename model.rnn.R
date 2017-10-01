@@ -291,7 +291,7 @@ mx.model.buckets <- function(symbol, train.data, eval.data = NULL, metric = NULL
   
   # initialize parameters - only argument endind with _weight and _bias are initialized
   arg.params.ini <- mx.init.create(initializer = initializer, shape.array = shapes$arg.shapes, ctx = mx.cpu(), skip.unknown = TRUE)
-  
+
   # assign initilized parameters to arg.params
   arg.params[names(arg.params.ini)] <- arg.params.ini
   

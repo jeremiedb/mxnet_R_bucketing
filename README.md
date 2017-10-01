@@ -66,8 +66,9 @@ For bucketing, a list of symbols is defined, one for each bucket length. During 
 
 ``` r
 symbol_single <- rnn.graph(config = "seq-to-one", cell.type = "lstm", 
-                           num.rnn.layer = 1, num.embed = 2, num.hidden = 4, num.label = 2, 
-                           input.size = vocab, dropout = 0.5, ignore_label = -1,
+                           num.rnn.layer = 1, num.embed = 2, num.hidden = 4, 
+                           num.decode = 2, input.size = vocab, dropout = 0.5, 
+                           ignore_label = -1, loss_output = "softmax",
                            output_last_state = F, masking = T)
 ```
 
@@ -76,12 +77,13 @@ bucket_list <- unique(c(train.data.bucket$bucket.names, eval.data.bucket$bucket.
 
 symbol_buckets <- sapply(bucket_list, function(seq) {
   rnn.graph(config = "seq-to-one", cell.type = "lstm", 
-            num.rnn.layer = 1, num.embed = 2, num.hidden = 4, num.label = 2, 
-            input.size = vocab, dropout = 0.5, ignore_label = -1,
-            output_last_state = F, masking = T)
+                   num.rnn.layer = 1, num.embed = 2, num.hidden = 4, 
+                   num.decode = 2, input.size = vocab, dropout = 0.5, 
+                   ignore_label = -1, loss_output = "softmax",
+                   output_last_state = F, masking = T)
 })
 
-graph.viz(symbol_buckets[[1]], type = "graph", direction = "LR", 
+graph.viz(symbol_single, type = "graph", direction = "LR", 
           graph.height.px = 50, graph.width.px = 800, shape=c(64, 5))
 ```
 
@@ -95,7 +97,7 @@ Train the model
 First the non bucketed model is trained for 5 epochs:
 
 ``` r
-devices <- mx.gpu(0)
+devices <- mx.gpu()
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
 
@@ -118,14 +120,14 @@ system.time(
 ```
 
     ##    user  system elapsed 
-    ## 171.113  21.147 181.645
+    ## 169.712  15.182 174.980
 
 ![](README_files/figure-markdown_github-ascii_identifiers/logger1-1.png)
 
 Then training with the bucketing trick. Note that no additional effort is required: just need to provide a list of symbols rather than a single one and have an iterator pushing samples from the different buckets.
 
 ``` r
-devices <- mx.gpu(0)
+devices <- mx.gpu()
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
 
@@ -148,7 +150,7 @@ system.time(
 ```
 
     ##    user  system elapsed 
-    ## 120.638  17.927 123.983
+    ## 103.716  10.077 100.814
 
 ``` r
 mx.model.save(model, prefix = "models/model_sentiment_lstm", iteration = 5)
