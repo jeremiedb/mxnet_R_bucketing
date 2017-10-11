@@ -167,7 +167,7 @@ Word representation can be visualized by looking at the assigned weights in any 
 
 ![](README_files/figure-markdown_github-ascii_identifiers/embed-1.png)
 
-Since the model attempts to predict the sentiment, it's no surprise that the 2 dimensions into which each word is projected appear correlated with words' polarity. Positive words are associated with lower X1 values ("great", "excellent"), while the most negative words appear at the far right ("terrible", "worst").
+Since the model attempts to predict the sentiment, it's no surprise that the 2 dimensions into which each word is projected appear correlated with words' polarity. Positive words are associated with lower X1 values ("great", "excellent"), while the most negative words appear at the far right ("terrible", "worst"). By representing words of similar meaning with features of values, embedding much facilitates the remaining classification task for the network. 
 
 Inference on test data
 ----------------------
