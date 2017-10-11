@@ -94,14 +94,14 @@ The representation of an unrolled RNN typically assumes a fixed length sequence.
 Train the model
 ---------------
 
-First the non bucketed model is trained for 5 epochs:
+First the non bucketed model is trained for 6 epochs:
 
 ``` r
 devices <- mx.gpu()
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
 
-optimizer <- mx.opt.create("rmsprop", learning.rate = 1e-3, gamma1 = 0.95, gamma2 = 0.95, 
+optimizer <- mx.opt.create("rmsprop", learning.rate = 1e-3, gamma1 = 0.95, gamma2 = 0.92, 
                            wd = 1e-4, clip_gradient = 5, rescale.grad=1/batch.size)
 
 logger <- mx.metric.logger()
@@ -111,7 +111,7 @@ batch.end.callback <- mx.callback.log.train.metric(period = 50)
 system.time(
   model <- mx.model.buckets(symbol = symbol_single,
                             train.data = train.data.single, eval.data = eval.data.single,
-                            num.round = 5, ctx = devices, verbose = FALSE,
+                            num.round = 6, ctx = devices, verbose = FALSE,
                             metric = mx.metric.accuracy, optimizer = optimizer,  
                             initializer = initializer,
                             batch.end.callback = NULL, 
@@ -120,7 +120,7 @@ system.time(
 ```
 
     ##    user  system elapsed 
-    ## 172.783  14.240 178.435
+    ## 205.214  17.253 210.265
 
 ![](README_files/figure-markdown_github-ascii_identifiers/logger1-1.png)
 
@@ -131,7 +131,7 @@ devices <- mx.gpu()
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
 
-optimizer <- mx.opt.create("rmsprop", learning.rate = 1e-3, gamma1 = 0.95, gamma2 = 0.95, 
+optimizer <- mx.opt.create("rmsprop", learning.rate = 1e-3, gamma1 = 0.95, gamma2 = 0.92, 
                            wd = 1e-4, clip_gradient = 5, rescale.grad=1/batch.size)
 
 logger <- mx.metric.logger()
@@ -141,7 +141,7 @@ batch.end.callback <- mx.callback.log.train.metric(period = 50)
 system.time(
   model <- mx.model.buckets(symbol = symbol_buckets,
                             train.data = train.data.bucket, eval.data = eval.data.bucket,
-                            num.round = 5, ctx = devices, verbose = FALSE,
+                            num.round = 6, ctx = devices, verbose = FALSE,
                             metric = mx.metric.accuracy, optimizer = optimizer,  
                             initializer = initializer,
                             batch.end.callback = NULL, 
@@ -150,7 +150,7 @@ system.time(
 ```
 
     ##    user  system elapsed 
-    ## 108.702   9.956 105.556
+    ## 129.578  11.500 125.120
 
 ``` r
 mx.model.save(model, prefix = "models/model_sentiment_lstm", iteration = 5)
@@ -158,7 +158,7 @@ mx.model.save(model, prefix = "models/model_sentiment_lstm", iteration = 5)
 
 ![](README_files/figure-markdown_github-ascii_identifiers/logger2-1.png)
 
-The speedup is substantial, around 100 sec. instead of 175 sec., a 40% speedup with little effort.
+The speedup is substantial, around 125 sec. instead of 210 sec., a 40% speedup with little effort.
 
 Plot word embeddings
 --------------------
@@ -166,6 +166,8 @@ Plot word embeddings
 Word representation can be visualized by looking at the assigned weights in any of the embedding dimensions. Here, we look simultaneously at the two embeddings learnt in the LSTM model.
 
 ![](README_files/figure-markdown_github-ascii_identifiers/embed-1.png)
+
+Since the model attempts to predict the sentiment, it's no surprise that the 2 dimensions into which each word is projected appear correlated with words' polarity. Positive words are associated with lower X1 values ("great", "excellent"), while the most negative words appear at the far right ("terrible", "worst").
 
 Inference on test data
 ----------------------
@@ -195,6 +197,6 @@ roc <- roc(predictions = pred_raw[, 2], labels = factor(label))
 auc <- auc(roc)
 ```
 
-Accuracy: 88.3%
+Accuracy: 87.6%
 
-AUC: 0.9512
+AUC: 0.9436

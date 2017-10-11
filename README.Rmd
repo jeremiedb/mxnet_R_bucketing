@@ -19,14 +19,6 @@ library("mxnet")
 library("DiagrammeR")
 ```
 
-```{r, echo=FALSE}
-# source("mx.io.bucket.iter.R")
-# source("rnn.graph.R")
-# source("old/patch_initializer.R")
-# source("model.rnn.R")
-# source("rnn.infer.R")
-```
-
 ## What's special about sequence modeling?
 
 Whether working with times series or text at the character or word level, modeling sequences typically involves dealing with samples of varying length. 
@@ -46,7 +38,7 @@ graph1 <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed 
   set_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
   set_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
 
-render_graph(graph1, height = 100)
+render_graph(graph1, height = 120)
 
 nodes_3 <- DiagrammeR::create_node_df(n = 1, label = c("worst movie ever"), level = 1, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black", width=2.5)
 nodes_4 <- DiagrammeR::create_node_df(n = 6, label = c("worst", "movie", "ever", "<PAD>", "<PAD>", "<PAD>"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
@@ -58,13 +50,13 @@ graph2 <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed 
   set_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
   set_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
 
-render_graph(graph2, height = 100)
+render_graph(graph2, height = 120)
 ```
 
 
 - Bucketing: apply the padding trick to subgroups of samples split according to their lengths. It results in multiple training sets, or buckets, within which all samples are padded to an even length. Diagram below illustrates how the two previous samples would be pre-processed if using buckets of size 4 and 6. 
 
-```{r bucket1, echo = FALSE, fig.height=2}
+```{r bucket1, echo = FALSE, fig.height=2.5}
 nodes_1 <- DiagrammeR::create_node_df(n = 2, label = c("this movie is a great movie", "Bucket_6"), level = 1, fillcolor = adjustcolor(c("lightblue", "lightgreen"), alpha.f = 0.25), style = "filled", shape = "box", color = c("lightblue", "lightgreen"), fontcolor = "black", width=c(3,1))
 nodes_2 <- DiagrammeR::create_node_df(n = 6, label = c("this", "movie", "is", "a", "great", "movie"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
 
@@ -75,7 +67,7 @@ graph1 <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed 
   set_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
   set_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
 
-render_graph(graph1, height = 150)
+render_graph(graph1, height = 180)
 
 nodes_3 <- DiagrammeR::create_node_df(n = 2, label = c("worst movie ever", "Bucket_4"), level = 1, fillcolor = adjustcolor(c("lightblue", "lightgreen"), alpha.f = 0.25), style = "filled", shape = "box", color = c("lightblue", "lightgreen"), fontcolor = "black", width=c(2.5, 1))
 nodes_4 <- DiagrammeR::create_node_df(n = 4, label = c("worst", "movie", "ever", "<PAD>"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
@@ -87,12 +79,12 @@ graph2 <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed 
   set_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
   set_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
 
-render_graph(graph2, height = 150)
+render_graph(graph2, height = 180)
 ```
 
 Non numeric features such as words need to be transformed into a numeric representation. This task is commonly performed by the embedding operator which first requires to convert words into a 0 based index. The embedding will map a vector of features based on that index. In the example below, the embedding projects each word into 2 new numeric features. 
 
-```{r bucket2, echo = FALSE, fig.height=1}
+```{r bucket2, echo = FALSE, fig.height=2.5}
 # sample 1
 nodes_1 <- DiagrammeR::create_node_df(n = 6, label = c("this", "movie", "is", "a", "great", "movie"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
 nodes_2 <- DiagrammeR::create_node_df(n = 6, label = c("1", "2", "3", "4", "5", "2"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
@@ -107,7 +99,7 @@ graph <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed =
   set_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
   set_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
 
-render_graph(graph, height = 150)
+render_graph(graph, height = 200)
 
 # sample 2
 nodes_1 <- DiagrammeR::create_node_df(n = 4, label = c("worst", "movie", "ever", "<PAD>"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
@@ -123,7 +115,7 @@ graph <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed =
   set_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
   set_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
 
-render_graph(graph, height = 150)
+render_graph(graph, height = 200)
 ```
 
 ## Data preparation
@@ -204,18 +196,18 @@ graph.viz(symbol_single, type = "graph", direction = "LR",
           graph.height.px = 50, graph.width.px = 800, shape=c(64, 5))
 ```
 
-The representation of an unrolled RNN typically assumes a fixed length sequence. The operator `mx.symbol.RNN` simplifies the process by abstracting the recurrent cells into a single operator that accepts batches of varying length (each batch contains sequences of identical length).  
+The representation of an unrolled RNN typically assumes a fixed length sequence. The operator `mx.symbol.RNN` simplifies the process by abstracting the recurrent cells into a single operator that accepts batches of varying length (each batch contains sequences of identical length). 
 
 ## Train the model
 
-First the non bucketed model is trained for 5 epochs: 
+First the non bucketed model is trained for 6 epochs: 
 
 ```{r, echo=TRUE, eval=TRUE}
 devices <- mx.gpu()
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
 
-optimizer <- mx.opt.create("rmsprop", learning.rate = 1e-3, gamma1 = 0.95, gamma2 = 0.95, 
+optimizer <- mx.opt.create("rmsprop", learning.rate = 1e-3, gamma1 = 0.95, gamma2 = 0.92, 
                            wd = 1e-4, clip_gradient = 5, rescale.grad=1/batch.size)
 
 logger <- mx.metric.logger()
@@ -225,7 +217,7 @@ batch.end.callback <- mx.callback.log.train.metric(period = 50)
 system.time(
   model <- mx.model.buckets(symbol = symbol_single,
                             train.data = train.data.single, eval.data = eval.data.single,
-                            num.round = 5, ctx = devices, verbose = FALSE,
+                            num.round = 6, ctx = devices, verbose = FALSE,
                             metric = mx.metric.accuracy, optimizer = optimizer,  
                             initializer = initializer,
                             batch.end.callback = NULL, 
@@ -235,7 +227,7 @@ system.time(
 
 ```{r logger1, echo=FALSE, eval=TRUE}
 p <- plot_ly(x = seq_len(length(logger$train)), y = logger$train, 
-             type = "scatter", mode = "markers+lines", name = "train") %>% 
+             type = "scatter", mode = "markers+lines", name = "train", width = 600, height = 400) %>% 
   add_trace(y = logger$eval, type = "scatter", mode = "markers+lines", name = "eval") %>% 
   layout(font = list(size=20))
 
@@ -249,7 +241,7 @@ devices <- mx.gpu()
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
 
-optimizer <- mx.opt.create("rmsprop", learning.rate = 1e-3, gamma1 = 0.95, gamma2 = 0.95, 
+optimizer <- mx.opt.create("rmsprop", learning.rate = 1e-3, gamma1 = 0.95, gamma2 = 0.92, 
                            wd = 1e-4, clip_gradient = 5, rescale.grad=1/batch.size)
 
 logger <- mx.metric.logger()
@@ -259,7 +251,7 @@ batch.end.callback <- mx.callback.log.train.metric(period = 50)
 system.time(
   model <- mx.model.buckets(symbol = symbol_buckets,
                             train.data = train.data.bucket, eval.data = eval.data.bucket,
-                            num.round = 5, ctx = devices, verbose = FALSE,
+                            num.round = 6, ctx = devices, verbose = FALSE,
                             metric = mx.metric.accuracy, optimizer = optimizer,  
                             initializer = initializer,
                             batch.end.callback = NULL, 
@@ -271,20 +263,20 @@ mx.model.save(model, prefix = "models/model_sentiment_lstm", iteration = 5)
 
 ```{r logger2, echo = FALSE, eval = TRUE}
 p <- plot_ly(x = seq_len(length(logger$train)), y = logger$train, 
-             type = "scatter", mode = "markers+lines", name = "train") %>% 
+             type = "scatter", mode = "markers+lines", name = "train", width = 600, height = 400) %>% 
   add_trace(y = logger$eval, type = "scatter", mode = "markers+lines", name = "eval") %>% 
   layout(font = list(size=20))
 
 plotly::export(p, file = "logger_lstm_bucket.png")
 ```
 
-The speedup is substantial, around 100 sec. instead of 175 sec., a 40% speedup with little effort.  
+The speedup is substantial, around 125 sec. instead of 210 sec., a 40% speedup with little effort.  
 
 ## Plot word embeddings
 
 Word representation can be visualized by looking at the assigned weights in any of the embedding dimensions. Here, we look simultaneously at the two embeddings learnt in the LSTM model. 
 
-```{r embed, echo=FALSE, eval = TRUE}
+```{r embed, echo=FALSE, eval = TRUE, fig.height=4.5}
 model <- mx.model.load(prefix = "models/model_sentiment_lstm", iteration = 5)
 
 dic <- corpus_bucketed_train$dic
@@ -292,12 +284,16 @@ rev_dic <- corpus_bucketed_train$rev_dic
 
 embeddings_weights <- t(as.array(model$arg.params$embed.weight))
 embeddings <- data.frame(label=rev_dic, embeddings_weights)
-embeddings <- embeddings[-1, ]
-embeddings_sample <- embeddings[300:400,]
+plot_words <- c("terrible", "awesome", "great", "fantastic", "worst", "awful", "pain", "painful", "recommend", "not", "poor", "wonderful", "shame", "ok", "okay", "excellent", "worst", "adequate", "fair", "enjoy", "good", "like", "interesting", "beautiful", "wasn't", "wonderful", "lost", "laugh", "laughable", "unfortunately", "attempt")
+
+embed_ids <- match(plot_words, embeddings$label)
+embeddings_sample <- embeddings[embed_ids, ]
 
 p <- ggplot(embeddings_sample, aes(x = X1, y = X2, label = label))
 p + geom_text(check_overlap = T, color="navy") + theme_bw() + theme(panel.grid=element_blank())
 ```
+
+Since the model attempts to predict the sentiment, it's no surprise that the 2 dimensions into which each word is projected appear correlated with words' polarity. Positive words are associated with lower X1 values ("great", "excellent"), while the most negative words appear at the far right ("terrible", "worst"). 
 
 ## Inference on test data
 
