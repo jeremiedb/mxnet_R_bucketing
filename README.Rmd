@@ -36,7 +36,7 @@ To efficiently feed the Recurrent Neural Network (RNN) with samples of even leng
 - Padding: fill the modeled sequences with an arbitrary word/character up to the longest sequence. This results in sequences of even lengths, but potentially of excessive size for an efficient training. 
 
 ```{r pad, echo = FALSE, fig.height=2}
-nodes_1 <- DiagrammeR::create_node_df(n = 1, label = c("this movie is a great movie"), level = 1, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
+nodes_1 <- DiagrammeR::create_node_df(n = 1, label = c("this movie is a great movie"), level = 1, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black", width=3)
 nodes_2 <- DiagrammeR::create_node_df(n = 6, label = c("this", "movie", "is", "a", "great", "movie"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
 
 nodes <- combine_ndfs(nodes_1, nodes_2)
@@ -46,9 +46,9 @@ graph1 <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed 
   set_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
   set_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
 
-render_graph(graph1, height = 120)
+render_graph(graph1, height = 100)
 
-nodes_3 <- DiagrammeR::create_node_df(n = 1, label = c("worst movie ever"), level = 1, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
+nodes_3 <- DiagrammeR::create_node_df(n = 1, label = c("worst movie ever"), level = 1, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black", width=2.5)
 nodes_4 <- DiagrammeR::create_node_df(n = 6, label = c("worst", "movie", "ever", "<PAD>", "<PAD>", "<PAD>"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
 
 nodes <- combine_ndfs(nodes_3, nodes_4)
@@ -58,14 +58,14 @@ graph2 <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed 
   set_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
   set_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
 
-render_graph(graph2, height = 120)
+render_graph(graph2, height = 100)
 ```
 
 
 - Bucketing: apply the padding trick to subgroups of samples split according to their lengths. It results in multiple training sets, or buckets, within which all samples are padded to an even length. Diagram below illustrates how the two previous samples would be pre-processed if using buckets of size 4 and 6. 
 
 ```{r bucket1, echo = FALSE, fig.height=2}
-nodes_1 <- DiagrammeR::create_node_df(n = 2, label = c("this movie is a great movie", "Bucket_6"), level = 1, fillcolor = adjustcolor(c("lightblue", "lightgreen"), alpha.f = 0.25), style = "filled", shape = "box", color = c("lightblue", "lightgreen"), fontcolor = "black")
+nodes_1 <- DiagrammeR::create_node_df(n = 2, label = c("this movie is a great movie", "Bucket_6"), level = 1, fillcolor = adjustcolor(c("lightblue", "lightgreen"), alpha.f = 0.25), style = "filled", shape = "box", color = c("lightblue", "lightgreen"), fontcolor = "black", width=c(3,1))
 nodes_2 <- DiagrammeR::create_node_df(n = 6, label = c("this", "movie", "is", "a", "great", "movie"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
 
 nodes <- combine_ndfs(nodes_1, nodes_2)
@@ -75,9 +75,9 @@ graph1 <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed 
   set_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
   set_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
 
-render_graph(graph1, height = 180)
+render_graph(graph1, height = 150)
 
-nodes_3 <- DiagrammeR::create_node_df(n = 2, label = c("worst movie ever", "Bucket_4"), level = 1, fillcolor = adjustcolor(c("lightblue", "lightgreen"), alpha.f = 0.25), style = "filled", shape = "box", color = c("lightblue", "lightgreen"), fontcolor = "black")
+nodes_3 <- DiagrammeR::create_node_df(n = 2, label = c("worst movie ever", "Bucket_4"), level = 1, fillcolor = adjustcolor(c("lightblue", "lightgreen"), alpha.f = 0.25), style = "filled", shape = "box", color = c("lightblue", "lightgreen"), fontcolor = "black", width=c(2.5, 1))
 nodes_4 <- DiagrammeR::create_node_df(n = 4, label = c("worst", "movie", "ever", "<PAD>"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
 
 nodes <- combine_ndfs(nodes_3, nodes_4)
@@ -87,7 +87,7 @@ graph2 <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed 
   set_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
   set_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
 
-render_graph(graph2, height = 180)
+render_graph(graph2, height = 150)
 ```
 
 Non numeric features such as words need to be transformed into a numeric representation. This task is commonly performed by the embedding operator which first requires to convert words into a 0 based index. The embedding will map a vector of features based on that index. In the example below, the embedding projects each word into 2 new numeric features. 
@@ -100,14 +100,14 @@ nodes_3 <- DiagrammeR::create_node_df(n = 6, label = c("0.11\n0.65", "-0.21\n0.5
 
 nodes <- combine_ndfs(nodes_1, nodes_2, nodes_3)
 edges <- create_edge_df(from = c(1:12), to= c(7:18), label = NA)
-edges$label[6] <- "indexing"
-edges$label[12] <- "embedding"
+edges$label[6] <- "   indexing"
+edges$label[12] <- "   embedding"
 
 graph <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed = T) %>% 
   set_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
   set_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
 
-render_graph(graph, height = 200)
+render_graph(graph, height = 150)
 
 # sample 2
 nodes_1 <- DiagrammeR::create_node_df(n = 4, label = c("worst", "movie", "ever", "<PAD>"), level = 2, fillcolor = adjustcolor("lightblue", alpha.f = 0.25), style = "filled", shape = "box", color = "lightblue", fontcolor = "black")
@@ -116,14 +116,14 @@ nodes_3 <- DiagrammeR::create_node_df(n = 4, label = c("0.77\n0.35", "-0.21\n0.5
 
 nodes <- combine_ndfs(nodes_1, nodes_2, nodes_3)
 edges <- create_edge_df(from = c(1:8), to= c(5:12), label = NA)
-edges$label[4] <- "indexing"
-edges$label[8] <- "embedding"
+edges$label[4] <- "   indexing"
+edges$label[8] <- "   embedding"
 
 graph <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed = T) %>% 
   set_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
   set_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
 
-render_graph(graph, height = 200)
+render_graph(graph, height = 150)
 ```
 
 ## Data preparation
