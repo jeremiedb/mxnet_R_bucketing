@@ -247,12 +247,12 @@ for (i in 1:100) {
                               batch.size = 1, shuffle = FALSE)
   
   infer <- mx.infer.buckets.one(infer.data = infer.data, 
-                                    symbol = symbol,
-                                    arg.params = model$arg.params,
-                                    aux.params = model$aux.params,
-                                    input.params = list(rnn.state = infer[[2]], 
-                                                        rnn.state.cell = infer[[3]]), 
-                                    ctx = ctx)
+                                symbol = symbol,
+                                arg.params = model$arg.params,
+                                aux.params = model$aux.params,
+                                input.params = list(rnn.state = infer[[2]], 
+                                                    rnn.state.cell = infer[[3]]), 
+                                ctx = ctx)
   
   pred_prob <- as.numeric(as.array(infer$loss_output))
   pred <- sample(length(pred_prob), prob = pred_prob, size = 1, replace = T) - 1
