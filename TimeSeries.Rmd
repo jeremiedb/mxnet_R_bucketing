@@ -27,9 +27,8 @@ library("mxnet")
 Load utility functions
 
 ```{r, echo=T}
-source("../incubator-mxnet/R-package/R/rnn.graph.R")
-source("../incubator-mxnet/R-package/R/rnn.infer.R")
-# source("NLP/model_rnn.R")
+source("rnn.graph.R")
+source("rnn.infer.R")
 ```
 
 ### Data preparation
@@ -193,6 +192,6 @@ p = plot_ly(x = 1:dim(y)[2], y = y[1,], type = "scatter", mode="lines", name = "
   add_trace(x = dim(y)[2] + 1:length(real), y = real, type = "scatter", mode="lines", name = "real") %>% 
   add_trace(x = dim(y)[2] + 1:length(predict), y = predict, type = "scatter", mode="lines", name = "pred")
 
-plotly::export(p, file = "timeseries_p.png")
+plotly::export(p, file = "timeseries_pred.png")
 ```
 

@@ -39,13 +39,13 @@ rnn.graph <- function (num_rnn_layer, input_size = NULL, num_embed = NULL,
                          state_cell = rnn.state.cell, parameters = rnn.params.weight, 
                          state.size = num_hidden, num.layers = num_rnn_layer, 
                          bidirectional = bidirectional, mode = cell_type, state.outputs = output_last_state, 
-                         p = dropout, name = paste(cell_type, num_rnn_layer, "layer", sep = "_"))
+                         p = dropout, name = paste0(prefix, "RNN"))
   } else {
     rnn <- mx.symbol.RNN(data = data, state = rnn.state, 
                          parameters = rnn.params.weight, state.size = num_hidden, 
                          num.layers = num_rnn_layer, bidirectional = bidirectional, mode = cell_type, 
                          state.outputs = output_last_state, p = dropout, 
-                         name = paste(cell_type, num_rnn_layer, "layer", sep = "_"))
+                         name = paste0(prefix, "RNN"))
   }
   
   if (config == "seq-to-one") {

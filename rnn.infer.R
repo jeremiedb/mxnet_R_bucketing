@@ -58,20 +58,20 @@ mx.infer.buckets <- function(infer.data, model, ctx = mx.cpu()) {
   update_names <- c(input.names, arg.params.fix.names, arg.params.names)
   arg_update_idx <- match(arguments, update_names)
   
-  execs <- mxnet:::mx.symbol.bind(symbol = symbol, arg.arrays = c(dlist, arg.params.fix, arg.params)[arg_update_idx], 
+  execs <- mx.symbol.bind(symbol = symbol, arg.arrays = c(dlist, arg.params.fix, arg.params)[arg_update_idx], 
                                   aux.arrays = aux.params, ctx = ctx[[1]], grad.req = grad.req)
   
   # Initial input shapes - need to be adapted for multi-devices - divide highest
   # dimension by device nb
   
-  packer <- mxnet:::mx.nd.arraypacker()
+  packer <- mx.nd.arraypacker()
   infer.data$reset()
   while (infer.data$iter.next()) {
     
     # Get input data slice
     dlist <- infer.data$value()  #[input.names]
     
-    execs <- mxnet:::mx.symbol.bind(symbol = symbol, arg.arrays = c(dlist, execs$arg.arrays[arg.params.fix.names], execs$arg.arrays[arg.params.names])[arg_update_idx], 
+    execs <- mx.symbol.bind(symbol = symbol, arg.arrays = c(dlist, execs$arg.arrays[arg.params.fix.names], execs$arg.arrays[arg.params.names])[arg_update_idx], 
                                     aux.arrays = execs$aux.arrays, ctx = ctx[[1]], grad.req = grad.req)
     
     mx.exec.forward(execs, is.train = FALSE)
@@ -145,7 +145,7 @@ mx.infer.buckets.one <- function(infer.data,
   arg_update_idx <- match(arguments, update_names)
   
   # Initial binding
-  execs <- mxnet:::mx.symbol.bind(symbol = symbol, 
+  execs <- mx.symbol.bind(symbol = symbol, 
                                   arg.arrays = c(dlist, arg.params.fix, arg.params)[arg_update_idx], 
                                   aux.arrays = aux.params, ctx = ctx[[1]], grad.req = grad.req)
   
@@ -158,7 +158,7 @@ mx.infer.buckets.one <- function(infer.data,
     # Get input data slice
     dlist <- infer.data$value()[input.names]
     
-    execs <- mxnet:::mx.symbol.bind(symbol = symbol, 
+    execs <- mx.symbol.bind(symbol = symbol, 
                                     arg.arrays = c(dlist, execs$arg.arrays[arg.params.fix.names], execs$arg.arrays[arg.params.names])[arg_update_idx],
                                     aux.arrays = execs$aux.arrays, ctx = ctx[[1]], grad.req = grad.req)
     
@@ -175,3 +175,76 @@ mx.infer.buckets.one <- function(infer.data,
   infer.data$reset()
   return(out)
 }
+
+
+### inference for one-to-one models
+mx.rnn.infer.unroll <- function(data, 
+                                symbol,
+                                num_hidden, 
+                                arg.params, 
+                                aux.params, 
+                                init_states = NULL, 
+                                ctx = mx.cpu()) {
+
+  if (is.null(ctx)) 
+    ctx <- mx.ctx.default()
+  if (is.mx.context(ctx)) {
+    ctx <- list(ctx)
+  }
+  
+  if (!is.list(ctx)) 
+    stop("ctx must be mx.context or list of mx.context")
+  
+  ndevice <- length(ctx)
+  
+  arguments <- symbol$arguments
+  input.names <- intersect(c("data", "label"), arguments)
+  
+  input.shape <- list("data" = dim(data), "label" = dim(data))
+  
+  # init_state_shapes
+  init_states_names <- arguments[startsWith(arguments, "init_")]
+  init_states_shapes = lapply(init_states_names, function(x) c(num_hidden, input.shape[[1]][1]))
+  names(init_states_shapes) <- init_states_names
+  
+  shapes <- symbol$infer.shape(c(input.shape, init_states_shapes))
+  
+  # initialize all arguments with zeros
+  arguments.ini <- lapply(shapes$arg.shapes, function(shape) {
+    mx.nd.zeros(shape = shape, ctx = mx.cpu())
+  })
+  
+  dlist <- list("data" = data, "label" = data)
+  
+  if (is.null(init_states)) {
+    init_states <- arguments.ini[init_states_names]
+  } else {
+    names(init_states) <- init_states_names
+  }
+  
+  # remove potential duplicates arguments - if inference on CUDA RNN symbol
+  arg.params <- arg.params[setdiff(names(arg.params), c(input.names, init_states_names))]
+  arg.params.names <- names(arg.params)
+  
+  # Aux params
+  aux.params <- aux.params
+  
+  # Grad request
+  grad.req <- rep("null", length(arguments))
+  
+  # Arg array order
+  update_names <- c(input.names, init_states_names, arg.params.names)
+  arg_update_idx <- match(arguments, update_names)
+  
+  # Bind to exec
+  execs <- mxnet:::mx.symbol.bind(symbol = symbol,
+                                  arg.arrays = c(dlist, init_states, arg.params)[arg_update_idx],
+                                  aux.arrays = aux.params, ctx = ctx[[1]], grad.req = grad.req)
+  
+  mx.exec.forward(execs, is.train = FALSE)
+  
+  out <- lapply(execs$ref.outputs, function(out) mx.nd.copyto(out, mx.cpu()))
+  
+  return(out)
+}
+

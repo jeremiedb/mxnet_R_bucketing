@@ -21,9 +21,8 @@ library("mxnet")
 Load utility functions
 
 ``` r
-source("../incubator-mxnet/R-package/R/rnn.graph.R")
-source("../incubator-mxnet/R-package/R/rnn.infer.R")
-# source("NLP/model_rnn.R")
+source("rnn.graph.R")
+source("rnn.infer.R")
 ```
 
 ### Data preparation
@@ -118,7 +117,7 @@ system.time(
     ## Start training with 1 devices
 
     ##    user  system elapsed 
-    ##  15.100   1.076   7.896
+    ##  14.532   1.172   7.697
 
 ``` r
 mx.model.save(model, prefix = "models/model_time_series", iteration = 1000)
@@ -193,7 +192,7 @@ p = plot_ly(x = 1:dim(y)[2], y = y[1,], type = "scatter", mode="lines", name = "
   add_trace(x = dim(y)[2] + 1:length(real), y = real, type = "scatter", mode="lines", name = "real") %>% 
   add_trace(x = dim(y)[2] + 1:length(predict), y = predict, type = "scatter", mode="lines", name = "pred")
 
-plotly::export(p, file = "timeseries_p.png")
+plotly::export(p, file = "timeseries_pred.png")
 ```
 
 ![](TimeSeries_files/figure-markdown_github/unnamed-chunk-9-1.png)
