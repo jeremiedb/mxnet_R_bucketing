@@ -28,21 +28,25 @@ source("rnn.infer.R")
 ### Data preparation
 
 ``` r
-pts <- sin(pi/16* (1:2001))
+seq_len = 100
+samples = 32
+
+pts <- sin(pi/16 * (1:(seq_len * samples + 1)))
+
 x <- pts[-length(pts)]
-x = matrix(x, nrow = 20, byrow = T)
-x = array(x, dim = c(1, 20, 100))
+x = matrix(x, nrow = seq_len, byrow = F)
+x = array(x, dim = c(1, seq_len, samples))
 y <- pts[-1]
-y = matrix(y, nrow = 20, byrow = T)
+y = matrix(y, nrow = seq_len, byrow = F)
 
-p1 = plot_ly(x = 1:dim(x)[3], y = x[1,1, ], type = "scatter", mode = "lines") %>% 
-  add_trace(x = 1:dim(x)[3], y = x[1,2,], type = "scatter", mode = "lines") %>% 
-  add_trace(x = 1:dim(x)[3], y = x[1,3,], type = "scatter", mode = "lines") %>% 
-  add_trace(x = 1:dim(x)[3], y = x[1,4,], type = "scatter", mode = "lines") %>% 
-  add_trace(x = 1:dim(x)[3], y = x[1,5,], type = "scatter", mode = "lines")
+p1 = plot_ly(x = 1:dim(x)[2], y = x[1,,1], type = "scatter", mode = "lines") %>% 
+  add_trace(x = 1:dim(x)[2], y = x[1,,2], type = "scatter", mode = "lines") %>% 
+  add_trace(x = 1:dim(x)[2], y = x[1,,3], type = "scatter", mode = "lines") %>% 
+  add_trace(x = 1:dim(x)[2], y = x[1,,4], type = "scatter", mode = "lines") %>% 
+  add_trace(x = 1:dim(x)[2], y = x[1,,5], type = "scatter", mode = "lines")
 
-p2 = plot_ly(x = 1:length(y[1,]), y = y[1,], type = "scatter", mode = "lines") %>%
-  add_trace(x = 1:length(y[2,]), y = y[2,], type = "scatter", mode = "lines")
+p2 = plot_ly(x = 1:length(y[,1]), y = y[,1], type = "scatter", mode = "lines") %>%
+  add_trace(x = 1:length(y[,2]), y = y[,2], type = "scatter", mode = "lines")
 
 plotly::export(p1, file = "timeseries_p1.png")
 ```
@@ -54,7 +58,7 @@ plotly::export(p1, file = "timeseries_p1.png")
 Hacky array.iter approach: batch.size = seq.length so that the graph is fed with the expected format.
 
 ``` r
-batch.size = 100
+batch.size = 8
 
 train.data <- mx.io.arrayiter(data = x, label = y, 
                               batch.size = batch.size, shuffle = TRUE)
@@ -64,17 +68,17 @@ train.data <- mx.io.arrayiter(data = x, label = y,
 
 ``` r
 symbol <- rnn.graph(num_rnn_layer =  2, 
-                       num_hidden = 64,
-                       input_size = NULL,
-                       num_embed = NULL, 
-                       num_decode = 1,
-                       masking = F, 
-                       loss_output = "linear",
-                       dropout = 0.1, 
-                       ignore_label = -1,
-                       cell_type = "lstm",
-                       output_last_state = T,
-                       config = "one-to-one")
+                    num_hidden = 64,
+                    input_size = NULL,
+                    num_embed = NULL, 
+                    num_decode = 1,
+                    masking = F, 
+                    loss_output = "linear",
+                    dropout = 0.25, 
+                    ignore_label = -1,
+                    cell_type = "lstm",
+                    output_last_state = T,
+                    config = "one-to-one")
 
 graph = graph.viz(symbol, type = "graph", direction = "LR", shape=list(data = c(1, 4, 100), label = c(4, 100)))
 ```
@@ -87,7 +91,16 @@ DiagrammeRsvg::export_svg(graph) %>% charToRaw %>% rsvg::rsvg_png("time_graph.pn
 
 ### Fit a LSTM model
 
-Another friction: metrics need to be customized under the current data format.
+Needs a custom metric to handle labels in a matrix rather than flat format in the iterator.
+
+``` r
+mx.metric.mse.seq <- mx.metric.custom("Perplexity", function(label, pred) {
+  label = mx.nd.reshape(mx.nd.array(label), shape = -1)
+  label = as.array(label)
+  res <- mean((label-pred)^2)
+  return(res)
+})
+```
 
 ``` r
 ctx <- mx.gpu()
@@ -96,31 +109,31 @@ initializer <- mx.init.Xavier(rnd_type = "gaussian",
                               factor_type = "avg", 
                               magnitude = 2.5)
 
-optimizer <- mx.opt.create("adadelta", rho = 0.9, eps = 1e-5, wd = 0,
-                           clip_gradient = NULL, rescale.grad = 1/batch.size)
+optimizer <- mx.opt.create("adadelta", rho = 0.9, eps = 1e-5, wd = 1e-12,
+                           clip_gradient = 2, rescale.grad = 1/batch.size)
 
 logger <- mx.metric.logger()
-epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
+batch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
 epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
 
 system.time(
   model <- mx.model.buckets(symbol = symbol,
                             train.data = train.data, eval.data = NULL, 
-                            num.round = 2500, ctx = ctx, verbose = TRUE,
+                            num.round = 1250, ctx = ctx, verbose = TRUE,
                             metric = NULL, 
                             initializer = initializer, optimizer = optimizer, 
                             batch.end.callback = NULL, 
-                            epoch.end.callback = epoch.end.callback)
+                            epoch.end.callback = NULL)
 )
 ```
 
     ## Start training with 1 devices
 
     ##    user  system elapsed 
-    ##  14.532   1.172   7.697
+    ## 112.668  10.036 105.415
 
 ``` r
-mx.model.save(model, prefix = "models/model_time_series", iteration = 1000)
+mx.model.save(model, prefix = "models/model_time_series", iteration = 1)
 ```
 
 Inference on test data
@@ -131,7 +144,7 @@ Setup inference data. Need to apply preprocessing to inference sequence and conv
 ### Inference
 
 ``` r
-model <- mx.model.load(prefix = "models/model_time_series", iteration = 1000)
+model <- mx.model.load(prefix = "models/model_time_series", iteration = 1)
 
 internals <- model$symbol$get.internals()
 sym_state <- internals$get.output(which(internals$outputs %in% "RNN_state"))
@@ -141,12 +154,11 @@ symbol <- mx.symbol.Group(sym_output, sym_state, sym_state_cell)
 
 predict <- numeric()
 
-data = mx.nd.array(x[, 1, , drop = F])
-label = mx.nd.array(y[1, , drop = F])
+data = mx.nd.array(x[, , 1, drop = F])
+label = mx.nd.array(y[, 1, drop = F])
 
-infer_length = dim(data)[3]
-
-infer.data <- mx.io.arrayiter(data = data, label = label, batch.size = batch.size, shuffle = FALSE)
+infer.data <- mx.io.arrayiter(data = data, label = label, 
+                              batch.size = 1, shuffle = FALSE)
 
 mx.symbol.bind = mxnet:::mx.symbol.bind
 infer <- mx.infer.buckets.one(infer.data = infer.data, 
@@ -156,7 +168,7 @@ infer <- mx.infer.buckets.one(infer.data = infer.data,
                               input.params = NULL,
                               ctx = ctx)
 
-pred = mx.nd.array(y[1, batch.size, drop = F])
+pred = mx.nd.array(y[seq_len, 1, drop = F])
 
 for (i in 1:100) {
   
@@ -183,16 +195,16 @@ for (i in 1:100) {
 ### Plot predictions against real values
 
 ``` r
-data = mx.nd.array(x[, 1, , drop = F])
-label = mx.nd.array(y[1, , drop = F])
+data = mx.nd.array(x[, , 1, drop = F])
+label = mx.nd.array(y[, 1, drop = F])
 
-real = y[2, 1:100]
+real = y[1:100, 2]
 
-p = plot_ly(x = 1:dim(y)[2], y = y[1,], type = "scatter", mode="lines", name = "hist") %>% 
-  add_trace(x = dim(y)[2] + 1:length(real), y = real, type = "scatter", mode="lines", name = "real") %>% 
-  add_trace(x = dim(y)[2] + 1:length(predict), y = predict, type = "scatter", mode="lines", name = "pred")
+p = plot_ly(x = 1:dim(y)[1], y = y[,1], type = "scatter", mode="lines", name = "hist") %>% 
+  add_trace(x = dim(y)[1] + 1:length(real), y = real, type = "scatter", mode="lines", name = "real") %>% 
+  add_trace(x = dim(y)[1] + 1:length(predict), y = predict, type = "scatter", mode="lines", name = "pred")
 
 plotly::export(p, file = "timeseries_pred.png")
 ```
 
-![](TimeSeries_files/figure-markdown_github/unnamed-chunk-9-1.png)
+![](TimeSeries_files/figure-markdown_github/unnamed-chunk-10-1.png)

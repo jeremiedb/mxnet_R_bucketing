@@ -34,6 +34,9 @@ rnn.graph <- function (num_rnn_layer, input_size = NULL, num_embed = NULL,
     data <- mx.symbol.Embedding(data = data, input_dim = input_size, 
                                 weight = embed.weight, output_dim = num_embed, name = "embed")
   }
+  
+  data = mx.symbol.swapaxes(data = data, dim1 = 0, dim2 = 1, name = paste0(prefix, "swap_pre"))
+  
   if (cell_type == "lstm") {
     rnn <- mx.symbol.RNN(data = data, state = rnn.state, 
                          state_cell = rnn.state.cell, parameters = rnn.params.weight, 
@@ -48,11 +51,13 @@ rnn.graph <- function (num_rnn_layer, input_size = NULL, num_embed = NULL,
                          name = paste0(prefix, "RNN"))
   }
   
+  rnn_swap = mx.symbol.swapaxes(data = rnn[[1]], dim1 = 0, dim2 = 1, name = paste0(prefix, "swap_post"))
+  
   if (config == "seq-to-one") {
     if (masking) {
-      mask <- mx.symbol.SequenceLast(data = rnn[[1]], use.sequence.length = T, sequence_length = seq.mask, name = "mask")
+      mask <- mx.symbol.SequenceLast(data = rnn_swap, use.sequence.length = T, sequence_length = seq.mask, name = "mask")
     } else {
-      mask <- mx.symbol.SequenceLast(data = rnn[[1]], use.sequence.length = F, name = "mask")
+      mask <- mx.symbol.SequenceLast(data = rnn_swap, use.sequence.length = F, name = "mask")
     }
     
     if (!is.null(loss_output)) {
@@ -67,16 +72,16 @@ rnn.graph <- function (num_rnn_layer, input_size = NULL, num_embed = NULL,
   
   else if (config == "one-to-one") {
     
-    if (masking) mask <- mx.symbol.SequenceMask(data = rnn[[1]], use.sequence.length = T, sequence_length = seq.mask, value = 0, name = "mask") else
-      mask <- mx.symbol.identity(data = rnn[[1]], name = "mask")
+    if (masking) mask <- mx.symbol.SequenceMask(data = rnn_swap, use.sequence.length = T, sequence_length = seq.mask, value = 0, name = "mask") else
+      mask <- mx.symbol.identity(data = rnn_swap, name = "mask")
     
     if (!is.null(loss_output)) {
       
-      mask <- mx.symbol.reshape(data = mask, shape = c(num_hidden, -1))
+      mask <- mx.symbol.reshape(data = mask, shape = c(0, -1), reverse = TRUE)
       label <- mx.symbol.reshape(data = label, shape = c(-1))
       
       decode <- mx.symbol.FullyConnected(data = mask, weight = cls.weight, bias = cls.bias, num_hidden = num_decode, 
-                                         flatten = T, name = paste0(prefix, "decode"))
+                                         flatten = TRUE, name = paste0(prefix, "decode"))
       
       out <- switch(loss_output, softmax = mx.symbol.SoftmaxOutput(data = decode, label = label, use_ignore = !ignore_label == -1, ignore_label = ignore_label, name = "loss"), 
                     linear = mx.symbol.LinearRegressionOutput(data = decode, label = label, name = "loss"), 
