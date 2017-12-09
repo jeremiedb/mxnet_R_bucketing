@@ -185,7 +185,7 @@ mx.rnn.infer.unroll <- function(data,
                                 aux.params, 
                                 init_states = NULL, 
                                 ctx = mx.cpu()) {
-
+  
   if (is.null(ctx)) 
     ctx <- mx.ctx.default()
   if (is.mx.context(ctx)) {
@@ -247,4 +247,3 @@ mx.rnn.infer.unroll <- function(data,
   
   return(out)
 }
-

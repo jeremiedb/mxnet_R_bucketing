@@ -51,14 +51,9 @@ rnn.graph <- function (num_rnn_layer, input_size = NULL, num_embed = NULL,
                          name = paste0(prefix, "RNN"))
   }
   
-  rnn_swap = mx.symbol.swapaxes(data = rnn[[1]], dim1 = 0, dim2 = 1, name = paste0(prefix, "swap_post"))
-  
   if (config == "seq-to-one") {
-    if (masking) {
-      mask <- mx.symbol.SequenceLast(data = rnn_swap, use.sequence.length = T, sequence_length = seq.mask, name = "mask")
-    } else {
-      mask <- mx.symbol.SequenceLast(data = rnn_swap, use.sequence.length = F, name = "mask")
-    }
+    if (masking) mask <- mx.symbol.SequenceLast(data = rnn[[1]], use.sequence.length = T, sequence_length = seq.mask, name = "mask") else
+      mask <- mx.symbol.SequenceLast(data = rnn[[1]], use.sequence.length = F, name = "mask")
     
     if (!is.null(loss_output)) {
       decode <- mx.symbol.FullyConnected(data = mask, weight = cls.weight, bias = cls.bias, num_hidden = num_decode, name = "decode")
@@ -72,8 +67,10 @@ rnn.graph <- function (num_rnn_layer, input_size = NULL, num_embed = NULL,
   
   else if (config == "one-to-one") {
     
-    if (masking) mask <- mx.symbol.SequenceMask(data = rnn_swap, use.sequence.length = T, sequence_length = seq.mask, value = 0, name = "mask") else
-      mask <- mx.symbol.identity(data = rnn_swap, name = "mask")
+    if (masking) mask <- mx.symbol.SequenceMask(data = rnn[[1]], use.sequence.length = T, sequence_length = seq.mask, value = 0, name = "mask") else
+      mask <- mx.symbol.identity(data = rnn[[1]], name = "mask")
+    
+    mask = mx.symbol.swapaxes(data = mask, dim1 = 0, dim2 = 1, name = paste0(prefix, "swap_post"))
     
     if (!is.null(loss_output)) {
       
@@ -247,6 +244,8 @@ rnn.graph.unroll <- function(num_rnn_layer,
   label <- mx.symbol.Variable(label_name)
   seq.mask <- mx.symbol.Variable(paste0(prefix, "seq.mask"))
   
+  data = mx.symbol.swapaxes(data = data, dim1 = 0, dim2 = 1, name = paste0(prefix, "swap_pre"))
+  
   if (!is.null(num_embed)) {
     data <- mx.symbol.Embedding(data = data, input_dim = input_size,
                                 weight=embed.weight, output_dim = num_embed, name = paste0(prefix, "embed"))
@@ -295,8 +294,9 @@ rnn.graph.unroll <- function(num_rnn_layer,
   # concat hidden units - concat seq_len blocks of dimension num_hidden x batch.size
   concat <- mx.symbol.concat(data = last.hidden, num.args = seq_len, dim = 0, name = paste0(prefix, "concat"))
   concat <- mx.symbol.reshape(data = concat, shape = c(num_hidden, -1, seq_len), name = paste0(prefix, "rnn_reshape"))
+  mask <- mx.symbol.reshape(data = mask, shape = c(0, -1), reverse = TRUE)
   
-  if (config=="seq-to-one"){
+  if (config=="seq-to-one") {
     
     if (masking) mask <- mx.symbol.SequenceLast(data=concat, use.sequence.length = T, sequence_length = seq.mask, name = paste0(prefix, "mask")) else
       mask <- mx.symbol.SequenceLast(data=concat, use.sequence.length = F, name = paste0(prefix, "mask"))
@@ -321,6 +321,8 @@ rnn.graph.unroll <- function(num_rnn_layer,
     
     if (masking) mask <- mx.symbol.SequenceMask(data = concat, use.sequence.length = T, sequence_length = seq.mask, value = 0, name = paste0(prefix, "mask")) else
       mask <- mx.symbol.identity(data = concat, name = paste0(prefix, "mask"))
+    
+    mask = mx.symbol.swapaxes(data = mask, dim1 = 0, dim2 = 1, name = paste0(prefix, "swap_post"))
     
     if (!is.null(loss_output)) {
       

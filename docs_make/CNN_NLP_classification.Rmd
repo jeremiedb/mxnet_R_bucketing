@@ -137,7 +137,7 @@ mx.model.save(model_sentiment_cnn, prefix = "models/model_sentiment_cnn_Visual_v
 
 ## Plot word embeddings
 
-In this minimalistic example, embeddings are only 2 dimensionnal, though it still provides enough seperation potential for the classifier to achive over 86% accuracy. 
+In this minimalistic example, embeddings are only 2 dimensionnal, though it still provides enough seperation potential for the classifier to achieve over 86% accuracy. 
 
 ```{r, echo=TRUE}
 

@@ -1,15 +1,7 @@
 Time-Series
 ================
 
-> LSTM application to time-series.
-
-This is a hacky demo of how one can perform a time-series model training and inference.
-
-Areas of friction come from the data feed that is expected in a features X batch.size X seq.len format, while array.iter assumes that batches are accessed through the last dimension.
-
-Current custom bucket iterator is designed for text data, which is in batch.size X seq.len format, the features dimension being added by the embedding layer.
-
-Might be preferrable to migrate bucket iterator to a seq\_len X batch.size format and swap axis within model. First need to test potential impact on performance.
+This is a minimalistic demo on how to model time-series with RNN, including training and inference.
 
 ``` r
 library("readr")
@@ -29,15 +21,14 @@ source("rnn.infer.R")
 
 ``` r
 seq_len = 100
-samples = 32
+samples = 192
 
-pts <- sin(pi/16 * (1:(seq_len * samples + 1)))
+seeds <- runif(samples, min = -pi, max = pi)
+pts <- sapply(seeds, function(x) sin(x + pi/12 * (0:(seq_len))))
 
-x <- pts[-length(pts)]
-x = matrix(x, nrow = seq_len, byrow = F)
-x = array(x, dim = c(1, seq_len, samples))
-y <- pts[-1]
-y = matrix(y, nrow = seq_len, byrow = F)
+x <- pts[1:seq_len, ]
+x <- array(x, dim = c(1, seq_len, samples))
+y <- pts[-1, ]
 
 p1 = plot_ly(x = 1:dim(x)[2], y = x[1,,1], type = "scatter", mode = "lines") %>% 
   add_trace(x = 1:dim(x)[2], y = x[1,,2], type = "scatter", mode = "lines") %>% 
@@ -58,17 +49,20 @@ plotly::export(p1, file = "timeseries_p1.png")
 Hacky array.iter approach: batch.size = seq.length so that the graph is fed with the expected format.
 
 ``` r
-batch.size = 8
+batch.size = 16
 
-train.data <- mx.io.arrayiter(data = x, label = y, 
+train.data <- mx.io.arrayiter(data = x[,,1:160, drop = F], label = y[, 1:160], 
                               batch.size = batch.size, shuffle = TRUE)
+
+eval.data <- mx.io.arrayiter(data = x[,,-(1:160), drop = F], label = y[, -(1:160)], 
+                              batch.size = batch.size, shuffle = FALSE)
 ```
 
 ### Model architecture
 
 ``` r
 symbol <- rnn.graph(num_rnn_layer =  2, 
-                    num_hidden = 64,
+                    num_hidden = 50,
                     input_size = NULL,
                     num_embed = NULL, 
                     num_decode = 1,
@@ -80,7 +74,9 @@ symbol <- rnn.graph(num_rnn_layer =  2,
                     output_last_state = T,
                     config = "one-to-one")
 
-graph = graph.viz(symbol, type = "graph", direction = "LR", shape=list(data = c(1, 4, 100), label = c(4, 100)))
+graph = graph.viz(symbol, type = "graph", direction = "LR", 
+                  shape=list(data = c(1, seq_len, batch.size), 
+                             label = c(seq_len, batch.size)))
 ```
 
 ``` r
@@ -109,28 +105,37 @@ initializer <- mx.init.Xavier(rnd_type = "gaussian",
                               factor_type = "avg", 
                               magnitude = 2.5)
 
-optimizer <- mx.opt.create("adadelta", rho = 0.9, eps = 1e-5, wd = 1e-12,
-                           clip_gradient = 2, rescale.grad = 1/batch.size)
+optimizer <- mx.opt.create("adadelta", rho = 0.95, eps = 1e-8, wd = 1e-8,
+                           clip_gradient = 1, rescale.grad = 1/batch.size)
 
 logger <- mx.metric.logger()
-batch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
-epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
+epoch.end.callback <- mx.callback.log.train.metric(period = 10, logger = logger)
 
 system.time(
   model <- mx.model.buckets(symbol = symbol,
-                            train.data = train.data, eval.data = NULL, 
-                            num.round = 1250, ctx = ctx, verbose = TRUE,
-                            metric = NULL, 
+                            train.data = train.data, 
+                            eval.data = eval.data, 
+                            num.round = 250, ctx = ctx, verbose = TRUE,
+                            metric = mx.metric.mse.seq, 
                             initializer = initializer, optimizer = optimizer, 
                             batch.end.callback = NULL, 
-                            epoch.end.callback = NULL)
+                            epoch.end.callback = epoch.end.callback)
 )
 ```
 
-    ## Start training with 1 devices
-
     ##    user  system elapsed 
-    ## 112.668  10.036 105.415
+    ##  55.636   5.580  53.055
+
+``` r
+p <- plot_ly(x = seq_len(length(logger$train)), y = logger$train, type = "scatter", 
+             mode = "markers+lines", name = "train") %>% 
+  add_trace(y = logger$eval, type = "scatter", 
+            mode = "markers+lines", name = "eval")
+
+plotly::export(p, file = "logger_one_to_one.png")
+```
+
+![](TimeSeries_files/figure-markdown_github/unnamed-chunk-8-1.png)
 
 ``` r
 mx.model.save(model, prefix = "models/model_time_series", iteration = 1)
@@ -152,15 +157,19 @@ sym_state_cell <- internals$get.output(which(internals$outputs %in% "RNN_state_c
 sym_output <- internals$get.output(which(internals$outputs %in% "loss_output"))
 symbol <- mx.symbol.Group(sym_output, sym_state, sym_state_cell)
 
+pred_length = 100
 predict <- numeric()
 
 data = mx.nd.array(x[, , 1, drop = F])
 label = mx.nd.array(y[, 1, drop = F])
 
+pred = mx.nd.array(y[seq_len, 1, drop = F])
+real = sin(seeds[1] + pi/12 * (seq_len+1):(seq_len+pred_length))
+
 infer.data <- mx.io.arrayiter(data = data, label = label, 
                               batch.size = 1, shuffle = FALSE)
 
-mx.symbol.bind = mxnet:::mx.symbol.bind
+mx.symbol.bind <- mxnet:::mx.symbol.bind
 infer <- mx.infer.buckets.one(infer.data = infer.data, 
                               symbol = symbol,
                               arg.params = model$arg.params, 
@@ -168,9 +177,7 @@ infer <- mx.infer.buckets.one(infer.data = infer.data,
                               input.params = NULL,
                               ctx = ctx)
 
-pred = mx.nd.array(y[seq_len, 1, drop = F])
-
-for (i in 1:100) {
+for (i in 1:pred_length) {
   
   data = mx.nd.reshape(pred, shape = c(1,1,1))
   label = pred
@@ -197,8 +204,6 @@ for (i in 1:100) {
 ``` r
 data = mx.nd.array(x[, , 1, drop = F])
 label = mx.nd.array(y[, 1, drop = F])
-
-real = y[1:100, 2]
 
 p = plot_ly(x = 1:dim(y)[1], y = y[,1], type = "scatter", mode="lines", name = "hist") %>% 
   add_trace(x = dim(y)[1] + 1:length(real), y = real, type = "scatter", mode="lines", name = "real") %>% 
