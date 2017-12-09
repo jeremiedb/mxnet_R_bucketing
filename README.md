@@ -39,20 +39,6 @@ To illustrate the benefit of bucketing, two datasets are created:
 -   `corpus_single_train.rds`: no bucketing, all samples are padded/trimmed to 600 words.
 -   `corpus_bucketed_train.rds`: samples split into 5 buckets of length 100, 150, 250, 400 and 600.
 
-<!-- -->
-
-    ## Found more than one class "BucketIter" in cache; using the first, from namespace 'mxnet'
-
-    ## Also defined by '.GlobalEnv'
-
-    ## Found more than one class "BucketIter" in cache; using the first, from namespace 'mxnet'
-
-    ## Also defined by '.GlobalEnv'
-
-    ## Found more than one class "BucketIter" in cache; using the first, from namespace 'mxnet'
-
-    ## Also defined by '.GlobalEnv'
-
 Below is the example of the assignation of the bucketed data and labels into `mx.io.bucket.iter` iterator. This iterator behaves essentially the same as the `mx.io.arrayiter` except that is pushes samples coming from the different buckets along with a bucketID to identify the appropriate network to use.
 
 ``` r
@@ -80,8 +66,8 @@ For bucketing, a list of symbols is defined, one for each bucket length. During 
 
 ``` r
 symbol_single <- rnn.graph(config = "seq-to-one", cell_type = "lstm", 
-                           num_rnn_layer = 1, num_embed = 4, num_hidden = 8, 
-                           num_decode = 2, input_size = vocab, dropout = 0.25, 
+                           num_rnn_layer = 1, num_embed = 3, num_hidden = 12, 
+                           num_decode = 2, input_size = vocab, dropout = 0, 
                            ignore_label = -1, loss_output = "softmax",
                            output_last_state = F, masking = T)
 ```
@@ -115,14 +101,24 @@ devices <- mx.gpu()
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "in", magnitude = 3)
 
-optimizer <- mx.opt.create(name = "adam",
-                           learning.rate = 5e-3,
-                           beta1 = 0.9,
-                           beta2 = 0.999,
-                           epsilon = 1e-8,
-                           wd = 1e-3,
+
+optimizer <- mx.opt.create(name = "rmsprop",
+                           learning.rate = 1e-2,
+                           gamma1 = 0.95,
+                           gamma2 = 0.95,
+                           wd = 1e-5,
                            rescale.grad = 1/batch.size,
-                           clip_gradient = 2)
+                           clip_gradient = 5)
+
+# optimizer <- mx.opt.create(name = "adam",
+#                            learning.rate = 1e-2,
+#                            beta1 = 0.9,
+#                            beta2 = 0.999,
+#                            epsilon = 1e-8,
+#                            wd = 1e-5,
+#                            rescale.grad = 1/batch.size,
+#                            clip_gradient = 5)
+
 
 logger <- mx.metric.logger()
 epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
@@ -140,7 +136,7 @@ system.time(
 ```
 
     ##    user  system elapsed 
-    ## 178.072  18.280 186.158
+    ## 185.120  19.176 191.703
 
 ![](README_files/figure-markdown_github/logger1-1.png)
 
@@ -151,14 +147,22 @@ devices <- mx.gpu()
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "in", magnitude = 3)
 
-optimizer <- mx.opt.create(name = "adam",
-                           learning.rate = 5e-3,
-                           beta1 = 0.9,
-                           beta2 = 0.999,
-                           epsilon = 1e-8,
-                           wd = 1e-3,
+optimizer <- mx.opt.create(name = "rmsprop",
+                           learning.rate = 1e-2,
+                           gamma1 = 0.95,
+                           gamma2 = 0.95,
+                           wd = 1e-5,
                            rescale.grad = 1/batch.size,
-                           clip_gradient = 2)
+                           clip_gradient = 5)
+
+# optimizer <- mx.opt.create(name = "adam",
+#                            learning.rate = 1e-2,
+#                            beta1 = 0.9,
+#                            beta2 = 0.999,
+#                            epsilon = 1e-8,
+#                            wd = 1e-5,
+#                            rescale.grad = 1/batch.size,
+#                            clip_gradient = 5)
 
 logger <- mx.metric.logger()
 epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
@@ -167,7 +171,7 @@ batch.end.callback <- mx.callback.log.train.metric(period = 50)
 system.time(
   model <- mx.model.buckets(symbol = symbol_buckets,
                             train.data = train.data.bucket, eval.data = eval.data.bucket,
-                            num.round = 6, ctx = devices, verbose = FALSE,
+                            num.round = 8, ctx = devices, verbose = FALSE,
                             metric = mx.metric.accuracy, optimizer = optimizer,  
                             initializer = initializer,
                             batch.end.callback = NULL, 
@@ -184,7 +188,7 @@ system.time(
     ## Also defined by '.GlobalEnv'
 
     ##    user  system elapsed 
-    ## 102.264 115.692 204.023
+    ## 145.388 157.492 280.160
 
 ![](README_files/figure-markdown_github/logger2-1.png)
 
@@ -226,6 +230,6 @@ roc <- roc(predictions = pred_raw[, 2], labels = factor(label))
 auc <- auc(roc)
 ```
 
-Accuracy: 57%
+Accuracy: 78.7%
 
-AUC: 0.6028
+AUC: 0.8821
