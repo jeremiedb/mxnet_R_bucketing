@@ -20,8 +20,9 @@
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
-<link href="site_libs/highlightjs-1.1/default.css" rel="stylesheet" />
-<script src="site_libs/highlightjs-1.1/highlight.js"></script>
+<link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
 
 <style type="text/css">code{white-space: pre;}</style>
 <style type="text/css">
@@ -30,10 +31,12 @@
   }
 </style>
 <script type="text/javascript">
-if (window.hljs && document.readyState && document.readyState === "complete") {
-   window.setTimeout(function() {
-      hljs.initHighlighting();
-   }, 0);
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
 }
 </script>
 
@@ -165,7 +168,7 @@ $(document).ready(function () {
 
 
 <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
-<nav class="navbar navbar-default navbar-fixed-top" role="navigation">
+<nav class="navbar navbar-default navbar-fixed-top navbar-inverse" role="navigation">
   <div class="container">
   <div class="navbar-header">
   <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
@@ -177,9 +180,39 @@ $(document).ready(function () {
   <div id="navbar" class="collapse navbar-collapse">
   <ul class="nav navbar-nav">
     
-  <li><a href="LSTM_NLP_classification.html">LSTM NLP Classification</a></li>
-  <li><a href="LSTM_text_generation.html">LSTM Text generation</a></li>
-  <li><a href="CNN_NLP_classification.html">CNN NLP Classification</a></li>
+  <li class="dropdown">
+    <a class="dropdown-toggle" data-toggle="dropdown">Language Model<b class="caret"></b></a>
+    <ul class="dropdown-menu" role="menu">
+        <li><a href="LanguageModel_GPU.html">GPU</a></li>
+        <li><a href="LanguageModel_CPU.html">CPU</a></li>
+        </ul>
+  </li>
+  
+  <li class="dropdown">
+    <a class="dropdown-toggle" data-toggle="dropdown">NLP Classification<b class="caret"></b></a>
+    <ul class="dropdown-menu" role="menu">
+        <li><a href="NLP_Classification_GPU.html">GPU</a></li>
+        <li><a href="NLP_Classification_CPU.html">CPU</a></li>
+        </ul>
+  </li>
+  
+  <li class="dropdown">
+    <a class="dropdown-toggle" data-toggle="dropdown">Time Series<b class="caret"></b></a>
+    <ul class="dropdown-menu" role="menu">
+        <li><a href="TimeSeries_GPU">GPU</a></li>
+        <li><a href="TimeSeries_CPU">CPU</a></li>
+        </ul>
+  </li>
+  
+  <li class="dropdown">
+    <a class="dropdown-toggle" data-toggle="dropdown">Translation<b class="caret"></b></a>
+    <ul class="dropdown-menu" role="menu">
+        <li><a href="">GPU</a></li>
+        <li><a href="">CPU</a></li>
+        </ul>
+  </li>
+  
+  <li><a href="CNN_NLP_classification_kaggle.html">CNN NLP Classification</a></li>
   
   </ul>
   
@@ -201,12 +234,13 @@ $(document).ready(function () {
 
 
 <blockquote>
-<p>Examples of applications using bucketing.</p>
+<p>MXNet tutorials</p>
 </blockquote>
 <ul>
-<li><p>Sentiment analysis with LSTM</p></li>
-<li><p>Language model and text generation with LSTM</p></li>
-<li><p>Sentiment analysis with CNN</p></li>
+<li><p>Language model and text generation</p></li>
+<li><p>NLP classification (sentiment analysis)</p></li>
+<li><p>Time series model</p></li>
+<li><p>NLP Sentiment analysis with CNN</p></li>
 </ul>
 
 

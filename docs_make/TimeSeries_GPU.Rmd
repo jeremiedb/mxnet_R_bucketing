@@ -36,7 +36,6 @@ p1 = plot_ly(x = 1:dim(x)[2], y = x[1,,1], type = "scatter", mode = "lines") %>%
 p2 = plot_ly(x = 1:length(y[,1]), y = y[,1], type = "scatter", mode = "lines") %>%
   add_trace(x = 1:length(y[,2]), y = y[,2], type = "scatter", mode = "lines")
 
-# plotly::export(p1, file = "timeseries_p1.png")
 p1
 ```
 
@@ -57,32 +56,26 @@ eval.data <- mx.io.arrayiter(data = x[,,-(1:160), drop = F], label = y[, -(1:160
 
 ### Model architecture
 
-```{r, echo=TRUE}
+```{r, echo=TRUE, fig.height=2.5}
 symbol <- rnn.graph(num_rnn_layer =  2, 
-                    num_hidden = 64,
+                    num_hidden = 50,
                     input_size = NULL,
                     num_embed = NULL, 
                     num_decode = 1,
                     masking = F, 
                     loss_output = "linear",
-                    dropout = 0.25, 
+                    dropout = 0.2, 
                     ignore_label = -1,
                     cell_type = "lstm",
                     output_last_state = T,
                     config = "one-to-one")
 
-graph = graph.viz(symbol, type = "graph", direction = "LR", 
-                  shape=list(data = c(1, seq_len, batch.size), 
-                             label = c(seq_len, batch.size)),
-                   graph.width.px = 800, graph.height.px = 160)
+graph.viz(symbol, type = "graph", direction = "LR", 
+          shape=list(data = c(1, seq_len, batch.size), 
+                     label = c(seq_len, batch.size)),
+          graph.width.px = 800, graph.height.px = 220)
 ```
 
-```{r, echo = F, fig.height=2}
-# DiagrammeRsvg::export_svg(graph) %>% charToRaw %>% rsvg::rsvg_png("time_graph.png")
-graph
-```
-
-![](time_graph.png)
 
 ### Fit a LSTM model
 
@@ -103,9 +96,9 @@ ctx <- mx.gpu()
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", 
                               factor_type = "avg", 
-                              magnitude = 2.5)
+                              magnitude = 3)
 
-optimizer <- mx.opt.create("adadelta", rho = 0.9, eps = 1e-5, wd = 1e-8,
+optimizer <- mx.opt.create("adadelta", rho = 0.95, eps = 1e-6, wd = 1e-8,
                            clip_gradient = 1, rescale.grad = 1/batch.size)
 
 logger <- mx.metric.logger()
@@ -122,13 +115,10 @@ system.time(
                             epoch.end.callback = epoch.end.callback)
 )
 
-p <- plot_ly(x = seq_len(length(logger$train)), y = logger$train, type = "scatter", 
-             mode = "markers+lines", name = "train") %>% 
+plot_ly(x = seq_len(length(logger$train)), y = logger$train, type = "scatter", 
+        mode = "markers+lines", name = "train") %>% 
   add_trace(y = logger$eval, type = "scatter", 
             mode = "markers+lines", name = "eval")
-
-# plotly::export(p, file = "logger_one_to_one.png")
-p
 ```
 
 
@@ -193,11 +183,8 @@ for (i in 1:pred_length) {
 data = mx.nd.array(x[, , 1, drop = F])
 label = mx.nd.array(y[, 1, drop = F])
 
-p = plot_ly(x = 1:dim(y)[1], y = y[,1], type = "scatter", mode="lines", name = "hist") %>% 
+plot_ly(x = 1:dim(y)[1], y = y[,1], type = "scatter", mode="lines", name = "hist") %>% 
   add_trace(x = dim(y)[1] + 1:length(real), y = real, type = "scatter", mode="lines", name = "real") %>% 
   add_trace(x = dim(y)[1] + 1:length(predict), y = predict, type = "scatter", mode="lines", name = "pred")
-
-# plotly::export(p, file = "timeseries_pred.png")
-p
 ```
 

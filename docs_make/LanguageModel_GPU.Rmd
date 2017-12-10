@@ -1,5 +1,5 @@
 ---
-title: "RNN made easy with MXNet R"
+title: "Language Model on GPU"
 output: github_document
 ---
 
@@ -74,7 +74,7 @@ graph.viz(rnn_graph_one_one, type = "graph", direction = "LR",
 
 ## Fit a LSTM model
 
-```{r, echo=TRUE, eval=TRUE, fig.height=4}
+```{r, echo=TRUE, eval=TRUE, include=FALSE}
 devices <- mx.gpu(0)
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 3)
@@ -121,11 +121,11 @@ model <- mx.model.buckets(symbol = rnn_graph_one_one,
                           epoch.end.callback = epoch.end.callback)
 
 mx.model.save(model, prefix = "../models/model_one_to_one_lstm_gpu", iteration = 1)
+```
 
-p <- plot_ly(x = seq_len(length(logger$train)), y = logger$train, type = "scatter", mode = "markers+lines", name = "train") %>% 
+```{r, echo = FALSE, fig.height=5}
+plot_ly(x = seq_len(length(logger$train)), y = logger$train, type = "scatter", mode = "markers+lines", name = "train") %>% 
   add_trace(y = logger$eval, type = "scatter", mode = "markers+lines", name = "eval")
-
-p
 ```
 
 

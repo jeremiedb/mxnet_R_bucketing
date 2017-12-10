@@ -1,11 +1,9 @@
 ---
-title: "RNN made easy with MXNet R"
+title: "NLP Classification on GPU"
 output: github_document
 ---
 
-> Examples of application of RNN using MXNetR. Additional notebook examples can be [found here](https://jeremiedb.github.io/mxnet_R_bucketing/)
-
-This tutorial presents an example of application of RNN to text classification using padded and bucketed data to efficiently handle sequences of varying lengths. Some functionalities require running on a GPU with CUDA. 
+> This tutorial presents an example of application of RNN to text classification using padded and bucketed data to efficiently handle sequences of varying lengths. Some functionalities require running on a GPU with CUDA. 
 
 Example based on sentiment analysis on the [IMDB data](http://ai.stanford.edu/~amaas/data/sentiment/).
 
@@ -19,15 +17,6 @@ library("AUC")
 library("scales")
 library("mxnet")
 library("DiagrammeR")
-```
-
-```{r, include=FALSE}
-mx.symbol.bind = mxnet:::mx.symbol.bind
-mx.nd.arraypacker = mxnet:::mx.nd.arraypacker
-source("rnn.graph.R")
-source("rnn.infer.R")
-source("model.rnn.R")
-source("mx.io.bucket.iter.R")
 ```
 
 

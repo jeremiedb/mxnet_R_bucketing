@@ -4,10 +4,10 @@ output: html_document
 
 > MXNet tutorials
 
-* Sentiment analysis with RNN
+* Language model and text generation
 
-* Language model and text generation with RNN
+* NLP classification (sentiment analysis)
 
-* Time series model with RNN
+* Time series model
 
-* Sentiment analysis with CNN
+* NLP Sentiment analysis with CNN
