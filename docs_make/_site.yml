@@ -1,7 +1,9 @@
-name: "MXNET Bucketing"
-output_dir: "../docs"
+name: MXNET Bucketing
+output_dir: ../docs
 output:
   html_document:
     theme: paper
     css: style.css
-    self_contained: false
+    lib_dir: site_libs
+    self_contained: no
+

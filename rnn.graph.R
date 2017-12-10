@@ -294,7 +294,6 @@ rnn.graph.unroll <- function(num_rnn_layer,
   # concat hidden units - concat seq_len blocks of dimension num_hidden x batch.size
   concat <- mx.symbol.concat(data = last.hidden, num.args = seq_len, dim = 0, name = paste0(prefix, "concat"))
   concat <- mx.symbol.reshape(data = concat, shape = c(num_hidden, -1, seq_len), name = paste0(prefix, "rnn_reshape"))
-  mask <- mx.symbol.reshape(data = mask, shape = c(0, -1), reverse = TRUE)
   
   if (config=="seq-to-one") {
     
@@ -326,7 +325,7 @@ rnn.graph.unroll <- function(num_rnn_layer,
     
     if (!is.null(loss_output)) {
       
-      mask <- mx.symbol.reshape(data = mask, shape = c(num_hidden, -1))
+      mask <- mx.symbol.reshape(data = mask, shape = c(0, -1), reverse = TRUE)
       label <- mx.symbol.reshape(data = label, shape = c(-1))
       
       decode <- mx.symbol.FullyConnected(data = mask, weight = cls.weight, bias = cls.bias, num_hidden = num_decode, 

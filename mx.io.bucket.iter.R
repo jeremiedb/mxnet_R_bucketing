@@ -20,7 +20,7 @@ BucketIter <- setRefClass("BucketIter", fields = c("buckets", "bucket.names", "b
                               .self
                             }, reset = function() {
                               buckets_nb <- length(bucket.names)
-                              buckets_id <- 1:buckets_nb
+                              buckets_id <- seq_len(buckets_nb)
                               buckets.size <- sapply(.self$buckets, function(x) {
                                 tail(dim(x$data), 1)
                               })
@@ -60,21 +60,17 @@ BucketIter <- setRefClass("BucketIter", fields = c("buckets", "bucket.names", "b
                             }, iter.next = function() {
                               .self$batch <- .self$batch + 1
                               .self$bucketID <- .self$bucket.plan[batch]
-                              if (.self$batch > .self$batch.per.epoch) {
-                                return(FALSE)
-                              } else {
-                                return(TRUE)
-                              }
+                              return(.self$batch < .self$batch.per.epoch)
                             }, value = function() {
                               # bucketID is a named integer: the integer indicates the batch id for the given
                               # bucket (used to fetch appropriate samples within the bucket) the name is a
                               # character containing the sequence length of the bucket (used to unroll the rnn
                               # to appropriate sequence length)
-                              idx <- (.self$bucketID - 1) * (.self$batch.size) + (1:batch.size)
+                              idx <- (.self$bucketID - 1) * (.self$batch.size) + seq_len(batch.size)
                               
                               # Reuse first idx for padding
                               if (bucketID == .self$batch.per.bucket[names(.self$bucketID)] & !.self$last.batch.pad[names(.self$bucketID)] == 0) {
-                                idx <- c(idx[1:(.self$batch.size - .self$last.batch.pad[names(.self$bucketID)])], 1:(.self$last.batch.pad[names(.self$bucketID)]))
+                                idx <- c(idx[seq_len(.self$batch.size - .self$last.batch.pad[names(.self$bucketID)])], seq_len(.self$last.batch.pad[names(.self$bucketID)]))
                               }
                               
                               data <- .self$buckets[[names(.self$bucketID)]]$data[, idx, drop = F]

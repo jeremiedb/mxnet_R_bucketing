@@ -43,8 +43,8 @@ make_data <- function(path, seq.len=32, dic=NULL) {
   features <- dic[text_vec[1:(seq.len*num.seq)]] 
   labels <- dic[text_vec[1:(seq.len*num.seq)+1]]
   
-  features_array <- t(array(features, dim=c(seq.len, num.seq)))
-  labels_array <- t(array(labels, dim=c(seq.len, num.seq)))
+  features_array <- array(features, dim=c(seq.len, num.seq))
+  labels_array <- array(labels, dim=c(seq.len, num.seq))
   
   return (list(features_array=features_array, labels_array=labels_array, dic=dic, rev_dic=rev_dic))
 }
@@ -59,15 +59,14 @@ dic <- data_prep$dic
 rev_dic <- data_prep$rev_dic
 vocab <- length(dic)
 
-shape <- dim(X)
+samples <- tail(dim(X), 1)
 train.val.fraction <- 0.9
-size <- shape[1]
 
-X.train.data <- X[1:as.integer(size * train.val.fraction), ]
-X.val.data <- X[-(1:as.integer(size * train.val.fraction)), ]
+X.train.data <- X[, 1:as.integer(samples * train.val.fraction)]
+X.val.data <- X[, -(1:as.integer(samples * train.val.fraction))]
 
-X.train.label <- Y[1:as.integer(size * train.val.fraction), ]
-X.val.label <- Y[-(1:as.integer(size * train.val.fraction)), ]
+X.train.label <- Y[, 1:as.integer(samples * train.val.fraction)]
+X.val.label <- Y[, -(1:as.integer(samples * train.val.fraction))]
 
 train_buckets <- list("100"=list(data=X.train.data, label=X.train.label))
 eval_buckets <- list("100"=list(data=X.val.data, label=X.val.label))

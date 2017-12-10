@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+
+
+<title>RNN made easy with MXNet R</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/paper.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/htmlwidgets-0.9/htmlwidgets.js"></script>
+<script src="site_libs/viz-0.3/viz.js"></script>
+<link href="site_libs/DiagrammeR-styles-0.2/styles.css" rel="stylesheet" />
+<script src="site_libs/grViz-binding-0.9.2/grViz.js"></script>
+<script src="site_libs/plotly-binding-4.7.1/plotly.js"></script>
+<script src="site_libs/typedarray-0.1/typedarray.min.js"></script>
+<link href="site_libs/crosstalk-1.0.0/css/crosstalk.css" rel="stylesheet" />
+<script src="site_libs/crosstalk-1.0.0/js/crosstalk.min.js"></script>
+<link href="site_libs/plotlyjs-1.29.2/plotly-htmlwidgets.css" rel="stylesheet" />
+<script src="site_libs/plotlyjs-1.29.2/plotly-latest.min.js"></script>
+<link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+<link rel="stylesheet" href="style.css" type="text/css" />
+
+</head>
+
+<body>
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 64px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 69px;
+  margin-top: -69px;
+}
+
+.section h2 {
+  padding-top: 69px;
+  margin-top: -69px;
+}
+.section h3 {
+  padding-top: 69px;
+  margin-top: -69px;
+}
+.section h4 {
+  padding-top: 69px;
+  margin-top: -69px;
+}
+.section h5 {
+  padding-top: 69px;
+  margin-top: -69px;
+}
+.section h6 {
+  padding-top: 69px;
+  margin-top: -69px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+
+<div class="container-fluid main-container">
+
+<!-- tabsets -->
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+</script>
+
+<!-- code folding -->
+
+
+
+
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+<nav class="navbar navbar-default navbar-fixed-top" role="navigation">
+  <div class="container">
+  <div class="navbar-header">
+  <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+    <i class="fa fa-bars fa-lg fa-inverse"></i>
+  </button>
+  <a class="navbar-brand" href="index.html">MXNET Bucketing</a>
+  </div>
+  
+  <div id="navbar" class="collapse navbar-collapse">
+  <ul class="nav navbar-nav">
+    
+  <li class="dropdown">
+    <a class="dropdown-toggle" data-toggle="dropdown">Language Model<b class="caret"></b></a>
+    <ul class="dropdown-menu" role="menu">
+        <li><a href="LanguageModel_GPU.html">GPU</a></li>
+        <li><a href="LanguageModel_CPU.html">CPU</a></li>
+        </ul>
+  </li>
+  
+  <li class="dropdown">
+    <a class="dropdown-toggle" data-toggle="dropdown">NLP Classification<b class="caret"></b></a>
+    <ul class="dropdown-menu" role="menu">
+        <li><a href="NLP_Classification_GPU.html">GPU</a></li>
+        <li><a href="NLP_Classification_CPU.html">CPU</a></li>
+        </ul>
+  </li>
+  
+  <li class="dropdown">
+    <a class="dropdown-toggle" data-toggle="dropdown">Time Series<b class="caret"></b></a>
+    <ul class="dropdown-menu" role="menu">
+        <li><a href="TimeSeries_GPU">GPU</a></li>
+        <li><a href="TimeSeries_CPU">CPU</a></li>
+        </ul>
+  </li>
+  
+  <li class="dropdown">
+    <a class="dropdown-toggle" data-toggle="dropdown">Translation<b class="caret"></b></a>
+    <ul class="dropdown-menu" role="menu">
+        <li><a href="">GPU</a></li>
+        <li><a href="">CPU</a></li>
+        </ul>
+  </li>
+  
+  <li><a href="CNN_NLP_classification_kaggle.html">CNN NLP Classification</a></li>
+  
+  </ul>
+  
+  <ul class="nav navbar-nav navbar-right">
+    <li class=navbar-right><a href="mailto:nimus44@gmail.com" ><i class="fa fa-envelope fa-lg"></i></a></li>
+    <li class=navbar-right><a href="https://github.com/jeremiedb" ><i class="fa fa-github fa-lg"></i></a></li>
+  </ul>
+  
+  </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+  </nav><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">RNN made easy with MXNet R</h1>
+
+</div>
+
+
+<blockquote>
+<p>This tutorial presents an example of application of one-to-one RNN applied to text generation using the reworked functionnalities in MXNet R package. Requires to train on GPU with CUDA.</p>
+</blockquote>
+<p>Example based on <a href="http://data.mxnet.io/data/char_lstm.zip">Obama’s speech</a>.</p>
+<p>Load some packages</p>
+<pre class="r"><code>library(&quot;readr&quot;)
+library(&quot;dplyr&quot;)
+library(&quot;plotly&quot;)
+library(&quot;stringr&quot;)
+library(&quot;stringi&quot;)
+library(&quot;scales&quot;)
+library(&quot;mxnet&quot;)</code></pre>
+<div id="data-preparation" class="section level2">
+<h2>Data preparation</h2>
+<p>Data preparation is performed by the script: <code>data_preprocessing_one_to_one.R</code>.</p>
+<p>The following steps are executed:</p>
+<ul>
+<li>Import speach data as a single character string.</li>
+<li>Remove non printable characters.</li>
+<li>Split text into individual characters.</li>
+<li>Group characters into sequences of a fixed length, each sequence being a sample to the model.</li>
+</ul>
+<pre class="r"><code>corpus_bucketed_train &lt;- readRDS(file = &quot;../data/train_buckets_one_to_one.rds&quot;)
+corpus_bucketed_test &lt;- readRDS(file = &quot;../data/eval_buckets_one_to_one.rds&quot;)
+
+vocab &lt;- length(corpus_bucketed_test$dic)
+
+### Create iterators
+batch.size = 32
+
+train.data &lt;- mx.io.bucket.iter(buckets = corpus_bucketed_train$buckets, batch.size = batch.size, 
+                                data.mask.element = 0, shuffle = TRUE)
+
+eval.data &lt;- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.size = batch.size,
+                               data.mask.element = 0, shuffle = FALSE)</code></pre>
+</div>
+<div id="model-arhcitecture" class="section level2">
+<h2>Model arhcitecture</h2>
+<p>A one-to-one model configuration is specified since for each character, we want to predict the next one. For a sequence of length 100, there are also 100 labels, corresponding the same sequence of characters but offset by a position of +1.</p>
+<p>The parameters <code>output_last_state</code> is set to <code>TRUE</code> in order to access the state of the RNN cells when performing inference.</p>
+<pre class="r"><code>rnn_graph_one_one &lt;- rnn.graph(num_rnn_layer = 3, 
+                               num_hidden = 96,
+                               input_size=vocab,
+                               num_embed=64, 
+                               num_decode =vocab,
+                               dropout=0.2, 
+                               ignore_label = 0,
+                               cell_type=&quot;lstm&quot;,
+                               masking = F,
+                               output_last_state = T,
+                               loss_output = &quot;softmax&quot;,
+                               config = &quot;one-to-one&quot;)
+
+graph.viz(rnn_graph_one_one, type = &quot;graph&quot;, direction = &quot;LR&quot;, 
+          graph.height.px = 180, shape=c(100, 64))</code></pre>
+<div id="htmlwidget-24bf53fa2b16c84e6cb9" style="width:672px;height:180px;" class="grViz html-widget"></div>
+<script type="application/json" data-for="htmlwidget-24bf53fa2b16c84e6cb9">{"x":{"diagram":"digraph {\n\ngraph [layout = \"dot\",\n       rankdir = \"LR\"]\n\n\n  \"1\" [label = \"data\ndata\", shape = \"oval\", penwidth = \"2\", color = \"#8dd3c7\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#8DD3C7FF\"] \n  \"2\" [label = \"Embedding\nembed\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"3\" [label = \"SwapAxis\nswap_pre\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"4\" [label = \"RNN\nRNN\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"5\" [label = \"_copy\nmask\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"6\" [label = \"SwapAxis\nswap_post\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"7\" [label = \"Reshape\nreshape0\", shape = \"oval\", penwidth = \"2\", color = \"#fdb462\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FDB462FF\"] \n  \"8\" [label = \"FullyConnected\ndecode\n82\", shape = \"box\", penwidth = \"2\", color = \"#fb8072\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FB8072FF\"] \n  \"9\" [label = \"Reshape\nreshape1\", shape = \"oval\", penwidth = \"2\", color = \"#fdb462\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FDB462FF\"] \n  \"10\" [label = \"SoftmaxOutput\nloss\", shape = \"box\", penwidth = \"2\", color = \"#b3de69\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#B3DE69FF\"] \n\"1\"->\"2\" [id = \"1\", color = \"black\", fontcolor = \"black\"] \n\"2\"->\"3\" [id = \"2\", color = \"black\", fontcolor = \"black\"] \n\"3\"->\"4\" [id = \"3\", color = \"black\", fontcolor = \"black\"] \n\"4\"->\"5\" [id = \"4\", color = \"black\", fontcolor = \"black\"] \n\"5\"->\"6\" [id = \"5\", color = \"black\", fontcolor = \"black\"] \n\"6\"->\"7\" [id = \"6\", color = \"black\", fontcolor = \"black\"] \n\"7\"->\"8\" [id = \"7\", color = \"black\", fontcolor = \"black\"] \n\"8\"->\"10\" [id = \"8\", color = \"black\", fontcolor = \"black\"] \n\"9\"->\"10\" [id = \"9\", color = \"black\", fontcolor = \"black\"] \n}","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="fit-a-lstm-model" class="section level2">
+<h2>Fit a LSTM model</h2>
+<pre class="r"><code>devices &lt;- mx.gpu(0)
+
+initializer &lt;- mx.init.Xavier(rnd_type = &quot;gaussian&quot;, factor_type = &quot;avg&quot;, magnitude = 3)
+
+optimizer &lt;- mx.opt.create(&quot;adadelta&quot;, rho = 0.9, eps = 1e-5, wd = 1e-8,
+                           clip_gradient = 5, rescale.grad = 1/batch.size)
+
+logger &lt;- mx.metric.logger()
+epoch.end.callback &lt;- mx.callback.log.train.metric(period = 1, logger = logger)
+batch.end.callback &lt;- mx.callback.log.train.metric(period = 50)
+
+mx.metric.custom_nd &lt;- function(name, feval) {
+  init &lt;- function() {
+    c(0, 0)
+  }
+  update &lt;- function(label, pred, state) {
+    m &lt;- feval(label, pred)
+    state &lt;- c(state[[1]] + 1, state[[2]] + m)
+    return(state)
+  }
+  get &lt;- function(state) {
+    list(name=name, value=(state[[2]]/state[[1]]))
+  }
+  ret &lt;- (list(init=init, update=update, get=get))
+  class(ret) &lt;- &quot;mx.metric&quot;
+  return(ret)
+}
+
+mx.metric.Perplexity &lt;- mx.metric.custom_nd(&quot;Perplexity&quot;, function(label, pred) {
+  label = mx.nd.reshape(label, shape = -1)
+  label_probs &lt;- as.array(mx.nd.choose.element.0index(pred, label))
+  batch &lt;- length(label_probs)
+  NLL &lt;- -sum(log(pmax(1e-15, as.array(label_probs)))) / batch
+  Perplexity &lt;- exp(NLL)
+  return(Perplexity)
+})
+
+model &lt;- mx.model.buckets(symbol = rnn_graph_one_one,
+                          train.data = train.data, eval.data = eval.data, 
+                          num.round = 20, ctx = devices, verbose = TRUE,
+                          metric = mx.metric.Perplexity, 
+                          initializer = initializer, optimizer = optimizer, 
+                          batch.end.callback = NULL, 
+                          epoch.end.callback = epoch.end.callback)</code></pre>
+<pre><code>## Start training with 1 devices</code></pre>
+<pre><code>## [1] Train-Perplexity=11.9687313639032</code></pre>
+<pre><code>## [1] Validation-Perplexity=6.06503446749473</code></pre>
+<pre><code>## [2] Train-Perplexity=5.46996012263388</code></pre>
+<pre><code>## [2] Validation-Perplexity=4.64155571027768</code></pre>
+<pre><code>## [3] Train-Perplexity=4.7003698934489</code></pre>
+<pre><code>## [3] Validation-Perplexity=4.26089841022391</code></pre>
+<pre><code>## [4] Train-Perplexity=4.43314035925917</code></pre>
+<pre><code>## [4] Validation-Perplexity=4.13172855512467</code></pre>
+<pre><code>## [5] Train-Perplexity=4.29514066678092</code></pre>
+<pre><code>## [5] Validation-Perplexity=4.01347221138068</code></pre>
+<pre><code>## [6] Train-Perplexity=4.20603936450378</code></pre>
+<pre><code>## [6] Validation-Perplexity=3.95966302346579</code></pre>
+<pre><code>## [7] Train-Perplexity=4.13921045974969</code></pre>
+<pre><code>## [7] Validation-Perplexity=3.93283263913279</code></pre>
+<pre><code>## [8] Train-Perplexity=4.09088369578087</code></pre>
+<pre><code>## [8] Validation-Perplexity=3.87170253267899</code></pre>
+<pre><code>## [9] Train-Perplexity=4.05513723969371</code></pre>
+<pre><code>## [9] Validation-Perplexity=3.86034230161215</code></pre>
+<pre><code>## [10] Train-Perplexity=4.02371189867774</code></pre>
+<pre><code>## [10] Validation-Perplexity=3.82941713553816</code></pre>
+<pre><code>## [11] Train-Perplexity=3.99752552332565</code></pre>
+<pre><code>## [11] Validation-Perplexity=3.80951774513928</code></pre>
+<pre><code>## [12] Train-Perplexity=3.97438824611426</code></pre>
+<pre><code>## [12] Validation-Perplexity=3.78392683208825</code></pre>
+<pre><code>## [13] Train-Perplexity=3.954409170963</code></pre>
+<pre><code>## [13] Validation-Perplexity=3.78912806966442</code></pre>
+<pre><code>## [14] Train-Perplexity=3.9360734404799</code></pre>
+<pre><code>## [14] Validation-Perplexity=3.76047433042944</code></pre>
+<pre><code>## [15] Train-Perplexity=3.9249436940942</code></pre>
+<pre><code>## [15] Validation-Perplexity=3.75235270049395</code></pre>
+<pre><code>## [16] Train-Perplexity=3.90657011893203</code></pre>
+<pre><code>## [16] Validation-Perplexity=3.7428172897423</code></pre>
+<pre><code>## [17] Train-Perplexity=3.89938631828233</code></pre>
+<pre><code>## [17] Validation-Perplexity=3.73719273895361</code></pre>
+<pre><code>## [18] Train-Perplexity=3.88814897902504</code></pre>
+<pre><code>## [18] Validation-Perplexity=3.73573241838883</code></pre>
+<pre><code>## [19] Train-Perplexity=3.88477090115748</code></pre>
+<pre><code>## [19] Validation-Perplexity=3.74288965595137</code></pre>
+<pre><code>## [20] Train-Perplexity=3.87991206068709</code></pre>
+<pre><code>## [20] Validation-Perplexity=3.71995271333044</code></pre>
+<pre class="r"><code>mx.model.save(model, prefix = &quot;../models/model_one_to_one_lstm_gpu&quot;, iteration = 1)
+
+p &lt;- plot_ly(x = seq_len(length(logger$train)), y = logger$train, type = &quot;scatter&quot;, mode = &quot;markers+lines&quot;, name = &quot;train&quot;) %&gt;% 
+  add_trace(y = logger$eval, type = &quot;scatter&quot;, mode = &quot;markers+lines&quot;, name = &quot;eval&quot;)
+
+p</code></pre>
+<div id="67a67141176" style="width:672px;height:384px;" class="plotly html-widget"></div>
+<script type="application/json" data-for="67a67141176">{"x":{"visdat":{"67a709bac7c":["function () ","plotlyVisDat"]},"cur_data":"67a709bac7c","attrs":{"67a709bac7c":{"x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"y":[11.9687313639032,5.46996012263388,4.7003698934489,4.43314035925917,4.29514066678092,4.20603936450378,4.13921045974969,4.09088369578087,4.05513723969371,4.02371189867774,3.99752552332565,3.97438824611426,3.954409170963,3.9360734404799,3.9249436940942,3.90657011893203,3.89938631828233,3.88814897902504,3.88477090115748,3.87991206068709],"mode":"markers+lines","name":"train","alpha":1,"sizes":[10,100],"type":"scatter"},"67a709bac7c.1":{"x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"y":[6.06503446749473,4.64155571027768,4.26089841022391,4.13172855512467,4.01347221138068,3.95966302346579,3.93283263913279,3.87170253267899,3.86034230161215,3.82941713553816,3.80951774513928,3.78392683208825,3.78912806966442,3.76047433042944,3.75235270049395,3.7428172897423,3.73719273895361,3.73573241838883,3.74288965595137,3.71995271333044],"mode":"markers+lines","name":"eval","alpha":1,"sizes":[10,100],"type":"scatter"}},"layout":{"margin":{"b":40,"l":60,"t":25,"r":10},"xaxis":{"domain":[0,1]},"yaxis":{"domain":[0,1]},"hovermode":"closest","showlegend":true},"source":"A","config":{"modeBarButtonsToAdd":[{"name":"Collaborate","icon":{"width":1000,"ascent":500,"descent":-50,"path":"M487 375c7-10 9-23 5-36l-79-259c-3-12-11-23-22-31-11-8-22-12-35-12l-263 0c-15 0-29 5-43 15-13 10-23 23-28 37-5 13-5 25-1 37 0 0 0 3 1 7 1 5 1 8 1 11 0 2 0 4-1 6 0 3-1 5-1 6 1 2 2 4 3 6 1 2 2 4 4 6 2 3 4 5 5 7 5 7 9 16 13 26 4 10 7 19 9 26 0 2 0 5 0 9-1 4-1 6 0 8 0 2 2 5 4 8 3 3 5 5 5 7 4 6 8 15 12 26 4 11 7 19 7 26 1 1 0 4 0 9-1 4-1 7 0 8 1 2 3 5 6 8 4 4 6 6 6 7 4 5 8 13 13 24 4 11 7 20 7 28 1 1 0 4 0 7-1 3-1 6-1 7 0 2 1 4 3 6 1 1 3 4 5 6 2 3 3 5 5 6 1 2 3 5 4 9 2 3 3 7 5 10 1 3 2 6 4 10 2 4 4 7 6 9 2 3 4 5 7 7 3 2 7 3 11 3 3 0 8 0 13-1l0-1c7 2 12 2 14 2l218 0c14 0 25-5 32-16 8-10 10-23 6-37l-79-259c-7-22-13-37-20-43-7-7-19-10-37-10l-248 0c-5 0-9-2-11-5-2-3-2-7 0-12 4-13 18-20 41-20l264 0c5 0 10 2 16 5 5 3 8 6 10 11l85 282c2 5 2 10 2 17 7-3 13-7 17-13z m-304 0c-1-3-1-5 0-7 1-1 3-2 6-2l174 0c2 0 4 1 7 2 2 2 4 4 5 7l6 18c0 3 0 5-1 7-1 1-3 2-6 2l-173 0c-3 0-5-1-8-2-2-2-4-4-4-7z m-24-73c-1-3-1-5 0-7 2-2 3-2 6-2l174 0c2 0 5 0 7 2 3 2 4 4 5 7l6 18c1 2 0 5-1 6-1 2-3 3-5 3l-174 0c-3 0-5-1-7-3-3-1-4-4-5-6z"},"click":"function(gd) { \n        // is this being viewed in RStudio?\n        if (location.search == '?viewer_pane=1') {\n          alert('To learn about plotly for collaboration, visit:\\n https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html');\n        } else {\n          window.open('https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html', '_blank');\n        }\n      }"}],"cloud":false},"data":[{"x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"y":[11.9687313639032,5.46996012263388,4.7003698934489,4.43314035925917,4.29514066678092,4.20603936450378,4.13921045974969,4.09088369578087,4.05513723969371,4.02371189867774,3.99752552332565,3.97438824611426,3.954409170963,3.9360734404799,3.9249436940942,3.90657011893203,3.89938631828233,3.88814897902504,3.88477090115748,3.87991206068709],"mode":"markers+lines","name":"train","type":"scatter","line":{"fillcolor":"rgba(31,119,180,1)","color":"rgba(31,119,180,1)"},"xaxis":"x","yaxis":"y","frame":null},{"x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"y":[6.06503446749473,4.64155571027768,4.26089841022391,4.13172855512467,4.01347221138068,3.95966302346579,3.93283263913279,3.87170253267899,3.86034230161215,3.82941713553816,3.80951774513928,3.78392683208825,3.78912806966442,3.76047433042944,3.75235270049395,3.7428172897423,3.73719273895361,3.73573241838883,3.74288965595137,3.71995271333044],"mode":"markers+lines","name":"eval","type":"scatter","line":{"fillcolor":"rgba(255,127,14,1)","color":"rgba(255,127,14,1)"},"xaxis":"x","yaxis":"y","frame":null}],"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.2,"selected":{"opacity":1}},"base_url":"https://plot.ly"},"evals":["config.modeBarButtonsToAdd.0.click"],"jsHooks":{"render":[{"code":"function(el, x) { var ctConfig = crosstalk.var('plotlyCrosstalkOpts').set({\"on\":\"plotly_click\",\"persistent\":false,\"dynamic\":false,\"selectize\":false,\"opacityDim\":0.2,\"selected\":{\"opacity\":1}}); }","data":null}]}}</script>
+</div>
+<div id="inference-on-test-data" class="section level2">
+<h2>Inference on test data</h2>
+<p>Setup inference data. Need to apply preprocessing to inference sequence and convert into a infer data iterator.</p>
+<pre class="r"><code>ctx &lt;- mx.gpu(0)
+batch.size &lt;- 1
+
+corpus_bucketed_train &lt;- readRDS(file = &quot;../data/train_buckets_one_to_one.rds&quot;)
+dic &lt;- corpus_bucketed_train$dic
+rev_dic &lt;- corpus_bucketed_train$rev_dic
+
+infer_raw &lt;- c(&quot;The United States are&quot;)
+infer_split &lt;- dic[strsplit(infer_raw, &#39;&#39;) %&gt;% unlist]
+infer_length &lt;- length(infer_split)
+
+infer.data &lt;- mx.io.arrayiter(data = matrix(infer_split), label = matrix(infer_split),  
+                              batch.size = 1, shuffle = FALSE)</code></pre>
+<div id="inference-with-most-likely-term" class="section level3">
+<h3>Inference with most likely term</h3>
+<p>Here the predictions are performed by picking the character whose associated probablility is the highest.</p>
+<pre class="r"><code>model &lt;- mx.model.load(prefix = &quot;../models/model_one_to_one_lstm_gpu&quot;, iteration = 1)
+
+internals &lt;- model$symbol$get.internals()
+
+sym_state &lt;- internals$get.output(which(internals$outputs %in% &quot;RNN_state&quot;))
+sym_state_cell &lt;- internals$get.output(which(internals$outputs %in% &quot;RNN_state_cell&quot;))
+sym_output &lt;- internals$get.output(which(internals$outputs %in% &quot;loss_output&quot;))
+symbol &lt;- mx.symbol.Group(sym_output, sym_state, sym_state_cell)
+
+predict &lt;- numeric()
+
+infer &lt;- mxnet:::mx.infer.buckets.one(infer.data = infer.data, 
+                              symbol = symbol,
+                              arg.params = model$arg.params,
+                              aux.params = model$aux.params,
+                              input.params = NULL, 
+                              ctx = ctx)
+
+pred_prob &lt;- mx.nd.slice.axis(infer$loss_output, axis=0, begin = infer_length-1, end = infer_length)
+pred &lt;- mx.nd.argmax(data = pred_prob, axis = 1, keepdims = T)
+predict &lt;- c(predict, as.numeric(as.array(pred)))
+
+for (i in 1:100) {
+
+  infer.data &lt;- mx.io.arrayiter(data = as.matrix(pred), label = as.matrix(pred),  
+                              batch.size = 1, shuffle = FALSE)
+  
+  infer &lt;- mxnet:::mx.infer.buckets.one(infer.data = infer.data, 
+                                symbol = symbol,
+                                arg.params = model$arg.params,
+                                aux.params = model$aux.params,
+                                input.params = list(rnn.state = infer[[2]], 
+                                                    rnn.state.cell = infer[[3]]), 
+                                ctx = ctx)
+  
+  pred &lt;- mx.nd.argmax(data = infer$loss_output, axis = 1, keepdims = T)
+  predict &lt;- c(predict, as.numeric(as.array(pred)))
+  
+}
+
+predict_txt &lt;- paste0(rev_dic[as.character(predict)], collapse = &quot;&quot;)
+predict_txt_tot &lt;- paste0(infer_raw, predict_txt, collapse = &quot;&quot;)</code></pre>
+<p>Generated sequence: The United States are a country that we can be able to be able to be able to be able to be able to be able to be able to b</p>
+<p>Key ideas appear somewhat overemphasized.</p>
+</div>
+<div id="inference-from-random-sample" class="section level3">
+<h3>Inference from random sample</h3>
+<p>Noise is now inserted in the predictions by sampling each character based on their modeled probability.</p>
+<pre class="r"><code>set.seed(44)
+
+infer_raw &lt;- c(&quot;The United States are&quot;)
+infer_split &lt;- dic[strsplit(infer_raw, &#39;&#39;) %&gt;% unlist]
+infer_length &lt;- length(infer_split)
+
+infer.data &lt;- mx.io.arrayiter(data = matrix(infer_split), label = matrix(infer_split),  
+                              batch.size = 1, shuffle = FALSE)
+
+predict &lt;- numeric()
+
+infer &lt;- mxnet:::mx.infer.buckets.one(infer.data = infer.data, 
+                              symbol = symbol,
+                              arg.params = model$arg.params,
+                              aux.params = model$aux.params,
+                              input.params = NULL, 
+                              ctx = ctx)
+
+pred_prob &lt;- as.numeric(as.array(mx.nd.slice.axis(
+  infer$loss_output, axis=0, begin = infer_length-1, end = infer_length)))
+pred &lt;- sample(length(pred_prob), prob = pred_prob, size = 1) - 1
+predict &lt;- c(predict, pred)
+
+for (i in 1:100) {
+  
+  infer.data &lt;- mx.io.arrayiter(data = as.matrix(pred), label = as.matrix(pred),  
+                                batch.size = 1, shuffle = FALSE)
+  
+  infer &lt;- mxnet:::mx.infer.buckets.one(infer.data = infer.data, 
+                                symbol = symbol,
+                                arg.params = model$arg.params,
+                                aux.params = model$aux.params,
+                                input.params = list(rnn.state = infer[[2]], 
+                                                    rnn.state.cell = infer[[3]]), 
+                                ctx = ctx)
+  
+  pred_prob &lt;- as.numeric(as.array(infer$loss_output))
+  pred &lt;- sample(length(pred_prob), prob = pred_prob, size = 1, replace = T) - 1
+  predict &lt;- c(predict, pred)
+}
+
+predict_txt &lt;- paste0(rev_dic[as.character(predict)], collapse = &quot;&quot;)
+predict_txt_tot &lt;- paste0(infer_raw, predict_txt, collapse = &quot;&quot;)</code></pre>
+<p>Generated sequence: The United States are not all their serious than about threats who have they know that then they do judge allsay of hungry</p>
+<p>Now we get a more alembicated political speech.</p>
+</div>
+</div>
+
+
+
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

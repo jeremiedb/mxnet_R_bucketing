@@ -2,10 +2,12 @@
 output: html_document
 ---
 
-> Examples of applications using bucketing. 
+> MXNet tutorials
 
-* Sentiment analysis with LSTM
+* Sentiment analysis with RNN
 
-* Language model and text generation with LSTM
+* Language model and text generation with RNN
+
+* Time series model with RNN
 
 * Sentiment analysis with CNN

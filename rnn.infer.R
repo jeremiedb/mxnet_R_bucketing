@@ -204,7 +204,7 @@ mx.rnn.infer.unroll <- function(data,
   
   # init_state_shapes
   init_states_names <- arguments[startsWith(arguments, "init_")]
-  init_states_shapes = lapply(init_states_names, function(x) c(num_hidden, input.shape[[1]][1]))
+  init_states_shapes = lapply(init_states_names, function(x) c(num_hidden, tail(input.shape[[1]], 1)))
   names(init_states_shapes) <- init_states_names
   
   shapes <- symbol$infer.shape(c(input.shape, init_states_shapes))
