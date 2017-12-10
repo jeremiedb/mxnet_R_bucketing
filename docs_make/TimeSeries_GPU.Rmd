@@ -41,8 +41,6 @@ p1
 
 ### Create data iterators
 
-Hacky array.iter approach: batch.size = seq.length so that the graph is fed with the expected format. 
-
 ```{r}
 batch.size = 16
 

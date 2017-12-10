@@ -2,10 +2,10 @@
 title: "RNN made easy with MXNet R"
 output: github_document
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
-> This tutorial presents an example of application of one-to-one RNN applied to text generation using the reworked functionnalities in MXNet R package. Requires to train on GPU with CUDA.  
+> This tutorial presents an example of application of one-to-one RNN applied to text generation using the reworked functionnalities in MXNet R package.  
 
 Example based on [Obama's speech](http://data.mxnet.io/data/char_lstm.zip).
 
@@ -55,24 +55,28 @@ eval.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets,
 
 A one-to-one model configuration is specified since for each character, we want to predict the next one. For a sequence of length 100, there are also 100 labels, corresponding the same sequence of characters but offset by a position of +1. 
 
-```{r, echo=TRUE, fig.height=8}
+```{r, echo=TRUE}
 rnn_graph <- rnn.graph.unroll(seq_len = 2,
                               num_rnn_layer = 1, 
-                              num_hidden = 80,
+                              num_hidden = 96,
                               input_size = vocab,
-                              num_embed = 50, 
+                              num_embed = 64, 
                               num_decode = vocab,
                               masking = F, 
                               loss_output = "softmax",
-                              dropout = 0.25, 
+                              dropout = 0.2, 
                               ignore_label = -1,
                               cell_type = "lstm",
                               output_last_state = F,
                               config = "one-to-one")
-
-graph.viz(rnn_graph, type = "graph", direction = "TD", 
-          graph.height.px = 800, graph.width.px = 800, shape=list(data = c(2, 32), label = c(2, 32)))
 ```
+
+```{r, echo=FALSE, fig.height=12}
+graph.viz(rnn_graph, type = "graph", direction = "TD", 
+          shape=list(data = c(2, batch.size),
+                     label = c(2, batch.size)))
+```
+
 
 
 ## Fit a LSTM model
@@ -82,9 +86,9 @@ Unroll the RNN to the length of the input sequence.
 ```{r, echo=FALSE}
 symbol <- rnn.graph.unroll(seq_len = as.integer(train.data$bucket.names),
                            num_rnn_layer = 2, 
-                           num_hidden = 80,
+                           num_hidden = 96,
                            input_size = vocab,
-                           num_embed = 50, 
+                           num_embed = 64, 
                            num_decode = vocab,
                            masking = F, 
                            loss_output = "softmax",
@@ -152,12 +156,11 @@ system.time(
 )
 
 mx.model.save(model, prefix = "../models/model_one_to_one_lstm_cpu", iteration = 1)
+```
 
-p <- plot_ly(x = seq_len(length(logger$train)), y = logger$train, type = "scatter", mode = "markers+lines", name = "train") %>% 
+```{r, echo=FALSE, fig.height=5}
+plot_ly(x = seq_len(length(logger$train)), y = logger$train, type = "scatter", mode = "markers+lines", name = "train") %>% 
   add_trace(y = logger$eval, type = "scatter", mode = "markers+lines", name = "eval")
-
-# plotly::export(p, file = "logger_one_to_one_cpu.png")
-p
 ```
 
 
@@ -181,13 +184,13 @@ infer_length <- length(infer_split)
 
 symbol.infer.ini <- rnn.graph.unroll(seq_len = infer_length,
                                      num_rnn_layer = 2, 
-                                     num_hidden = 80,
+                                     num_hidden = 96,
                                      input_size = vocab,
-                                     num_embed = 50, 
+                                     num_embed = 64, 
                                      num_decode = vocab,
                                      masking = F, 
                                      loss_output = "softmax",
-                                     dropout = 0, 
+                                     dropout = 0.2, 
                                      ignore_label = -1,
                                      cell_type = "lstm",
                                      output_last_state = T,
@@ -195,18 +198,17 @@ symbol.infer.ini <- rnn.graph.unroll(seq_len = infer_length,
 
 symbol.infer <- rnn.graph.unroll(seq_len = 1,
                                  num_rnn_layer = 2, 
-                                 num_hidden = 80,
+                                 num_hidden = 96,
                                  input_size = vocab,
-                                 num_embed = 50, 
+                                 num_embed = 64, 
                                  num_decode = vocab,
                                  masking = F, 
                                  loss_output = "softmax",
-                                 dropout = 0, 
+                                 dropout = 0.2, 
                                  ignore_label = -1,
                                  cell_type = "lstm",
                                  output_last_state = T,
                                  config = "one-to-one")
-
 ```
 
 
@@ -220,9 +222,9 @@ model <- mx.model.load(prefix = "../models/model_one_to_one_lstm_cpu", iteration
 predict <- numeric()
 data = mx.nd.array(matrix(infer_split))
 
-infer <- mx.rnn.infer.unroll(data = data, 
+infer <- mxnet:::mx.rnn.infer.unroll(data = data, 
                              symbol = symbol.infer.ini,
-                             num_hidden = 80,
+                             num_hidden = 96,
                              arg.params = model$arg.params,
                              aux.params = model$aux.params,
                              init_states = NULL,
@@ -234,9 +236,9 @@ predict <- c(predict, as.numeric(as.array(pred)))
 
 for (i in 1:100) {
   
-  infer <- mx.rnn.infer.unroll(data = pred, 
+  infer <- mxnet:::mx.rnn.infer.unroll(data = pred, 
                                symbol = symbol.infer,
-                               num_hidden = 80,
+                               num_hidden = 96,
                                arg.params = model$arg.params,
                                aux.params = model$aux.params,
                                init_states = infer[-1],
@@ -268,9 +270,9 @@ infer_length <- length(infer_split)
 
 predict <- numeric()
 
-infer <- mx.rnn.infer.unroll(data = data, 
+infer <- mxnet:::mx.rnn.infer.unroll(data = data, 
                              symbol = symbol.infer.ini,
-                             num_hidden = 80,
+                             num_hidden = 96,
                              arg.params = model$arg.params,
                              aux.params = model$aux.params,
                              init_states = NULL,
@@ -283,9 +285,9 @@ predict <- c(predict, pred)
 
 for (i in 1:100) {
   
-  infer <- mx.rnn.infer.unroll(data = mx.nd.array(array(pred, dim = c(1,1))), 
+  infer <- mxnet:::mx.rnn.infer.unroll(data = mx.nd.array(array(pred, dim = c(1,1))), 
                                symbol = symbol.infer,
-                               num_hidden = 80,
+                               num_hidden = 96,
                                arg.params = model$arg.params,
                                aux.params = model$aux.params,
                                init_states = infer[-1],

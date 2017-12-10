@@ -92,11 +92,11 @@ rnn.graph <- function (num_rnn_layer, input_size = NULL, num_embed = NULL,
 # LSTM cell symbol
 lstm.cell <- function(num_hidden, indata, prev.state, param, seqidx, layeridx, dropout = 0, prefix = "") {
   
+  if (dropout > 0 && layeridx > 1) 
+    indata <- mx.symbol.Dropout(data = indata, p = dropout)
+  
   i2h <- mx.symbol.FullyConnected(data = indata, weight = param$i2h.weight, bias = param$i2h.bias, 
                                   num_hidden = num_hidden * 4, name = paste0(prefix, "t", seqidx, ".l", layeridx, ".i2h"))
-  
-  if (dropout > 0) 
-    i2h <- mx.symbol.Dropout(data = i2h, p = dropout)
   
   if (!is.null(prev.state)) {
     h2h <- mx.symbol.FullyConnected(data = prev.state$h, weight = param$h2h.weight, 
@@ -130,12 +130,12 @@ lstm.cell <- function(num_hidden, indata, prev.state, param, seqidx, layeridx, d
 # GRU cell symbol
 gru.cell <- function(num_hidden, indata, prev.state, param, seqidx, layeridx, dropout = 0, prefix)
 {
+  if (dropout > 0 && layeridx > 1) 
+    indata <- mx.symbol.Dropout(data = indata, p = dropout)
+  
   i2h <- mx.symbol.FullyConnected(data = indata, weight = param$gates.i2h.weight, 
                                   bias = param$gates.i2h.bias, num_hidden = num_hidden * 2, 
                                   name = paste0(prefix, "t", seqidx, ".l", layeridx, ".gates.i2h"))
-  
-  if (dropout > 0) 
-    i2h <- mx.symbol.Dropout(data = i2h, p = dropout)
   
   if (!is.null(prev.state)) {
     h2h <- mx.symbol.FullyConnected(data = prev.state$h, weight = param$gates.h2h.weight, 
@@ -145,7 +145,7 @@ gru.cell <- function(num_hidden, indata, prev.state, param, seqidx, layeridx, dr
   } else {
     gates <- i2h
   }
-  
+
   split.gates <- mx.symbol.split(gates, num.outputs = 2, axis = 1, squeeze.axis = F, 
                                  name = paste0(prefix, "t", seqidx, ".l", layeridx, ".split"))
   
@@ -280,6 +280,10 @@ rnn.graph.unroll <- function(num_rnn_layer,
                                 prefix = prefix)
       
       hidden <- next.state$h
+      
+      # if (dropout > 0)
+      #   hidden <- mx.symbol.Dropout(data=hidden, p=dropout)
+      
       last.states[[i]] <- next.state
     }
     

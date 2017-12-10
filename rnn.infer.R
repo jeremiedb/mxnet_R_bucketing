@@ -1,4 +1,4 @@
-# 
+
 #' Inference of RNN model
 #'
 #' @param infer.data Data iterator created by mx.io.bucket.iter
@@ -88,8 +88,13 @@ mx.infer.buckets <- function(infer.data, model, ctx = mx.cpu()) {
 }
 
 
-
-### inference for one-to-one models
+#' Inference for one-to-one models
+#'
+#' @param infer.data Data iterator created by mx.io.bucket.iter
+#' @param model Model used for inference
+#' @param ctx The element to mask
+#'
+#' @export
 mx.infer.buckets.one <- function(infer.data, 
                                  symbol, arg.params, aux.params, input.params = NULL, 
                                  ctx = mx.cpu()) {

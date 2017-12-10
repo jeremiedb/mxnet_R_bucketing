@@ -30,7 +30,6 @@ The following steps are executed:
 - Split text into individual characters. 
 - Group characters into sequences of a fixed length, each sequence being a sample to the model. 
 
-
 ```{r, echo=TRUE}
 corpus_bucketed_train <- readRDS(file = "../data/train_buckets_one_to_one.rds")
 corpus_bucketed_test <- readRDS(file = "../data/eval_buckets_one_to_one.rds")
