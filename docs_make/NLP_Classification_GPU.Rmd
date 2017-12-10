@@ -176,8 +176,8 @@ For bucketing, a list of symbols is defined, one for each bucket length. During 
 
 ```{r, echo=TRUE, fig.height=1}
 symbol_single <- rnn.graph(config = "seq-to-one", cell_type = "lstm", 
-                           num_rnn_layer = 1, num_embed = 4, num_hidden = 12, 
-                           num_decode = 2, input_size = vocab, dropout = 0.25, 
+                           num_rnn_layer = 1, num_embed = 2, num_hidden = 6, 
+                           num_decode = 2, input_size = vocab, dropout = 0.5, 
                            ignore_label = -1, loss_output = "softmax",
                            output_last_state = F, masking = T)
 ```
@@ -187,8 +187,8 @@ bucket_list <- unique(c(train.data.bucket$bucket.names, eval.data.bucket$bucket.
 
 symbol_buckets <- sapply(bucket_list, function(seq) {
   rnn.graph(config = "seq-to-one", cell_type = "lstm", 
-            num_rnn_layer = 1, num_embed = 4, num_hidden = 8, 
-            num_decode = 2, input_size = vocab, dropout = 0.25, 
+            num_rnn_layer = 1, num_embed = 2, num_hidden = 6, 
+            num_decode = 2, input_size = vocab, dropout = 0.5, 
             ignore_label = -1, loss_output = "softmax",
             output_last_state = F, masking = T)
 })
@@ -206,16 +206,10 @@ First the non bucketed model is trained for 6 epochs:
 ```{r, echo=TRUE, eval=TRUE, warning=FALSE}
 devices <- mx.gpu()
 
-initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "in", magnitude = 3)
+initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
 
-
-optimizer <- mx.opt.create(name = "rmsprop",
-                           learning.rate = 1e-2,
-                           gamma1 = 0.95,
-                           gamma2 = 0.9,
-                           wd = 1e-5,
-                           rescale.grad = 1/batch.size,
-                           clip_gradient = 5)
+optimizer <- mx.opt.create("rmsprop", learning.rate = 1e-3, gamma1 = 0.95, gamma2 = 0.92, 
+                           wd = 1e-4, clip_gradient = 5, rescale.grad=1/batch.size)
 
 logger <- mx.metric.logger()
 epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
@@ -238,7 +232,6 @@ p <- plot_ly(x = seq_len(length(logger$train)), y = logger$train,
   add_trace(y = logger$eval, type = "scatter", mode = "markers+lines", name = "eval")
 
 p
-# plotly::export(p, file = "logger_lstm_single.png")
 ```
 
 Then training with the bucketing trick. Note that no additional effort is required: just need to provide a list of symbols rather than a single one and have an iterator pushing samples from the different buckets. 
@@ -246,15 +239,10 @@ Then training with the bucketing trick. Note that no additional effort is requir
 ```{r, echo=TRUE, eval=TRUE, warning=FALSE}
 devices <- mx.gpu()
 
-initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "in", magnitude = 3)
+initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
 
-optimizer <- mx.opt.create(name = "rmsprop",
-                           learning.rate = 1e-2,
-                           gamma1 = 0.95,
-                           gamma2 = 0.9,
-                           wd = 1e-5,
-                           rescale.grad = 1/batch.size,
-                           clip_gradient = 5)
+optimizer <- mx.opt.create("rmsprop", learning.rate = 1e-3, gamma1 = 0.95, gamma2 = 0.92, 
+                           wd = 1e-4, clip_gradient = 5, rescale.grad=1/batch.size)
 
 logger <- mx.metric.logger()
 epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
@@ -277,7 +265,6 @@ p <- plot_ly(x = seq_len(length(logger$train)), y = logger$train,
   add_trace(y = logger$eval, type = "scatter", mode = "markers+lines", name = "eval")
 
 p
-# plotly::export(p, file = "logger_lstm_bucket.png")
 ```
 
 The speedup is substantial, around 125 sec. instead of 210 sec., a nearly 40% improvement with little effort.  

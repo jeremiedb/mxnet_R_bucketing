@@ -98,7 +98,7 @@ initializer <- mx.init.Xavier(rnd_type = "gaussian",
                               factor_type = "avg", 
                               magnitude = 3)
 
-optimizer <- mx.opt.create("adadelta", rho = 0.95, eps = 1e-6, wd = 1e-8,
+optimizer <- mx.opt.create("adadelta", rho = 0.9, eps = 1e-5, wd = 1e-6,
                            clip_gradient = 1, rescale.grad = 1/batch.size)
 
 logger <- mx.metric.logger()
