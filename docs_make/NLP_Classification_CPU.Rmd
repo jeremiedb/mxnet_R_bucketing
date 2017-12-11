@@ -3,7 +3,7 @@ title: "NLP Classification on CPU"
 output: github_document
 ---
 
-> This tutorial presents an example of application of RNN to text classification using padded and bucketed data to efficiently handle sequences of varying lengths. 
+> This tutorial presents an example of application of RNN to text classification using padded data to handle sequences of varying lengths. 
 
 Example based on sentiment analysis on the [IMDB data](http://ai.stanford.edu/~amaas/data/sentiment/).
 
@@ -24,9 +24,7 @@ library("DiagrammeR")
 
 Whether working with times series or text at the character or word level, modeling sequences typically involves dealing with samples of varying length. 
 
-To efficiently feed the Recurrent Neural Network (RNN) with samples of even length within each batch, two tricks can be used: 
-
-- Padding: fill the modeled sequences with an arbitrary word/character up to the longest sequence. This results in sequences of even lengths, but potentially of excessive size for an efficient training. 
+To efficiently feed the Recurrent Neural Network (RNN) with samples of even length within each batch, one can use the padding trick: fill the modeled sequences with an arbitrary word/character up to the longest sequence. This results in sequences of even lengths, but potentially of excessive size for an efficient training. 
 
 ```{r pad, echo = FALSE, fig.height=2}
 nodes_1 <- DiagrammeR::create_node_df(n = 1, label = c("this movie is a great movie"), level = 1, fillcolor = adjustcolor("blue", alpha.f = 0.2), style = "filled", shape = "box", color = "blue", fontcolor = "black", width=3)
@@ -177,7 +175,7 @@ For bucketing, a list of symbols is defined, one for each bucket length. During 
 ```{r, echo=TRUE, fig.height=1}
 seq_len <- as.integer(train.data.single$bucket.names)
 
-symbol_single <- rnn.graph.unroll(seq_len = 600, config = "seq-to-one", cell_type = "lstm", 
+symbol_single <- rnn.graph.unroll(seq_len = seq_len, config = "seq-to-one", cell_type = "lstm", 
                                   num_rnn_layer = 1, num_embed = 2, num_hidden = 6, 
                                   num_decode = 2, input_size = vocab, dropout = 0.5, 
                                   ignore_label = -1, loss_output = "softmax",
@@ -202,8 +200,8 @@ The representation of an unrolled RNN typically assumes a fixed length sequence.
 
 First the non bucketed model is trained for 6 epochs: 
 
-```{r, echo=TRUE, eval=TRUE, warning=FALSE}
-devices <- mx.gpu()
+```{r, echo=TRUE, eval=TRUE, message=FALSE, warning=FALSE}
+devices <- mx.cpu()
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
 
@@ -223,54 +221,23 @@ system.time(
                             batch.end.callback = NULL, 
                             epoch.end.callback = epoch.end.callback)
 )
+
+mx.model.save(model, prefix = "../models/model_nlp_classif_single_cpu", iteration = 1)
 ```
 
 ```{r logger1, echo=FALSE, eval=TRUE, fig.height=4}
-p <- plot_ly(x = seq_len(length(logger$train)), y = logger$train, 
-             type = "scatter", mode = "markers+lines", name = "train") %>% 
-  add_trace(y = logger$eval, type = "scatter", mode = "markers+lines", name = "eval")
-
-p
-```
-
-Then training with the bucketing trick. Note that no additional effort is required: just need to provide a list of symbols rather than a single one and have an iterator pushing samples from the different buckets. 
-
-```{r, echo=TRUE, eval=TRUE, warning=FALSE}
-devices <- mx.gpu()
-
-initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
-
-optimizer <- mx.opt.create("rmsprop", learning.rate = 1e-3, gamma1 = 0.95, gamma2 = 0.92, 
-                           wd = 1e-4, clip_gradient = 5, rescale.grad=1/batch.size)
-
-logger <- mx.metric.logger()
-epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
-batch.end.callback <- mx.callback.log.train.metric(period = 50)
-
-system.time(
-  model <- mx.model.buckets(symbol = symbol_buckets,
-                            train.data = train.data.bucket, eval.data = eval.data.bucket,
-                            num.round = 8, ctx = devices, verbose = FALSE,
-                            metric = mx.metric.accuracy, optimizer = optimizer,  
-                            initializer = initializer,
-                            batch.end.callback = NULL, 
-                            epoch.end.callback = epoch.end.callback)
-)
-```
-
-```{r logger2, echo = FALSE, eval = TRUE, fig.height=4}
 plot_ly(x = seq_len(length(logger$train)), y = logger$train, 
         type = "scatter", mode = "markers+lines", name = "train") %>% 
   add_trace(y = logger$eval, type = "scatter", mode = "markers+lines", name = "eval")
 ```
-
-The speedup is substantial, around 125 sec. instead of 210 sec., a nearly 40% improvement with little effort.  
 
 ## Plot word embeddings
 
 Word representation can be visualized by looking at the assigned weights in any of the embedding dimensions. Here, we look simultaneously at the two embeddings learnt in the LSTM model. 
 
 ```{r embed, echo=FALSE, eval = TRUE, fig.height=4}
+model <- mx.model.load(prefix = "../models/model_nlp_classif_single_cpu", iteration = 1)
+
 dic <- corpus_bucketed_train$dic
 rev_dic <- corpus_bucketed_train$rev_dic
 
@@ -290,15 +257,15 @@ Since the model attempts to predict the sentiment, it's no surprise that the 2 d
 
 ## Inference on test data
 
-The utility function `mx.infer.rnn` has been added to simplify inference on RNN and support bucketed data. 
+The utility function `mx.infer.rnn` has been added to simplify inference on RNN. On explicitly unrolled model (CPU), bucketing on inference is not yet supported. 
 
 ```{r, echo=TRUE}
-ctx <- mx.gpu(0)
+ctx <- mx.cpu(0)
 batch.size <- 64
 
-corpus_bucketed_test <- readRDS(file = "../data/corpus_bucketed_test.rds")
+corpus_single_test <- readRDS(file = "../data/corpus_single_test.rds")
 
-test.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.size = batch.size, 
+test.data <- mx.io.bucket.iter(buckets = corpus_single_test$buckets, batch.size = batch.size, 
                                data.mask.element = 0, shuffle = FALSE)
 ```
 
@@ -308,7 +275,7 @@ infer <- mx.infer.rnn(infer.data = test.data, model = model, ctx = ctx)
 
 pred_raw <- t(as.array(infer))
 pred <- max.col(pred_raw, tie = "first") - 1
-label <- unlist(lapply(corpus_bucketed_test$buckets, function(x) x$label))
+label <- unlist(lapply(corpus_single_test$buckets, function(x) x$label))
 
 acc <- sum(label == pred)/length(label)
 roc <- roc(predictions = pred_raw[, 2], labels = factor(label))

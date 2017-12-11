@@ -151,8 +151,8 @@ mx.infer.buckets.one <- function(infer.data,
   
   # Initial binding
   execs <- mx.symbol.bind(symbol = symbol, 
-                                  arg.arrays = c(dlist, arg.params.fix, arg.params)[arg_update_idx], 
-                                  aux.arrays = aux.params, ctx = ctx[[1]], grad.req = grad.req)
+                          arg.arrays = c(dlist, arg.params.fix, arg.params)[arg_update_idx], 
+                          aux.arrays = aux.params, ctx = ctx[[1]], grad.req = grad.req)
   
   # Initial input shapes - need to be adapted for multi-devices - divide highest
   # dimension by device nb
@@ -164,8 +164,8 @@ mx.infer.buckets.one <- function(infer.data,
     dlist <- infer.data$value()[input.names]
     
     execs <- mx.symbol.bind(symbol = symbol, 
-                                    arg.arrays = c(dlist, execs$arg.arrays[arg.params.fix.names], execs$arg.arrays[arg.params.names])[arg_update_idx],
-                                    aux.arrays = execs$aux.arrays, ctx = ctx[[1]], grad.req = grad.req)
+                            arg.arrays = c(dlist, execs$arg.arrays[arg.params.fix.names], execs$arg.arrays[arg.params.names])[arg_update_idx],
+                            aux.arrays = execs$aux.arrays, ctx = ctx[[1]], grad.req = grad.req)
     
     mx.exec.forward(execs, is.train = FALSE)
     
