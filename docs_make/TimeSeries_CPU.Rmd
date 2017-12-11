@@ -14,7 +14,6 @@ library("readr")
 library("dplyr")
 library("plotly")
 library("mxnet")
-source("../rnn.graph.R")
 ```
 
 ### Data preparation
@@ -200,13 +199,13 @@ symbol.infer <- rnn.graph.unroll(seq_len = 1,
 ```{r, echo=TRUE, eval=TRUE}
 predict <- numeric()
 
-infer <- mxnet:::mx.rnn.infer.unroll(data = data, 
-                             symbol = symbol.infer.ini,
-                             num_hidden = 50,
-                             arg.params = model$arg.params,
-                             aux.params = model$aux.params,
-                             init_states = NULL,
-                             ctx = ctx)
+infer <- mx.infer.rnn.one.unroll(infer.data = data, 
+                                 symbol = symbol.infer.ini,
+                                 num_hidden = 50,
+                                 arg.params = model$arg.params,
+                                 aux.params = model$aux.params,
+                                 init_states = NULL,
+                                 ctx = ctx)
 
 pred = mx.nd.array(y[seq_len, 1, drop = F])
 real = sin(seeds[1] + pi/12 * (seq_len+1):(seq_len+pred_length))
@@ -215,13 +214,13 @@ for (i in 1:pred_length) {
   
   data = mx.nd.reshape(pred, shape = c(1,1,1))
   
-  infer <- mxnet:::mx.rnn.infer.unroll(data = data, 
-                               symbol = symbol.infer,
-                               num_hidden = 50,
-                               arg.params = model$arg.params,
-                               aux.params = model$aux.params,
-                               init_states = infer[-1],
-                               ctx = ctx)
+  infer <- mx.infer.rnn.one.unroll(infer.data = data, 
+                                   symbol = symbol.infer,
+                                   num_hidden = 50,
+                                   arg.params = model$arg.params,
+                                   aux.params = model$aux.params,
+                                   init_states = infer[-1],
+                                   ctx = ctx)
   
   pred <- infer[[1]]
   predict <- c(predict, as.numeric(as.array(pred)))

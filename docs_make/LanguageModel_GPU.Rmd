@@ -46,7 +46,7 @@ eval.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.siz
                                data.mask.element = 0, shuffle = FALSE)
 ```
 
-## Model arhcitecture
+## Model architecture
 
 A one-to-one model configuration is specified since for each character, we want to predict the next one. For a sequence of length 100, there are also 100 labels, corresponding the same sequence of characters but offset by a position of +1. 
 
@@ -73,7 +73,7 @@ graph.viz(rnn_graph_one_one, type = "graph", direction = "LR",
 
 ## Fit a LSTM model
 
-```{r, echo=TRUE, eval=TRUE, include=FALSE}
+```{r, echo=TRUE, eval=TRUE, message=FALSE}
 devices <- mx.gpu(0)
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 3)
@@ -165,12 +165,12 @@ symbol <- mx.symbol.Group(sym_output, sym_state, sym_state_cell)
 
 predict <- numeric()
 
-infer <- mxnet:::mx.infer.buckets.one(infer.data = infer.data, 
-                              symbol = symbol,
-                              arg.params = model$arg.params,
-                              aux.params = model$aux.params,
-                              input.params = NULL, 
-                              ctx = ctx)
+infer <- mx.infer.rnn.one(infer.data = infer.data, 
+                          symbol = symbol,
+                          arg.params = model$arg.params,
+                          aux.params = model$aux.params,
+                          input.params = NULL, 
+                          ctx = ctx)
 
 pred_prob <- mx.nd.slice.axis(infer$loss_output, axis=0, begin = infer_length-1, end = infer_length)
 pred <- mx.nd.argmax(data = pred_prob, axis = 1, keepdims = T)
@@ -181,13 +181,13 @@ for (i in 1:100) {
   infer.data <- mx.io.arrayiter(data = as.matrix(pred), label = as.matrix(pred),  
                               batch.size = 1, shuffle = FALSE)
   
-  infer <- mxnet:::mx.infer.buckets.one(infer.data = infer.data, 
-                                symbol = symbol,
-                                arg.params = model$arg.params,
-                                aux.params = model$aux.params,
-                                input.params = list(rnn.state = infer[[2]], 
-                                                    rnn.state.cell = infer[[3]]), 
-                                ctx = ctx)
+  infer <- mx.infer.rnn.one(infer.data = infer.data, 
+                            symbol = symbol,
+                            arg.params = model$arg.params,
+                            aux.params = model$aux.params,
+                            input.params = list(rnn.state = infer[[2]], 
+                                                rnn.state.cell = infer[[3]]), 
+                            ctx = ctx)
   
   pred <- mx.nd.argmax(data = infer$loss_output, axis = 1, keepdims = T)
   predict <- c(predict, as.numeric(as.array(pred)))
@@ -218,12 +218,12 @@ infer.data <- mx.io.arrayiter(data = matrix(infer_split), label = matrix(infer_s
 
 predict <- numeric()
 
-infer <- mxnet:::mx.infer.buckets.one(infer.data = infer.data, 
-                              symbol = symbol,
-                              arg.params = model$arg.params,
-                              aux.params = model$aux.params,
-                              input.params = NULL, 
-                              ctx = ctx)
+infer <- mx.infer.rnn.one(infer.data = infer.data, 
+                          symbol = symbol,
+                          arg.params = model$arg.params,
+                          aux.params = model$aux.params,
+                          input.params = NULL, 
+                          ctx = ctx)
 
 pred_prob <- as.numeric(as.array(mx.nd.slice.axis(
   infer$loss_output, axis=0, begin = infer_length-1, end = infer_length)))
@@ -235,13 +235,13 @@ for (i in 1:100) {
   infer.data <- mx.io.arrayiter(data = as.matrix(pred), label = as.matrix(pred),  
                                 batch.size = 1, shuffle = FALSE)
   
-  infer <- mxnet:::mx.infer.buckets.one(infer.data = infer.data, 
-                                symbol = symbol,
-                                arg.params = model$arg.params,
-                                aux.params = model$aux.params,
-                                input.params = list(rnn.state = infer[[2]], 
-                                                    rnn.state.cell = infer[[3]]), 
-                                ctx = ctx)
+  infer <- mx.infer.rnn.one(infer.data = infer.data, 
+                            symbol = symbol,
+                            arg.params = model$arg.params,
+                            aux.params = model$aux.params,
+                            input.params = list(rnn.state = infer[[2]], 
+                                                rnn.state.cell = infer[[3]]), 
+                            ctx = ctx)
   
   pred_prob <- as.numeric(as.array(infer$loss_output))
   pred <- sample(length(pred_prob), prob = pred_prob, size = 1, replace = T) - 1

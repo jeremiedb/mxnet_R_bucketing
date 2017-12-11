@@ -1,9 +1,9 @@
 ---
-title: "NLP Classification on GPU"
+title: "NLP Classification on CPU"
 output: github_document
 ---
 
-> This tutorial presents an example of application of RNN to text classification using padded and bucketed data to efficiently handle sequences of varying lengths. Some functionalities require running on a GPU with CUDA. 
+> This tutorial presents an example of application of RNN to text classification using padded and bucketed data to efficiently handle sequences of varying lengths. 
 
 Example based on sentiment analysis on the [IMDB data](http://ai.stanford.edu/~amaas/data/sentiment/).
 
@@ -175,26 +175,25 @@ Below are the graph representations of a seq-to-one architecture with LSTM cells
 For bucketing, a list of symbols is defined, one for each bucket length. During training, at each batch the appropriate symbol is bound according to the bucketID provided by the iterator. 
 
 ```{r, echo=TRUE, fig.height=1}
-symbol_single <- rnn.graph(config = "seq-to-one", cell_type = "lstm", 
-                           num_rnn_layer = 1, num_embed = 2, num_hidden = 6, 
-                           num_decode = 2, input_size = vocab, dropout = 0.5, 
-                           ignore_label = -1, loss_output = "softmax",
-                           output_last_state = F, masking = T)
+seq_len <- as.integer(train.data.single$bucket.names)
+
+symbol_single <- rnn.graph.unroll(seq_len = 600, config = "seq-to-one", cell_type = "lstm", 
+                                  num_rnn_layer = 1, num_embed = 2, num_hidden = 6, 
+                                  num_decode = 2, input_size = vocab, dropout = 0.5, 
+                                  ignore_label = -1, loss_output = "softmax",
+                                  output_last_state = F, masking = T)
 ```
 
 ```{r architect, echo=TRUE, fig.height=1}
 bucket_list <- unique(c(train.data.bucket$bucket.names, eval.data.bucket$bucket.names))
 
 symbol_buckets <- sapply(bucket_list, function(seq) {
-  rnn.graph(config = "seq-to-one", cell_type = "lstm", 
-            num_rnn_layer = 1, num_embed = 2, num_hidden = 6, 
-            num_decode = 2, input_size = vocab, dropout = 0.5, 
-            ignore_label = -1, loss_output = "softmax",
-            output_last_state = F, masking = T)
+  rnn.graph.unroll(seq_len = as.integer(seq), config = "seq-to-one", cell_type = "lstm", 
+                   num_rnn_layer = 1, num_embed = 2, num_hidden = 6, 
+                   num_decode = 2, input_size = vocab, dropout = 0.5, 
+                   ignore_label = -1, loss_output = "softmax",
+                   output_last_state = F, masking = T)
 })
-
-graph.viz(symbol_single, type = "graph", direction = "LR", 
-          graph.height.px = 50, graph.width.px = 800, shape=c(5, 64))
 ```
 
 The representation of an unrolled RNN typically assumes a fixed length sequence. The operator `mx.symbol.RNN` simplifies the process by abstracting the recurrent cells into a single operator that accepts batches of varying length (each batch contains sequences of identical length). 
@@ -291,7 +290,7 @@ Since the model attempts to predict the sentiment, it's no surprise that the 2 d
 
 ## Inference on test data
 
-The utility function `mx.infer.rnn` has been added to simplify inference on RNN with bucketed data. 
+The utility function `mx.infer.rnn` has been added to simplify inference on RNN and support bucketed data. 
 
 ```{r, echo=TRUE}
 ctx <- mx.gpu(0)

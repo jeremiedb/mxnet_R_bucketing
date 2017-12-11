@@ -145,13 +145,12 @@ real = sin(seeds[1] + pi/12 * (seq_len+1):(seq_len+pred_length))
 infer.data <- mx.io.arrayiter(data = data, label = label, 
                               batch.size = 1, shuffle = FALSE)
 
-mx.symbol.bind <- mxnet:::mx.symbol.bind
-infer <- mxnet:::mx.infer.buckets.one(infer.data = infer.data, 
-                              symbol = symbol,
-                              arg.params = model$arg.params, 
-                              aux.params = model$aux.params, 
-                              input.params = NULL,
-                              ctx = ctx)
+infer <- mx.infer.rnn.one(infer.data = infer.data, 
+                          symbol = symbol,
+                          arg.params = model$arg.params, 
+                          aux.params = model$aux.params, 
+                          input.params = NULL,
+                          ctx = ctx)
 
 for (i in 1:pred_length) {
   
@@ -161,13 +160,13 @@ for (i in 1:pred_length) {
   infer.data <- mx.io.arrayiter(data = data, label = label,  
                                 batch.size = 1, shuffle = FALSE)
   
-  infer <- mxnet:::mx.infer.buckets.one(infer.data = infer.data, 
-                                symbol = symbol,
-                                ctx = ctx,
-                                arg.params = model$arg.params,
-                                aux.params = model$aux.params,
-                                input.params = list(rnn.state = infer[[2]], 
-                                                    rnn.state.cell = infer[[3]]))
+  infer <- mx.infer.rnn.one(infer.data = infer.data, 
+                            symbol = symbol,
+                            ctx = ctx,
+                            arg.params = model$arg.params,
+                            aux.params = model$aux.params,
+                            input.params = list(rnn.state = infer[[2]], 
+                                                rnn.state.cell = infer[[3]]))
   
   pred <- infer[[1]]
   predict <- c(predict, as.numeric(as.array(pred)))

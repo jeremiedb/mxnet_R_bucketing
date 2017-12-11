@@ -19,7 +19,6 @@ library("stringr")
 library("stringi")
 library("scales")
 library("mxnet")
-source("../rnn.graph.R")
 ```
 
 ## Data preparation
@@ -51,7 +50,7 @@ eval.data <- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets,
                                data.mask.element = 0, shuffle = FALSE)
 ```
 
-## Model arhcitecture
+## Model architecture
 
 A one-to-one model configuration is specified since for each character, we want to predict the next one. For a sequence of length 100, there are also 100 labels, corresponding the same sequence of characters but offset by a position of +1. 
 
@@ -214,13 +213,13 @@ model <- mx.model.load(prefix = "../models/model_one_to_one_lstm_cpu", iteration
 predict <- numeric()
 data = mx.nd.array(matrix(infer_split))
 
-infer <- mxnet:::mx.rnn.infer.unroll(data = data, 
-                             symbol = symbol.infer.ini,
-                             num_hidden = 96,
-                             arg.params = model$arg.params,
-                             aux.params = model$aux.params,
-                             init_states = NULL,
-                             ctx = ctx)
+infer <- mx.infer.rnn.one.unroll(infer.data = data, 
+                                 symbol = symbol.infer.ini,
+                                 num_hidden = 96,
+                                 arg.params = model$arg.params,
+                                 aux.params = model$aux.params,
+                                 init_states = NULL,
+                                 ctx = ctx)
 
 pred_prob <- mx.nd.slice.axis(infer[[1]], axis=0, begin = infer_length-1, end = infer_length)
 pred <- mx.nd.argmax(data = pred_prob, axis = 1, keepdims = T)
@@ -228,13 +227,13 @@ predict <- c(predict, as.numeric(as.array(pred)))
 
 for (i in 1:100) {
   
-  infer <- mxnet:::mx.rnn.infer.unroll(data = pred, 
-                               symbol = symbol.infer,
-                               num_hidden = 96,
-                               arg.params = model$arg.params,
-                               aux.params = model$aux.params,
-                               init_states = infer[-1],
-                               ctx = ctx)
+  infer <- mx.infer.rnn.one.unroll(infer.data = pred, 
+                                   symbol = symbol.infer,
+                                   num_hidden = 96,
+                                   arg.params = model$arg.params,
+                                   aux.params = model$aux.params,
+                                   init_states = infer[-1],
+                                   ctx = ctx)
   
   pred <- mx.nd.argmax(data = infer$loss_output, axis = 1, keepdims = T)
   predict <- c(predict, as.numeric(as.array(pred)))
@@ -262,13 +261,13 @@ infer_length <- length(infer_split)
 
 predict <- numeric()
 
-infer <- mxnet:::mx.rnn.infer.unroll(data = data, 
-                             symbol = symbol.infer.ini,
-                             num_hidden = 96,
-                             arg.params = model$arg.params,
-                             aux.params = model$aux.params,
-                             init_states = NULL,
-                             ctx = ctx)
+infer <- mx.infer.rnn.one.unroll(infer.data = data, 
+                                 symbol = symbol.infer.ini,
+                                 num_hidden = 96,
+                                 arg.params = model$arg.params,
+                                 aux.params = model$aux.params,
+                                 init_states = NULL,
+                                 ctx = ctx)
 
 pred_prob <- as.numeric(as.array(mx.nd.slice.axis(
   infer[[1]], axis=0, begin = infer_length-1, end = infer_length)))
@@ -277,13 +276,13 @@ predict <- c(predict, pred)
 
 for (i in 1:100) {
   
-  infer <- mxnet:::mx.rnn.infer.unroll(data = mx.nd.array(array(pred, dim = c(1,1))), 
-                               symbol = symbol.infer,
-                               num_hidden = 96,
-                               arg.params = model$arg.params,
-                               aux.params = model$aux.params,
-                               init_states = infer[-1],
-                               ctx = ctx)
+  infer <- mx.infer.rnn.one.unroll(infer.data = mx.nd.array(array(pred, dim = c(1,1))), 
+                                   symbol = symbol.infer,
+                                   num_hidden = 96,
+                                   arg.params = model$arg.params,
+                                   aux.params = model$aux.params,
+                                   init_states = infer[-1],
+                                   ctx = ctx)
   
   pred_prob <- as.numeric(as.array(infer[[1]]))
   pred <- sample(length(pred_prob), prob = pred_prob, size = 1, replace = T) - 1
