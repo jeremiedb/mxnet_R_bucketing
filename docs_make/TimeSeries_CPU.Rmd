@@ -1,5 +1,5 @@
 ---
-title: "Time-Series"
+title: "Time-Series on CPU"
 output: github_document
 editor_options: 
   chunk_output_type: inline
@@ -131,7 +131,7 @@ system.time(
   model <- mx.model.buckets(symbol = symbol,
                             train.data = train.data, 
                             eval.data = eval.data, 
-                            num.round = 50, ctx = ctx, verbose = TRUE,
+                            num.round = 250, ctx = ctx, verbose = TRUE,
                             metric = mx.metric.mse.seq, 
                             initializer = initializer, optimizer = optimizer, 
                             batch.end.callback = NULL, 

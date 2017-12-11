@@ -123,7 +123,7 @@ lstm.cell <- function(num_hidden, indata, prev.state, param, seqidx, layeridx, d
   
   next.h <- out.gate * mx.symbol.Activation(next.c, act.type = "tanh")
   
-  return(list(c = next.c, h = next.h))
+  return(list(h = next.h, c = next.c))
 }
 
 

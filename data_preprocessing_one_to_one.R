@@ -3,7 +3,7 @@ require("dplyr")
 require("stringr")
 require("stringi")
 
- # download the IMDB dataset
+# download the IMDB dataset
 if (!file.exists("data/char_lstm.zip")) {
   download.file("http://data.mxnet.io/data/char_lstm.zip", "data/char_lstm.zip")
   unzip("data/char_lstm.zip", files = "obama.txt", exdir = "data")

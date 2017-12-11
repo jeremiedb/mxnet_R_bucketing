@@ -1,5 +1,5 @@
 ---
-title: "RNN made easy with MXNet R"
+title: "Language Model on CPU"
 output: github_document
 editor_options: 
   chunk_output_type: inline
@@ -19,8 +19,8 @@ library("stringr")
 library("stringi")
 library("scales")
 library("mxnet")
+source("../rnn.graph.R")
 ```
-
 
 ## Data preparation
 
@@ -78,7 +78,6 @@ graph.viz(rnn_graph, type = "graph", direction = "TD",
 ```
 
 
-
 ## Fit a LSTM model
 
 Unroll the RNN to the length of the input sequence.
@@ -100,20 +99,13 @@ symbol <- rnn.graph.unroll(seq_len = as.integer(train.data$bucket.names),
 ```
 
 
-```{r, echo=TRUE, eval=TRUE}
+```{r, echo=TRUE, eval=TRUE, warning=FALSE, message=FALSE}
 ctx <- mx.cpu()
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 3)
 
 optimizer <- mx.opt.create("adadelta", rho = 0.9, eps = 1e-5, wd = 1e-8,
                            clip_gradient = 5, rescale.grad = 1/batch.size)
-
-# optimizer <- mx.opt.create("rmsprop", learning.rate = 2e-3, gamma1 = 0.95, gamma2 =0.95, 
-#                            wd = 1e-8, clip_gradient = 5, rescale.grad = 1/batch.size)
-
-# optimizer <- mx.opt.create("adam", learning.rate = 1e-3, beta1 = 0.9, beta2 = 0.999,
-#                            epsilon = 1e-8, wd = 1e-8,
-#                            clip_gradient = 5, rescale.grad = 1/batch.size)
 
 logger <- mx.metric.logger()
 epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
@@ -148,7 +140,7 @@ mx.metric.Perplexity <- mx.metric.custom_nd("Perplexity", function(label, pred) 
 system.time(
   model <- mx.model.buckets(symbol = symbol,
                             train.data = train.data, eval.data = eval.data, 
-                            num.round = 20, ctx = ctx, verbose = TRUE,
+                            num.round = 5, ctx = ctx, verbose = TRUE,
                             metric = mx.metric.Perplexity, 
                             initializer = initializer, optimizer = optimizer, 
                             batch.end.callback = NULL, 
