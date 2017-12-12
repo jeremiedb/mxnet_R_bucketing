@@ -1,12 +1,8 @@
 ---
-title: "CNN - NLP for Classification"
-output:
-  html_document:
-    theme: paper
-    toc: yes
-    toc_depth: 3
-    toc_float: true
-    code_folding: show
+title: "CNN - NLP Classification"
+output: github_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 > Demo the application of CNN for NLP task with varying length sequences using both padding and bucketing through custom iterator with MXNet R package
@@ -15,219 +11,209 @@ Example based on sentiment analysis on the [IMDB data](http://ai.stanford.edu/~a
 
 Load some packages
 
-```{r, echo=TRUE, message=FALSE}
-require("readr")
-require("dplyr")
-require("plotly")
-require("stringr")
-require("stringi")
-require("AUC")
-require("scales")
-require("mxnet")
+```{r, echo=FALSE, message=FALSE}
+library("readr")
+library("dplyr")
+library("plotly")
+library("stringr")
+library("stringi")
+library("AUC")
+library("scales")
+library("mxnet")
+library("DiagrammeR")
+
+source("../rnn.infer.R")
 ```
 
+## Data preparation
 
-Load utility functions
+For this demo, the data preparation is performed by the script `data_preprocessing_seq_to_one.R` which involves the following steps:
 
-```{r, echo=TRUE}
-source("../mx_io_bucket_iter.R")
-source("../cnn_bucket_setup.R")
-source("../cnn_bucket_train.R")
-```
+- Import IMDB movie reviews  
+- Split each review into a word vector and apply some common cleansing (remove special characters, lower case, remove extra blank space...)  
+- Convert words into integers and define a dictionary to map the resulting indices with former words  
+- Aggregate the buckets of samples and labels into a list
 
+- `corpus_single_train.rds`: no bucketing, all samples are padded/trimmed to 600 words.  
 
-## Prepare the data
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+corpus_single_train <- readRDS(file = "../data/corpus_single_train.rds")
+corpus_single_test <- readRDS(file = "../data/corpus_single_test.rds")
 
-The loaded data has been pre-process into a lists whose elements are the buckets containing the samples and their associated labels. 
-
-This pre-processing involves 2 scripts:  
-
-  - data_import.R: import IMDB data  
-  - data_prep.R: split samples into word vectors and aggregate the buckets of samples and labels into a list
-
-
-```{r, echo=TRUE}
-
-#####################################################
-### Load preprocessed data
-corpus_bucketed_train<- readRDS(file = "../data/corpus_bucketed_train_100_200_300_500_800_left.rds")
-corpus_bucketed_test<- readRDS(file = "../data/corpus_bucketed_test_100_200_300_500_800_left.rds")
-
-vocab <- length(corpus_bucketed_test$dic)
+vocab <- length(corpus_single_train$dic)
 
 ### Create iterators
-batch_size = 64
+batch.size = 64
 
-X_iter_train<- mx_io_bucket_iter(buckets = corpus_bucketed_train$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = TRUE)
+train.data.single <- mx.io.bucket.iter(buckets = corpus_single_train$buckets, batch.size = batch.size, 
+                                       data.mask.element = 0, shuffle = TRUE)
 
-X_iter_test<- mx_io_bucket_iter(buckets = corpus_bucketed_test$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = FALSE)
-
+eval.data.single <- mx.io.bucket.iter(buckets = corpus_single_test$buckets, batch.size = batch.size, 
+                                      data.mask.element = 0, shuffle = FALSE)
 ```
 
-## Define model parameters
+## Model architecture
 
-```{r, echo=TRUE}
+```{r, echo=TRUE, fig.height=2}
+cnn.symbol.factory <- function(seq_len, 
+                               input_size,
+                               num_embed, 
+                               num_filters,
+                               num_decode, 
+                               dropout,
+                               ignore_label=-1) {
+  
+  conv_params <- list(embed_weight=mx.symbol.Variable("embed_weight"),
+                      conv1.weight = mx.symbol.Variable("conv1_weight"),
+                      conv1.bias = mx.symbol.Variable("conv1_bias"),
+                      conv2.weight = mx.symbol.Variable("conv2_weight"),
+                      conv2.bias = mx.symbol.Variable("conv2_bias"),
+                      conv3.weight = mx.symbol.Variable("conv3_weight"),
+                      conv3.bias = mx.symbol.Variable("conv3_bias"),
+                      fc1.weight = mx.symbol.Variable("fc1_weight"),
+                      fc1.bias = mx.symbol.Variable("fc1_bias"),
+                      fc_final.weight = mx.symbol.Variable("fc_final.weight"),
+                      fc_final.bias = mx.symbol.Variable("fc_final.bias"))
+  
+  # embeding layer
+  label <- mx.symbol.Variable("label")
+  data <- mx.symbol.Variable("data")
+  data_mask <- mx.symbol.Variable("data_mask")
+  data_mask_array <- mx.symbol.Variable("data_mask_array")
+  data_mask_array<- mx.symbol.BlockGrad(data_mask_array)
+  
+  embed <- mx.symbol.Embedding(data=data, weight=conv_params$embed_weight, input_dim=input_size, output_dim=num_embed, name="embed")
+  embed <- mx.symbol.swapaxes(data = embed, dim1 = 1, dim2 = 2)
+  embed_expand <- mx.symbol.expand_dims(data=embed, axis=-1, name="embed_expand")
+  
+  conv1<- mx.symbol.Convolution(data=embed_expand, weight=conv_params$conv1.weight, bias=conv_params$conv1.bias, kernel=c(1, 3), stride=c(1,1), pad=c(0,1), num_filter=8)
+  act1<- mx.symbol.Activation(data=conv1, act.type="relu", name="act1")
+  pool1<- mx.symbol.Pooling(data=act1, global.pool=F, pool.type="avg" , kernel=c(1,2), stride=c(1,2), pad=c(0,0), name="pool1")
+  
+  conv2<- mx.symbol.Convolution(data=pool1, weight=conv_params$conv2.weight, bias=conv_params$conv2.bias, kernel=c(1,3), stride=c(1,1), pad=c(0,1), num_filter=16)
+  act2<- mx.symbol.Activation(data=conv2, act.type="relu", name="act2")
+  pool2<- mx.symbol.Pooling(data=act2, global.pool=F, pool.type="avg" , kernel=c(1,2), stride=c(1,2), pad=c(0,0), name="pool2")
+  
+  conv3 <- mx.symbol.Convolution(data=pool2, weight=conv_params$conv3.weight, 
+                                 bias=conv_params$conv3.bias, kernel=c(1, 3), 
+                                 stride=c(1,1), pad=c(0,1), num_filter=32)
+  act3 <- mx.symbol.Activation(data=conv3, act.type="relu", name="act3")
+  pool3 <- mx.symbol.Pooling(data=act3, global.pool=T, pool.type="max", kernel=c(1,1), name="pool3")
+  
+  flatten <- mx.symbol.Flatten(data=pool3, name="flatten")
+  
+  # fc1 <- mx.symbol.FullyConnected(data=flatten, weight = conv_params$fc1.weight, 
+  #                                 bias=conv_params$fc1.bias, num.hidden=16, name="fc1")
+  # act_fc <- mx.symbol.Activation(data=fc1, act.type="relu", name="act_fc")
+  # dropout<- mx.symbol.Dropout(data=act_fc, p=dropout, name="drop")
+  
+  fc_final<- mx.symbol.FullyConnected(data=flatten, weight=conv_params$fc_final.weight, bias=conv_params$fc_final.bias, num.hidden=2, name="fc_final")
+  
+  # Removed the ignore label in softmax
+  loss <- mx.symbol.SoftmaxOutput(data = fc_final, label = label, name="loss")
+  return(loss)
+  
+}
 
-num.label=2
-num.embed=2
+num_decode=2
+num_embed=2
 num_filters=16
-update.period = 1
+seq_len = 600
 
-metric<- mx.metric.accuracy
+symbol_cnn <- cnn.symbol.factory(seq_len = seq_len, input_size = vocab, 
+                                num_embed = num_embed, num_filters = num_filters, 
+                                num_decode = num_decode, dropout = 0.5, ignore_label = -1)
 
-input.size=vocab
-initializer=mx.init.Xavier(rnd_type = "gaussian", factor_type = "in", magnitude = 2)
-dropout=0.25
-verbose=TRUE
-
-batch.end.callback<- mx.callback.log.train.metric(period = 50)
-epoch.end.callback<- mx.callback.log.train.metric(period = 1)
-
-```
-
-## Visualize model architecture
-
-```{r, echo=TRUE, fig.height=2, fig.width=8}
-
-seq.len<- 300
-
-cnn_graph<- cnn.symbol(seq.len=seq.len,
-                            input.size=input.size,
-                            num.embed=num.embed,
-                            num_filters = num_filters,
-                            num.label=num.label,
-                            dropout=dropout)
-
-graph.viz(cnn_graph, shape=c(seq.len, batch_size), type = "vis", direction = "LR", graph.height.px = 120)
-
+graph.viz(symbol_cnn, shape=c(seq_len, batch.size), direction = "LR")
 ```
 
 
 ## Model training
+```{r, echo=TRUE, eval=TRUE, message=FALSE, warning=FALSE}
+devices <- mx.cpu()
 
-```{r, echo=TRUE, eval=FALSE}
+initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
 
-devices<- list(mx.cpu())
-end.round=24
+optimizer <- mx.opt.create("rmsprop", learning.rate = 1e-3, gamma1 = 0.95, gamma2 = 0.92, 
+                           wd = 1e-4, clip_gradient = 5, rescale.grad=1/batch.size)
 
-optimizer<- mx.opt.create("adadelta", rho=0.92, epsilon=1e-6, wd=0.0001, clip_gradient=NULL, rescale.grad=1/batch_size)
+logger <- mx.metric.logger()
+epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
+batch.end.callback <- mx.callback.log.train.metric(period = 50)
 
-system.time(model_sentiment_cnn<- mx.cnn.buckets(train.data =  X_iter_train,
-                                                 eval.data = X_iter_test,
-                                                 begin.round = 1, 
-                                                 end.round = end.round, 
-                                                 ctx = devices, 
-                                                 metric = metric, 
-                                                 optimizer = optimizer, 
-                                                 kvstore = "local",
-                                                 num.embed=num.embed, 
-                                                 num_filters = num_filters,
-                                                 num.label=num.label,
-                                                 input.size=input.size,
-                                                 update.period=1,
-                                                 initializer=initializer,
-                                                 dropout=dropout,
-                                                 batch.end.callback=batch.end.callback,
-                                                 epoch.end.callback=epoch.end.callback))
+system.time(
+  model <- mx.model.buckets(symbol = symbol_cnn,
+                            train.data = train.data.single, eval.data = eval.data.single,
+                            num.round = 5, ctx = devices, verbose = FALSE,
+                            metric = mx.metric.accuracy, optimizer = optimizer,  
+                            initializer = initializer,
+                            batch.end.callback = batch.end.callback, 
+                            epoch.end.callback = epoch.end.callback)
+)
 
-mx.model.save(model_sentiment_cnn, prefix = "models/model_sentiment_cnn_Visual_v5", iteration = 24)
+mx.model.save(model, prefix = "../models/model_cnn_classif_single", iteration = 1)
+```
 
+```{r logger1, echo=FALSE, eval=TRUE, fig.height=4}
+plot_ly(x = seq_len(length(logger$train)), y = logger$train, 
+        type = "scatter", mode = "markers+lines", name = "train") %>% 
+  add_trace(y = logger$eval, type = "scatter", mode = "markers+lines", name = "eval")
 ```
 
 
 ## Plot word embeddings
 
-In this minimalistic example, embeddings are only 2 dimensionnal, though it still provides enough seperation potential for the classifier to achieve over 86% accuracy. 
+Word representation can be visualized by looking at the assigned weights in any of the embedding dimensions. Here, we look simultaneously at the two embeddings learnt in the LSTM model. 
 
-```{r, echo=TRUE}
+```{r embed, echo=FALSE, eval = TRUE, fig.height=4}
+model <- mx.model.load(prefix = "../models/model_cnn_classif_single", iteration = 1)
 
-corpus_bucketed_train<- readRDS(file = "../data/corpus_bucketed_train_100_200_300_500_800_left.rds")
-corpus_bucketed_test<- readRDS(file = "../data/corpus_bucketed_test_100_200_300_500_800_left.rds")
+dic <- corpus_single_train$dic
+rev_dic <- corpus_single_train$rev_dic
 
-model_sentiment<- mx.model.load(prefix = "../models/model_sentiment_cnn_Visual_v5", iteration = 24)
+embeddings_weights <- t(as.array(model$arg.params$embed_weight))
+embeddings <- data.frame(label=rev_dic, embeddings_weights)
+plot_words <- c("terrible", "awesome", "great", "fantastic", "worst", "awful", "pain", "painful", "recommend", "not", "poor", "wonderful", "shame", "ok", "okay", "excellent", "worst", "adequate", "fair", "enjoy", "good", "like", "interesting", "beautiful", "wasn't", "wonderful", "lost", "laugh", "laughable", "unfortunately", "attempt")
 
-dic <- corpus_bucketed_test$dic
-rev_dic <- corpus_bucketed_test$rev_dic
+embed_ids <- match(plot_words, embeddings$label)
+embeddings_sample <- embeddings[embed_ids, ]
 
-embeddings_weights<- t(as.array(model_sentiment$arg.params$embed_weight))
-
-embeddings<- data.frame(label=rev_dic, embeddings_weights)
-embeddings<- embeddings[-1, ]
-
-embeddings_20<- embeddings[400:450,]
-
-p <- ggplot(embeddings_20, aes(x = X1, y = X2, label = label))
-p+geom_label(fill="navy", colour="white", fontface = "bold") + theme_bw()
-
+p <- ggplot(embeddings_sample, aes(x = X1, y = X2, label = label))
+p + geom_text(check_overlap = T, color="navy") + theme_bw() +  theme(panel.grid=element_blank()) + 
+  labs(x = "embed 1", y = "embed 2")
 ```
 
-## Inference
+Since the model attempts to predict the sentiment, it's no surprise that the 2 dimensions into which each word is projected appear correlated with words' polarity. Positive words are associated with lower values along the first embedding (_great_, _excellent_), while the most negative words appear at the far right (_terrible_, _worst_). 
+
+## Inference on test data
 
 ```{r, echo=TRUE}
+ctx <- mx.cpu(0)
+batch.size <- 64
 
-#####################################################
-### Inference
-ctx<- list(mx.cpu())
-model_sentiment<- mx.model.load(prefix = "../models/model_sentiment_cnn_Visual_v5", iteration = 24)
+corpus_single_test <- readRDS(file = "../data/corpus_single_test.rds")
 
-corpus_bucketed_train<- readRDS(file = "../data/corpus_bucketed_train_100_200_300_500_800_left.rds")
-corpus_bucketed_test<- readRDS(file = "../data/corpus_bucketed_test_100_200_300_500_800_left.rds")
-
+test.data <- mx.io.bucket.iter(buckets = corpus_single_test$buckets, batch.size = batch.size, 
+                               data.mask.element = 0, shuffle = FALSE)
 ```
 
 
-### Inference on train data
+```{r, echo=TRUE, eval=TRUE, warning=FALSE}
 
-```{r, echo=TRUE}
+mx.symbol.bind = mxnet:::mx.symbol.bind
+mx.nd.arraypacker = mxnet:::mx.nd.arraypacker
+infer <- mx.infer.rnn(infer.data = test.data, model = model, ctx = ctx)
 
-###############################################
-### Inference on train
-batch_size<- 64
+pred_raw <- t(as.array(infer))
+pred <- max.col(pred_raw, tie = "first") - 1
+label <- unlist(lapply(corpus_single_test$buckets, function(x) x$label))
 
-X_iter_train<- mx_io_bucket_iter(buckets = corpus_bucketed_train$buckets, batch_size = batch_size, data_mask_element = 0, shuffle = F)
-
-infer_model_on_train <- mx.cnn.infer.buckets(infer_iter = X_iter_train, 
-                                             model = model_sentiment,
-                                             ctx = ctx,
-                                             kvstore="local")
-
-pred_train<- apply(infer_model_on_train$predict, 1, which.max)-1
-labels_train<- infer_model_on_train$labels
-
-acc_train<- sum(pred_train==labels_train)/length(labels_train)
-
-roc_train<- roc(predictions = infer_model_on_train$predict[,2], labels = factor(labels_train))
-auc_train<- auc(roc_train)
-
+acc <- sum(label == pred)/length(label)
+roc <- roc(predictions = pred_raw[, 2], labels = factor(label))
+auc <- auc(roc)
 ```
 
-Accuracy: `r percent(acc_train)`  
-AUC: `r signif(auc_train, 4)`
+Accuracy: `r percent(acc)`  
 
-
-
-### Inference on test
-
-```{r, echo=TRUE}
-###############################################
-### Inference on test
-X_iter_test<- mx_io_bucket_iter(buckets = corpus_bucketed_test$buckets, batch_size = 32, data_mask_element = 0, shuffle = F)
-
-infer_model_on_test <- mx.cnn.infer.buckets(infer_iter = X_iter_test, 
-                                            model = model_sentiment,
-                                            ctx = ctx,
-                                            kvstore="local")
-
-pred_test<- apply(infer_model_on_test$predict, 1, which.max)-1
-labels_test<- infer_model_on_test$labels
-
-acc_test<- sum(pred_test==labels_test)/length(labels_test)
-
-roc_test<- roc(predictions = infer_model_on_test$predict[,2], labels = factor(labels_test))
-auc_test<- auc(roc_test)
-
-```
-
-Accuracy: `r percent(acc_test)`  
-AUC: `r signif(auc_test, 4)`
+AUC: `r signif(auc, 4)` 
 
