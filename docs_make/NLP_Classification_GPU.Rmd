@@ -1,6 +1,8 @@
 ---
 title: "NLP Classification on GPU"
 output: github_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 > This tutorial presents an example of application of RNN to text classification using padded and bucketed data to efficiently handle sequences of varying lengths. Some functionalities require running on a GPU with CUDA. 
@@ -264,8 +266,6 @@ plot_ly(x = seq_len(length(logger$train)), y = logger$train,
         type = "scatter", mode = "markers+lines", name = "train") %>% 
   add_trace(y = logger$eval, type = "scatter", mode = "markers+lines", name = "eval")
 ```
-
-The speedup is substantial, around 125 sec. instead of 210 sec., a nearly 40% improvement with little effort.  
 
 ## Plot word embeddings
 
