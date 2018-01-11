@@ -35,7 +35,7 @@ if (window.hljs) {
   hljs.configure({languages: []});
   hljs.initHighlightingOnLoad();
   if (document.readyState && document.readyState === "complete") {
-    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+    window.setTimeout(function() { hljs.initHighlightingOnLoad(); }, 0);
   }
 }
 </script>
@@ -199,8 +199,15 @@ $(document).ready(function () {
   <li class="dropdown">
     <a class="dropdown-toggle" data-toggle="dropdown">Time Series<b class="caret"></b></a>
     <ul class="dropdown-menu" role="menu">
-        <li><a href="TimeSeries_GPU">GPU</a></li>
-        <li><a href="TimeSeries_CPU">CPU</a></li>
+        <li><a href="TimeSeries_GPU.html">GPU</a></li>
+        <li><a href="TimeSeries_CPU.html">CPU</a></li>
+        </ul>
+  </li>
+  
+    <li class="dropdown">
+    <a class="dropdown-toggle" data-toggle="dropdown">Vision<b class="caret"></b></a>
+    <ul class="dropdown-menu" role="menu">
+        <li><a href="ClassActivationMap.html">Activation Map</a></li>
         </ul>
   </li>
   
@@ -212,7 +219,7 @@ $(document).ready(function () {
         </ul>
   </li>
   
-  <li><a href="CNN_NLP_classification_kaggle.html">CNN NLP Classification</a></li>
+  <li><a href="">CNN NLP Classification</a></li>
   
   </ul>
   

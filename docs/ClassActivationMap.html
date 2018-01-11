@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+
+
+
+<title>Class Activation Map</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/paper.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<script src="site_libs/navigation-1.1/codefolding.js"></script>
+<link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlightingOnLoad(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+<link rel="stylesheet" href="style.css" type="text/css" />
+
+</head>
+
+<body>
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+  height: auto;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 64px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 69px;
+  margin-top: -69px;
+}
+
+.section h2 {
+  padding-top: 69px;
+  margin-top: -69px;
+}
+.section h3 {
+  padding-top: 69px;
+  margin-top: -69px;
+}
+.section h4 {
+  padding-top: 69px;
+  margin-top: -69px;
+}
+.section h5 {
+  padding-top: 69px;
+  margin-top: -69px;
+}
+.section h6 {
+  padding-top: 69px;
+  margin-top: -69px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+
+<div class="container-fluid main-container">
+
+<!-- tabsets -->
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+</script>
+
+<!-- code folding -->
+<style type="text/css">
+.code-folding-btn { margin-bottom: 4px; }
+</style>
+<script>
+$(document).ready(function () {
+  window.initializeCodeFolding("show" === "show");
+});
+</script>
+
+
+
+
+
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+<nav class="navbar navbar-default navbar-fixed-top navbar-inverse" role="navigation">
+  <div class="container">
+  <div class="navbar-header">
+  <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+    <i class="fa fa-bars fa-lg fa-inverse"></i>
+  </button>
+  <a class="navbar-brand" href="index.html">MXNET R</a>
+  </div>
+  
+  <div id="navbar" class="collapse navbar-collapse">
+  <ul class="nav navbar-nav">
+    
+  <li class="dropdown">
+    <a class="dropdown-toggle" data-toggle="dropdown">Language Model<b class="caret"></b></a>
+    <ul class="dropdown-menu" role="menu">
+        <li><a href="LanguageModel_GPU.html">GPU</a></li>
+        <li><a href="LanguageModel_CPU.html">CPU</a></li>
+        </ul>
+  </li>
+  
+  <li class="dropdown">
+    <a class="dropdown-toggle" data-toggle="dropdown">NLP Classification<b class="caret"></b></a>
+    <ul class="dropdown-menu" role="menu">
+        <li><a href="NLP_Classification_GPU.html">GPU</a></li>
+        <li><a href="NLP_Classification_CPU.html">CPU</a></li>
+        </ul>
+  </li>
+  
+  <li class="dropdown">
+    <a class="dropdown-toggle" data-toggle="dropdown">Time Series<b class="caret"></b></a>
+    <ul class="dropdown-menu" role="menu">
+        <li><a href="TimeSeries_GPU.html">GPU</a></li>
+        <li><a href="TimeSeries_CPU.html">CPU</a></li>
+        </ul>
+  </li>
+  
+    <li class="dropdown">
+    <a class="dropdown-toggle" data-toggle="dropdown">Vision<b class="caret"></b></a>
+    <ul class="dropdown-menu" role="menu">
+        <li><a href="ClassActivationMap.html">Activation Map</a></li>
+        </ul>
+  </li>
+  
+  <li class="dropdown">
+    <a class="dropdown-toggle" data-toggle="dropdown">Translation<b class="caret"></b></a>
+    <ul class="dropdown-menu" role="menu">
+        <li><a href="">GPU</a></li>
+        <li><a href="">CPU</a></li>
+        </ul>
+  </li>
+  
+  <li><a href="">CNN NLP Classification</a></li>
+  
+  </ul>
+  
+  <ul class="nav navbar-nav navbar-right">
+    <li class=navbar-right><a href="mailto:nimus44@gmail.com" ><i class="fa fa-envelope fa-lg"></i></a></li>
+    <li class=navbar-right><a href="https://github.com/jeremiedb" ><i class="fa fa-github fa-lg"></i></a></li>
+  </ul>
+  
+  </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+  </nav><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+<div class="btn-group pull-right">
+<button type="button" class="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span>Code</span> <span class="caret"></span></button>
+<ul class="dropdown-menu" style="min-width: 50px;">
+<li><a id="rmd-show-all-code" href="#">Show All Code</a></li>
+<li><a id="rmd-hide-all-code" href="#">Hide All Code</a></li>
+</ul>
+</div>
+
+
+
+<h1 class="title toc-ignore">Class Activation Map</h1>
+
+</div>
+
+<div id="TOC">
+<ul>
+<li><a href="#load-model">Load model</a></li>
+<li><a href="#image-treatment">Image treatment</a></li>
+<li><a href="#generate-activation-map">Generate activation map</a></li>
+<li><a href="#cam-function">CAM function</a></li>
+<li><a href="#plot-activation-map">Plot activation map</a></li>
+</ul>
+</div>
+
+<blockquote>
+<p>This demo shows the method proposed in <a href="https://arxiv.org/abs/1512.04150">Learning Deep Features for Discriminative Localization</a></p>
+</blockquote>
+<p>This is an R port of the Python demo found <a href="https://github.com/dmlc/mxnet-notebooks/blob/master/python/moved-from-mxnet/class_active_maps.ipynb">here</a>.</p>
+<p>Idea is to apply the last fully connected layer to each of the pixel following the last convolution layer. In Resnet, this applies to the 7x7 final features, just before the global average pooling.</p>
+<p>Since the final FC is meant to create a score for each of the 1000 classes, applying those FC weights to the 7x7features prior their pooling result in a class score for each of those pixel.</p>
+<pre class="r"><code>require(&quot;grid&quot;)
+require(&quot;readr&quot;)
+require(&quot;dplyr&quot;)
+require(&quot;plotly&quot;)
+require(&quot;imager&quot;)
+require(&quot;mxnet&quot;)</code></pre>
+<div id="load-model" class="section level2">
+<h2>Load model</h2>
+<p>A ResNet34 model is loaded and its last convolution output is grouped together the softmax output. Also, the weights of the last fully connected output is extracted.</p>
+<p>These are the key ingredients of the class activation map.</p>
+<pre class="r"><code>resnet34 &lt;- mx.model.load(&quot;C:/Data/NeuralNet/mxnet/image-classifier/Models/Resnet34/resnet-34&quot;, iteration=0)
+
+labels_resnet &lt;- readLines(&quot;C:/Data/NeuralNet/mxnet/image-classifier/Models/Resnet101/synset.txt&quot;)
+labels_resnet &lt;- gsub(pattern = &quot;(n\\d+\\s)(.+)&quot;, replacement=&quot;\\2&quot;, x=labels_resnet)
+
+symbol &lt;- resnet34$symbol
+internals &lt;- symbol$get.internals()
+outputs &lt;- internals$outputs
+
+# last layer before global pooling
+conv &lt;- internals$get.output(which(outputs==&quot;relu1_output&quot;))
+# flatten layer
+softmax &lt;- internals$get.output(which(outputs==&quot;softmax_output&quot;))
+symbol_group &lt;- mx.symbol.Group(c(conv, softmax))
+# last fully connected weights
+weight_fc &lt;- resnet34$arg.params$fc1_weight</code></pre>
+</div>
+<div id="image-treatment" class="section level2">
+<h2>Image treatment</h2>
+<p>Add padding to image and reshape into a 224 X 224 as required by ResNet model.</p>
+<pre class="r"><code>preproc_resnet_pad &lt;- function(im, resize=224) {
+  shape &lt;- dim(im)[1:2]
+  axis = c(&quot;x&quot;, &quot;y&quot;)[which.min(shape)]
+  pad = abs(diff(shape))
+  im &lt;- pad(im, nPix=pad, axes = axis)
+  resized &lt;- resize(im, resize, resize)
+  array &lt;- as.array(resized) * 255
+  dim(array) &lt;- c(resize, resize, 3, 1)
+  return(array)
+}
+
+im &lt;- imager::load.image(&quot;../data/Cat-and-dog.jpg&quot;)
+
+data_array &lt;- preproc_resnet_pad(im)
+data = mx.nd.array(data_array)
+label = mx.nd.array(1)
+
+im_array &lt;- data_array
+dim(im_array) &lt;- dim(im_array)[1:3]
+plot(im_array %&gt;% as.cimg())</code></pre>
+<pre><code>## Warning in as.cimg.array(.): Assuming third dimension corresponds to colour</code></pre>
+<p><img src="ClassActivationMap_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+</div>
+<div id="generate-activation-map" class="section level2">
+<h2>Generate activation map</h2>
+<pre class="r"><code>arg_names &lt;- symbol_group$arguments
+arg.arrays &lt;- c(list(data=data, softmax_label = label), resnet34$arg.params)[arg_names]
+aux.arrays &lt;- resnet34$aux.params[symbol_group$auxiliary.states]
+
+# outputs = mod.predict(blob)
+exec &lt;- mxnet:::mx.symbol.bind(symbol = symbol_group, ctx = mx.cpu(), 
+                                 arg.arrays = arg.arrays, 
+                                 aux.arrays = aux.arrays,
+                                 grad.reqs = rep(&quot;null&quot;, length(arg.arrays)))
+
+mx.exec.forward(exec, is.train = F)
+outputs &lt;- exec$outputs
+score = outputs[[2]]
+conv_fm = outputs[[1]]
+dim(conv_fm)</code></pre>
+<pre><code>## [1]   7   7 512   1</code></pre>
+<pre class="r"><code># get the indices of the topk predictions
+top_k = 4
+inds_topk &lt;- mx.nd.topk(data=score, axis=1, k=top_k) %&gt;% mx.nd.reshape(-1)
+labels_resnet[as.array(inds_topk)+1]</code></pre>
+<pre><code>## [1] &quot;boxer&quot;                                                                                             
+## [2] &quot;English foxhound&quot;                                                                                  
+## [3] &quot;Siamese cat, Siamese&quot;                                                                              
+## [4] &quot;American Staffordshire terrier, Staffordshire terrier, American pit bull terrier, pit bull terrier&quot;</code></pre>
+</div>
+<div id="cam-function" class="section level2">
+<h2>CAM function</h2>
+<p>Apply the last fully connected operation to each of the final 7x7 features. Only the weights relevant to the top k classes are kept from the FC weights.</p>
+<pre class="r"><code>get_cam &lt;- function(conv_fm, weight_fc) {
+  
+  conv_fm = mx.nd.reshape(data = conv_fm, shape = c(0,0,0), reverse = T)
+  conv_fm_flatten = mx.nd.reshape(data = conv_fm, shape = c(-1,0))
+  dim(conv_fm)
+  dim(conv_fm_flatten)
+  dim(weight_fc)
+
+  # results in shape (height X width) X topk
+  detection_map = mx.nd.dot(lhs = weight_fc, rhs = conv_fm_flatten)
+  map_shapes &lt;- dim(detection_map)
+  detection_map = mx.nd.reshape(detection_map, shape=c(sqrt(map_shapes[1]), sqrt(map_shapes[1]), map_shapes[2]))
+  return(detection_map)
+}</code></pre>
+</div>
+<div id="plot-activation-map" class="section level2">
+<h2>Plot activation map</h2>
+<p>Plot image with activation mask for the top 4 labels.</p>
+<pre class="r"><code>weight_fc_topk = mx.nd.take(weight_fc, indices = inds_topk, axis = 0)
+cam = get_cam(conv_fm = conv_fm, weight_fc = weight_fc_topk)
+cam_array = cam %&gt;% as.array()
+ori_image = im_array %&gt;% as.cimg()</code></pre>
+<pre><code>## Warning in as.cimg.array(.): Assuming third dimension corresponds to colour</code></pre>
+<pre class="r"><code>ori_image = ori_image  / max(ori_image)
+
+plots &lt;- list()
+
+for (k in 1:top_k) {
+  cam_img = cam_array[, , k] %&gt;% as.cimg()
+  heat_map = resize(cam_img, size_x = dim(im_array)[1], size_y = dim(im_array)[1], interpolation_type = 3)
+  max_response = mean(cam_img)
+  heat_map_color = hsv(h = (heat_map - min(heat_map))/(max(heat_map) - min(heat_map))) %&gt;% 
+    col2rgb %&gt;% t %&gt;% as.vector %&gt;% as.cimg(dim=c(dim(heat_map)[1:3],3))
+  
+  heat_map_color &lt;- heat_map_color / 255
+  im_comb &lt;- imdraw(ori_image, heat_map_color, opacity = 0.5)
+  
+  df &lt;- as.data.frame(im_comb,wide=&quot;c&quot;) %&gt;% mutate(rgb.val=rgb(c.1,c.2,c.3))
+  p &lt;- ggplot(df,aes(x,y))+geom_raster(aes(fill=rgb.val))+scale_fill_identity()
+  p &lt;- p+scale_x_continuous(expand=c(0,0))+scale_y_continuous(expand=c(0,0),trans=scales::reverse_trans()) + ggtitle(labels_resnet[as.array(inds_topk)+1][k])+coord_fixed(ratio = 1) +
+    theme(axis.title=element_blank())
+  plots[[k]] &lt;- p
+}
+
+multiplot(plotlist = plots, cols = 2)</code></pre>
+<p><img src="ClassActivationMap_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+</div>
+
+
+
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.header').parent('thead').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
