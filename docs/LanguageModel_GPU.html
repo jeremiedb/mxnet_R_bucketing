@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 
 <html xmlns="http://www.w3.org/1999/xhtml">
 
@@ -222,7 +222,7 @@ $(document).ready(function () {
         </ul>
   </li>
   
-  <li><a href="CNN_NLP_classification_kaggle.html">CNN NLP Classification</a></li>
+  <li><a href="CNN_NLP_Classification.html">CNN NLP Classification</a></li>
   
   </ul>
   
@@ -280,8 +280,8 @@ train.data &lt;- mx.io.bucket.iter(buckets = corpus_bucketed_train$buckets, batc
 eval.data &lt;- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.size = batch.size,
                                data.mask.element = 0, shuffle = FALSE)</code></pre>
 </div>
-<div id="model-arhcitecture" class="section level2">
-<h2>Model arhcitecture</h2>
+<div id="model-architecture" class="section level2">
+<h2>Model architecture</h2>
 <p>A one-to-one model configuration is specified since for each character, we want to predict the next one. For a sequence of length 100, there are also 100 labels, corresponding the same sequence of characters but offset by a position of +1.</p>
 <p>The parameters <code>output_last_state</code> is set to <code>TRUE</code> in order to access the state of the RNN cells when performing inference.</p>
 <pre class="r"><code>rnn_graph_one_one &lt;- rnn.graph(num_rnn_layer = 3, 
@@ -299,13 +299,59 @@ eval.data &lt;- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.
 
 graph.viz(rnn_graph_one_one, type = &quot;graph&quot;, direction = &quot;LR&quot;, 
           graph.height.px = 180, shape=c(100, 64))</code></pre>
-<div id="htmlwidget-cd8bab73379b410b53b5" style="width:672px;height:180px;" class="grViz html-widget"></div>
-<script type="application/json" data-for="htmlwidget-cd8bab73379b410b53b5">{"x":{"diagram":"digraph {\n\ngraph [layout = \"dot\",\n       rankdir = \"LR\"]\n\n\n  \"1\" [label = \"data\ndata\", shape = \"oval\", penwidth = \"2\", color = \"#8dd3c7\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#8DD3C7FF\"] \n  \"2\" [label = \"Embedding\nembed\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"3\" [label = \"SwapAxis\nswap_pre\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"4\" [label = \"RNN\nRNN\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"5\" [label = \"_copy\nmask\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"6\" [label = \"SwapAxis\nswap_post\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"7\" [label = \"Reshape\nreshape0\", shape = \"oval\", penwidth = \"2\", color = \"#fdb462\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FDB462FF\"] \n  \"8\" [label = \"FullyConnected\ndecode\n82\", shape = \"box\", penwidth = \"2\", color = \"#fb8072\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FB8072FF\"] \n  \"9\" [label = \"Reshape\nreshape1\", shape = \"oval\", penwidth = \"2\", color = \"#fdb462\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FDB462FF\"] \n  \"10\" [label = \"SoftmaxOutput\nloss\", shape = \"box\", penwidth = \"2\", color = \"#b3de69\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#B3DE69FF\"] \n\"1\"->\"2\" [id = \"1\", color = \"black\", fontcolor = \"black\"] \n\"2\"->\"3\" [id = \"2\", color = \"black\", fontcolor = \"black\"] \n\"3\"->\"4\" [id = \"3\", color = \"black\", fontcolor = \"black\"] \n\"4\"->\"5\" [id = \"4\", color = \"black\", fontcolor = \"black\"] \n\"5\"->\"6\" [id = \"5\", color = \"black\", fontcolor = \"black\"] \n\"6\"->\"7\" [id = \"6\", color = \"black\", fontcolor = \"black\"] \n\"7\"->\"8\" [id = \"7\", color = \"black\", fontcolor = \"black\"] \n\"8\"->\"10\" [id = \"8\", color = \"black\", fontcolor = \"black\"] \n\"9\"->\"10\" [id = \"9\", color = \"black\", fontcolor = \"black\"] \n}","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-1de0823d59c317e8cb52" style="width:672px;height:180px;" class="grViz html-widget"></div>
+<script type="application/json" data-for="htmlwidget-1de0823d59c317e8cb52">{"x":{"diagram":"digraph {\n\ngraph [layout = \"dot\",\n       rankdir = \"LR\"]\n\n\n  \"1\" [label = \"data\ndata\", shape = \"oval\", penwidth = \"2\", color = \"#8dd3c7\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#8DD3C7FF\"] \n  \"2\" [label = \"Embedding\nembed\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"3\" [label = \"SwapAxis\nswap_pre\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"4\" [label = \"RNN\nRNN\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"5\" [label = \"_copy\nmask\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"6\" [label = \"SwapAxis\nswap_post\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"7\" [label = \"Reshape\nreshape0\", shape = \"oval\", penwidth = \"2\", color = \"#fdb462\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FDB462FF\"] \n  \"8\" [label = \"FullyConnected\ndecode\n82\", shape = \"box\", penwidth = \"2\", color = \"#fb8072\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FB8072FF\"] \n  \"9\" [label = \"Reshape\nreshape1\", shape = \"oval\", penwidth = \"2\", color = \"#fdb462\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FDB462FF\"] \n  \"10\" [label = \"SoftmaxOutput\nloss\", shape = \"box\", penwidth = \"2\", color = \"#b3de69\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#B3DE69FF\"] \n\"1\"->\"2\" [id = \"1\", color = \"black\", fontcolor = \"black\"] \n\"2\"->\"3\" [id = \"2\", color = \"black\", fontcolor = \"black\"] \n\"3\"->\"4\" [id = \"3\", color = \"black\", fontcolor = \"black\"] \n\"4\"->\"5\" [id = \"4\", color = \"black\", fontcolor = \"black\"] \n\"5\"->\"6\" [id = \"5\", color = \"black\", fontcolor = \"black\"] \n\"6\"->\"7\" [id = \"6\", color = \"black\", fontcolor = \"black\"] \n\"7\"->\"8\" [id = \"7\", color = \"black\", fontcolor = \"black\"] \n\"8\"->\"10\" [id = \"8\", color = \"black\", fontcolor = \"black\"] \n\"9\"->\"10\" [id = \"9\", color = \"black\", fontcolor = \"black\"] \n}","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
 </div>
 <div id="fit-a-lstm-model" class="section level2">
 <h2>Fit a LSTM model</h2>
-<div id="418a4e8f36af" style="width:672px;height:480px;" class="plotly html-widget"></div>
-<script type="application/json" data-for="418a4e8f36af">{"x":{"visdat":{"418ade48c6f":["function () ","plotlyVisDat"]},"cur_data":"418ade48c6f","attrs":{"418ade48c6f":{"x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"y":[11.920869265927,5.42852481721152,4.68155096541414,4.41539725901887,4.27358878165847,4.18076247336166,4.11894241603196,4.0773850611508,4.03760807316081,4.01035659631637,3.9877727514691,3.96858195825318,3.95127583355661,3.93420161393589,3.92352195654686,3.9130674666256,3.90477314640373,3.89647673937163,3.8888490192515,3.88116150249303],"mode":"markers+lines","name":"train","alpha":1,"sizes":[10,100],"type":"scatter"},"418ade48c6f.1":{"x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"y":[5.95218131247639,4.61656716345769,4.25393151391573,4.11570513183308,4.00021858029585,3.95354744628734,3.92340603636562,3.88009779325457,3.86955877367046,3.83879598442701,3.81642213227877,3.80624565434156,3.81289174748513,3.78353561205579,3.78248425264178,3.74320691917942,3.75443196134218,3.75980000788811,3.75864065486191,3.75006282748822],"mode":"markers+lines","name":"eval","alpha":1,"sizes":[10,100],"type":"scatter"}},"layout":{"margin":{"b":40,"l":60,"t":25,"r":10},"xaxis":{"domain":[0,1]},"yaxis":{"domain":[0,1]},"hovermode":"closest","showlegend":true},"source":"A","config":{"modeBarButtonsToAdd":[{"name":"Collaborate","icon":{"width":1000,"ascent":500,"descent":-50,"path":"M487 375c7-10 9-23 5-36l-79-259c-3-12-11-23-22-31-11-8-22-12-35-12l-263 0c-15 0-29 5-43 15-13 10-23 23-28 37-5 13-5 25-1 37 0 0 0 3 1 7 1 5 1 8 1 11 0 2 0 4-1 6 0 3-1 5-1 6 1 2 2 4 3 6 1 2 2 4 4 6 2 3 4 5 5 7 5 7 9 16 13 26 4 10 7 19 9 26 0 2 0 5 0 9-1 4-1 6 0 8 0 2 2 5 4 8 3 3 5 5 5 7 4 6 8 15 12 26 4 11 7 19 7 26 1 1 0 4 0 9-1 4-1 7 0 8 1 2 3 5 6 8 4 4 6 6 6 7 4 5 8 13 13 24 4 11 7 20 7 28 1 1 0 4 0 7-1 3-1 6-1 7 0 2 1 4 3 6 1 1 3 4 5 6 2 3 3 5 5 6 1 2 3 5 4 9 2 3 3 7 5 10 1 3 2 6 4 10 2 4 4 7 6 9 2 3 4 5 7 7 3 2 7 3 11 3 3 0 8 0 13-1l0-1c7 2 12 2 14 2l218 0c14 0 25-5 32-16 8-10 10-23 6-37l-79-259c-7-22-13-37-20-43-7-7-19-10-37-10l-248 0c-5 0-9-2-11-5-2-3-2-7 0-12 4-13 18-20 41-20l264 0c5 0 10 2 16 5 5 3 8 6 10 11l85 282c2 5 2 10 2 17 7-3 13-7 17-13z m-304 0c-1-3-1-5 0-7 1-1 3-2 6-2l174 0c2 0 4 1 7 2 2 2 4 4 5 7l6 18c0 3 0 5-1 7-1 1-3 2-6 2l-173 0c-3 0-5-1-8-2-2-2-4-4-4-7z m-24-73c-1-3-1-5 0-7 2-2 3-2 6-2l174 0c2 0 5 0 7 2 3 2 4 4 5 7l6 18c1 2 0 5-1 6-1 2-3 3-5 3l-174 0c-3 0-5-1-7-3-3-1-4-4-5-6z"},"click":"function(gd) { \n        // is this being viewed in RStudio?\n        if (location.search == '?viewer_pane=1') {\n          alert('To learn about plotly for collaboration, visit:\\n https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html');\n        } else {\n          window.open('https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html', '_blank');\n        }\n      }"}],"cloud":false},"data":[{"x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"y":[11.920869265927,5.42852481721152,4.68155096541414,4.41539725901887,4.27358878165847,4.18076247336166,4.11894241603196,4.0773850611508,4.03760807316081,4.01035659631637,3.9877727514691,3.96858195825318,3.95127583355661,3.93420161393589,3.92352195654686,3.9130674666256,3.90477314640373,3.89647673937163,3.8888490192515,3.88116150249303],"mode":"markers+lines","name":"train","type":"scatter","line":{"fillcolor":"rgba(31,119,180,1)","color":"rgba(31,119,180,1)"},"xaxis":"x","yaxis":"y","frame":null},{"x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"y":[5.95218131247639,4.61656716345769,4.25393151391573,4.11570513183308,4.00021858029585,3.95354744628734,3.92340603636562,3.88009779325457,3.86955877367046,3.83879598442701,3.81642213227877,3.80624565434156,3.81289174748513,3.78353561205579,3.78248425264178,3.74320691917942,3.75443196134218,3.75980000788811,3.75864065486191,3.75006282748822],"mode":"markers+lines","name":"eval","type":"scatter","line":{"fillcolor":"rgba(255,127,14,1)","color":"rgba(255,127,14,1)"},"xaxis":"x","yaxis":"y","frame":null}],"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.2,"selected":{"opacity":1}},"base_url":"https://plot.ly"},"evals":["config.modeBarButtonsToAdd.0.click"],"jsHooks":{"render":[{"code":"function(el, x) { var ctConfig = crosstalk.var('plotlyCrosstalkOpts').set({\"on\":\"plotly_click\",\"persistent\":false,\"dynamic\":false,\"selectize\":false,\"opacityDim\":0.2,\"selected\":{\"opacity\":1}}); }","data":null}]}}</script>
+<pre class="r"><code>devices &lt;- mx.gpu(0)
+
+initializer &lt;- mx.init.Xavier(rnd_type = &quot;gaussian&quot;, factor_type = &quot;avg&quot;, magnitude = 3)
+
+optimizer &lt;- mx.opt.create(&quot;adadelta&quot;, rho = 0.9, eps = 1e-5, wd = 1e-8,
+                           clip_gradient = 5, rescale.grad = 1/batch.size)
+
+logger &lt;- mx.metric.logger()
+epoch.end.callback &lt;- mx.callback.log.train.metric(period = 1, logger = logger)
+batch.end.callback &lt;- mx.callback.log.train.metric(period = 50)
+
+mx.metric.custom_nd &lt;- function(name, feval) {
+  init &lt;- function() {
+    c(0, 0)
+  }
+  update &lt;- function(label, pred, state) {
+    m &lt;- feval(label, pred)
+    state &lt;- c(state[[1]] + 1, state[[2]] + m)
+    return(state)
+  }
+  get &lt;- function(state) {
+    list(name=name, value=(state[[2]]/state[[1]]))
+  }
+  ret &lt;- (list(init=init, update=update, get=get))
+  class(ret) &lt;- &quot;mx.metric&quot;
+  return(ret)
+}
+
+mx.metric.Perplexity &lt;- mx.metric.custom_nd(&quot;Perplexity&quot;, function(label, pred) {
+  label = mx.nd.reshape(label, shape = -1)
+  label_probs &lt;- as.array(mx.nd.choose.element.0index(pred, label))
+  batch &lt;- length(label_probs)
+  NLL &lt;- -sum(log(pmax(1e-15, as.array(label_probs)))) / batch
+  Perplexity &lt;- exp(NLL)
+  return(Perplexity)
+})
+
+model &lt;- mx.model.buckets(symbol = rnn_graph_one_one,
+                          train.data = train.data, eval.data = eval.data, 
+                          num.round = 20, ctx = devices, verbose = TRUE,
+                          metric = mx.metric.Perplexity, 
+                          initializer = initializer, optimizer = optimizer, 
+                          batch.end.callback = NULL, 
+                          epoch.end.callback = epoch.end.callback)
+
+mx.model.save(model, prefix = &quot;../models/model_one_to_one_lstm_gpu&quot;, iteration = 1)</code></pre>
+<div id="1a78416bca76" style="width:672px;height:480px;" class="plotly html-widget"></div>
+<script type="application/json" data-for="1a78416bca76">{"x":{"visdat":{"1a7896ad5d8":["function () ","plotlyVisDat"]},"cur_data":"1a7896ad5d8","attrs":{"1a7896ad5d8":{"x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"y":[11.9908074726261,5.43284824871591,4.68428404461981,4.41820897706301,4.27972382926986,4.19397306054584,4.12471220637424,4.07547251734196,4.03877194239547,4.01089341622931,3.98659906068145,3.96178646941131,3.94904773851274,3.92892354217679,3.91658325935671,3.90424684705116,3.89517904431154,3.88233522853158,3.87469708058784,3.86415880479094],"mode":"markers+lines","name":"train","alpha":1,"sizes":[10,100],"type":"scatter"},"1a7896ad5d8.1":{"x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"y":[6.01331988149493,4.62977516299701,4.25671677783748,4.11347193193576,4.00114124429657,3.95858890578693,3.91655920657103,3.87174100819531,3.85014371069184,3.8178915431453,3.80522690604156,3.78804819949282,3.76875807167312,3.77465306129509,3.75452229289713,3.73035501831308,3.7292380748743,3.73579720642593,3.72486032495679,3.72350329551065],"mode":"markers+lines","name":"eval","alpha":1,"sizes":[10,100],"type":"scatter"}},"layout":{"margin":{"b":40,"l":60,"t":25,"r":10},"xaxis":{"domain":[0,1]},"yaxis":{"domain":[0,1]},"hovermode":"closest","showlegend":true},"source":"A","config":{"modeBarButtonsToAdd":[{"name":"Collaborate","icon":{"width":1000,"ascent":500,"descent":-50,"path":"M487 375c7-10 9-23 5-36l-79-259c-3-12-11-23-22-31-11-8-22-12-35-12l-263 0c-15 0-29 5-43 15-13 10-23 23-28 37-5 13-5 25-1 37 0 0 0 3 1 7 1 5 1 8 1 11 0 2 0 4-1 6 0 3-1 5-1 6 1 2 2 4 3 6 1 2 2 4 4 6 2 3 4 5 5 7 5 7 9 16 13 26 4 10 7 19 9 26 0 2 0 5 0 9-1 4-1 6 0 8 0 2 2 5 4 8 3 3 5 5 5 7 4 6 8 15 12 26 4 11 7 19 7 26 1 1 0 4 0 9-1 4-1 7 0 8 1 2 3 5 6 8 4 4 6 6 6 7 4 5 8 13 13 24 4 11 7 20 7 28 1 1 0 4 0 7-1 3-1 6-1 7 0 2 1 4 3 6 1 1 3 4 5 6 2 3 3 5 5 6 1 2 3 5 4 9 2 3 3 7 5 10 1 3 2 6 4 10 2 4 4 7 6 9 2 3 4 5 7 7 3 2 7 3 11 3 3 0 8 0 13-1l0-1c7 2 12 2 14 2l218 0c14 0 25-5 32-16 8-10 10-23 6-37l-79-259c-7-22-13-37-20-43-7-7-19-10-37-10l-248 0c-5 0-9-2-11-5-2-3-2-7 0-12 4-13 18-20 41-20l264 0c5 0 10 2 16 5 5 3 8 6 10 11l85 282c2 5 2 10 2 17 7-3 13-7 17-13z m-304 0c-1-3-1-5 0-7 1-1 3-2 6-2l174 0c2 0 4 1 7 2 2 2 4 4 5 7l6 18c0 3 0 5-1 7-1 1-3 2-6 2l-173 0c-3 0-5-1-8-2-2-2-4-4-4-7z m-24-73c-1-3-1-5 0-7 2-2 3-2 6-2l174 0c2 0 5 0 7 2 3 2 4 4 5 7l6 18c1 2 0 5-1 6-1 2-3 3-5 3l-174 0c-3 0-5-1-7-3-3-1-4-4-5-6z"},"click":"function(gd) { \n        // is this being viewed in RStudio?\n        if (location.search == '?viewer_pane=1') {\n          alert('To learn about plotly for collaboration, visit:\\n https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html');\n        } else {\n          window.open('https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html', '_blank');\n        }\n      }"}],"cloud":false},"data":[{"x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"y":[11.9908074726261,5.43284824871591,4.68428404461981,4.41820897706301,4.27972382926986,4.19397306054584,4.12471220637424,4.07547251734196,4.03877194239547,4.01089341622931,3.98659906068145,3.96178646941131,3.94904773851274,3.92892354217679,3.91658325935671,3.90424684705116,3.89517904431154,3.88233522853158,3.87469708058784,3.86415880479094],"mode":"markers+lines","name":"train","type":"scatter","line":{"fillcolor":"rgba(31,119,180,1)","color":"rgba(31,119,180,1)"},"xaxis":"x","yaxis":"y","frame":null},{"x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"y":[6.01331988149493,4.62977516299701,4.25671677783748,4.11347193193576,4.00114124429657,3.95858890578693,3.91655920657103,3.87174100819531,3.85014371069184,3.8178915431453,3.80522690604156,3.78804819949282,3.76875807167312,3.77465306129509,3.75452229289713,3.73035501831308,3.7292380748743,3.73579720642593,3.72486032495679,3.72350329551065],"mode":"markers+lines","name":"eval","type":"scatter","line":{"fillcolor":"rgba(255,127,14,1)","color":"rgba(255,127,14,1)"},"xaxis":"x","yaxis":"y","frame":null}],"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.2,"selected":{"opacity":1}},"base_url":"https://plot.ly"},"evals":["config.modeBarButtonsToAdd.0.click"],"jsHooks":{"render":[{"code":"function(el, x) { var ctConfig = crosstalk.var('plotlyCrosstalkOpts').set({\"on\":\"plotly_click\",\"persistent\":false,\"dynamic\":false,\"selectize\":false,\"opacityDim\":0.2,\"selected\":{\"opacity\":1}}); }","data":null}]}}</script>
 </div>
 <div id="inference-on-test-data" class="section level2">
 <h2>Inference on test data</h2>
@@ -337,12 +383,12 @@ symbol &lt;- mx.symbol.Group(sym_output, sym_state, sym_state_cell)
 
 predict &lt;- numeric()
 
-infer &lt;- mxnet:::mx.infer.buckets.one(infer.data = infer.data, 
-                              symbol = symbol,
-                              arg.params = model$arg.params,
-                              aux.params = model$aux.params,
-                              input.params = NULL, 
-                              ctx = ctx)
+infer &lt;- mx.infer.rnn.one(infer.data = infer.data, 
+                          symbol = symbol,
+                          arg.params = model$arg.params,
+                          aux.params = model$aux.params,
+                          input.params = NULL, 
+                          ctx = ctx)
 
 pred_prob &lt;- mx.nd.slice.axis(infer$loss_output, axis=0, begin = infer_length-1, end = infer_length)
 pred &lt;- mx.nd.argmax(data = pred_prob, axis = 1, keepdims = T)
@@ -353,13 +399,13 @@ for (i in 1:100) {
   infer.data &lt;- mx.io.arrayiter(data = as.matrix(pred), label = as.matrix(pred),  
                               batch.size = 1, shuffle = FALSE)
   
-  infer &lt;- mxnet:::mx.infer.buckets.one(infer.data = infer.data, 
-                                symbol = symbol,
-                                arg.params = model$arg.params,
-                                aux.params = model$aux.params,
-                                input.params = list(rnn.state = infer[[2]], 
-                                                    rnn.state.cell = infer[[3]]), 
-                                ctx = ctx)
+  infer &lt;- mx.infer.rnn.one(infer.data = infer.data, 
+                            symbol = symbol,
+                            arg.params = model$arg.params,
+                            aux.params = model$aux.params,
+                            input.params = list(rnn.state = infer[[2]], 
+                                                rnn.state.cell = infer[[3]]), 
+                            ctx = ctx)
   
   pred &lt;- mx.nd.argmax(data = infer$loss_output, axis = 1, keepdims = T)
   predict &lt;- c(predict, as.numeric(as.array(pred)))
@@ -368,7 +414,7 @@ for (i in 1:100) {
 
 predict_txt &lt;- paste0(rev_dic[as.character(predict)], collapse = &quot;&quot;)
 predict_txt_tot &lt;- paste0(infer_raw, predict_txt, collapse = &quot;&quot;)</code></pre>
-<p>Generated sequence: The United States are some of the country that we can do the states of the country that we can do the states of the countr</p>
+<p>Generated sequence: The United States are a standing the country and the challenges and the challenges and the challenges and the challenges a</p>
 <p>Key ideas appear somewhat overemphasized.</p>
 </div>
 <div id="inference-from-random-sample" class="section level3">
@@ -385,12 +431,12 @@ infer.data &lt;- mx.io.arrayiter(data = matrix(infer_split), label = matrix(infe
 
 predict &lt;- numeric()
 
-infer &lt;- mxnet:::mx.infer.buckets.one(infer.data = infer.data, 
-                              symbol = symbol,
-                              arg.params = model$arg.params,
-                              aux.params = model$aux.params,
-                              input.params = NULL, 
-                              ctx = ctx)
+infer &lt;- mx.infer.rnn.one(infer.data = infer.data, 
+                          symbol = symbol,
+                          arg.params = model$arg.params,
+                          aux.params = model$aux.params,
+                          input.params = NULL, 
+                          ctx = ctx)
 
 pred_prob &lt;- as.numeric(as.array(mx.nd.slice.axis(
   infer$loss_output, axis=0, begin = infer_length-1, end = infer_length)))
@@ -402,13 +448,13 @@ for (i in 1:100) {
   infer.data &lt;- mx.io.arrayiter(data = as.matrix(pred), label = as.matrix(pred),  
                                 batch.size = 1, shuffle = FALSE)
   
-  infer &lt;- mxnet:::mx.infer.buckets.one(infer.data = infer.data, 
-                                symbol = symbol,
-                                arg.params = model$arg.params,
-                                aux.params = model$aux.params,
-                                input.params = list(rnn.state = infer[[2]], 
-                                                    rnn.state.cell = infer[[3]]), 
-                                ctx = ctx)
+  infer &lt;- mx.infer.rnn.one(infer.data = infer.data, 
+                            symbol = symbol,
+                            arg.params = model$arg.params,
+                            aux.params = model$aux.params,
+                            input.params = list(rnn.state = infer[[2]], 
+                                                rnn.state.cell = infer[[3]]), 
+                            ctx = ctx)
   
   pred_prob &lt;- as.numeric(as.array(infer$loss_output))
   pred &lt;- sample(length(pred_prob), prob = pred_prob, size = 1, replace = T) - 1
@@ -417,7 +463,7 @@ for (i in 1:100) {
 
 predict_txt &lt;- paste0(rev_dic[as.character(predict)], collapse = &quot;&quot;)
 predict_txt_tot &lt;- paste0(infer_raw, predict_txt, collapse = &quot;&quot;)</code></pre>
-<p>Generated sequence: The United States are all the terrorists in Iraq. Some ofcome the world that learn loly it, and in at we should be student</p>
+<p>Generated sequence: The United States are the same college to make their new Veprication in their differences enough of 2005 Rebuby American A</p>
 <p>Now we get a more alembicated political speech.</p>
 </div>
 </div>
