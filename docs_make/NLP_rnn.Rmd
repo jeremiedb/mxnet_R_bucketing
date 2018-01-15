@@ -1,0 +1,214 @@
+---
+title: "NLP"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(data.table)
+library(plotly)
+library(readr)
+library(mxnet)
+
+source("rnn_encode.R")
+source("rnn_decode.R")
+source("model_rnn.R")
+```
+
+### Load buckets
+
+```{r}
+buckets <- read_rds("data/buckets_en_fr_4_24.rds")
+```
+
+
+### Model architecture
+
+```{r}
+source("attention.R")
+
+source_input_size = nrow(buckets$source_dic)
+target_input_size = nrow(buckets$target_dic)
+
+batch_size = 384
+num_hidden = 128
+num_embed = 128
+seq_len = 24
+num_rnn_layer = 2
+num_proj_key = 64
+
+encode <- rnn.graph.unroll.encode(seq_len = seq_len, num_rnn_layer = num_rnn_layer, input_size = source_input_size, num_embed = num_embed, output_last_state = F, config = "one-to-one", cell_type = "lstm", loss_output = NULL, ignore_label = 0, masking = T, num_hidden = num_hidden, dropout = 0.2, prefix = "encode_", init.state = NULL, data_name = "data", bidirectional = F, reverse_input = F)
+
+attn_key_value = attn_key_create(encode = encode, num_proj_key = 64)
+attention = attention_dot
+
+decode <- rnn.graph.unroll.decode(encode = encode, attn_key_value = attn_key_value, attention = attention, seq_len = seq_len, num_rnn_layer = num_rnn_layer, input_size = NULL, num_embed = NULL, output_last_state = F, config = "one-to-one", cell_type = "lstm", loss_output = "softmax", ignore_label = 0, masking = T, num_decode = target_input_size, num_hidden = num_hidden, num_proj_key = num_proj_key, dropout = 0.2, prefix = "decode_", data_name = "dummy2", label_name = "label")
+
+# graph.viz(encode, shape = c(batch_size, seq_len))
+# graph.viz(decode)
+# graph.viz(decode, shape = list(data = c(batch_size, seq_len), label = c(batch_size, seq_len)))
+
+encode@.xData$arguments
+shapes = encode$infer.shape(list(data=c(seq_len, batch_size)))
+
+decode$arguments
+shapes = decode$infer.shape(list(data=c(seq_len, batch_size), label=c(seq_len, batch_size)))
+
+shapes_out = shapes$out.shapes
+shapes_arg = shapes$arg.shapes
+```
+
+### Prepare iterators 
+
+```{r}
+# iter_train <- mx.io.bucket.iter(buckets = buckets$buckets, batch.size = batch_size, data.mask.element = 0, shuffle = F, seed = 44)
+
+iter_train <- mx.io.arrayiter(data = buckets$buckets$`24`$data, label = buckets$buckets$`24`$label, batch.size = batch_size, shuffle = F)
+
+iter_train$reset()
+iter_train$iter.next()
+iter_data = iter_train$value()
+dim(iter_data$label)
+```
+
+### Attention
+
+#### Dot Attention
+
+```{r}
+# num_hidden_decode = 160
+# num_hidden_encode = 128
+# seq_len = 20
+# batch_size = 64
+#   
+# encode = mx.symbol.Variable("encode")
+# value = mx.symbol.identity(encode, name = "value")
+# 
+# attn_key_weight = mx.symbol.Variable("attn_key_weight")
+# attn_key_weight = mx.symbol.identity(attn_key_weight, name = "attn_key_weight")
+# 
+# key = mx.symbol.FullyConnected(data = encode, num_hidden = num_hidden_decode, weight = attn_key_weight, no_bias = T, flatten = F, name = "key")
+# 
+# decode = mx.symbol.Variable("decode")
+# decode = mx.symbol.identity(decode, name = "decode")
+# 
+# # query: either a copy of decode (last_hidden) or projection of it
+# query_proj_weight = mx.symbol.Variable("query_proj_weight")
+# query = mx.symbol.FullyConnected(data = decode, num_hidden = num_hidden_decode, weight = query_proj_weight, no_bias = T, flatten = F, name = "query")
+# 
+# # score: [features x seq x batch] dot [features x 1 x batch] -> [1 x seq x batch]
+# score = mx.symbol.batch_dot(lhs = key, rhs = query, transpose_a = F, transpose_b = T, name = "score")
+# # attention - softmax applied on seq_len axis
+# attn_wgt = mx.symbol.softmax(score, axis = 1, name = "attn_wgts")
+# # ctx vector:  [1 x seq x batch] dot [features x seq x batch] -> [features x 1 x batch]
+# ctx_vector = mx.symbol.batch_dot(lhs = attn_wgt, rhs = value, transpose_a = T, transpose_b = F, name = "ctx_vector")
+# 
+# # attention vector
+# attn_vector = mx.symbol.batch_dot(lhs = key, rhs = query, transpose_a = F, transpose_b = T, name = "attn_vector")
+# 
+# ctx_vector$infer.shape(list(encode = c(num_hidden_encode, seq_len, batch_size),
+#                             decode = c(num_hidden_decode, 1, batch_size)))
+# 
+# graph.viz(symbol = ctx_vector, shape = list(encode = c(num_hidden_encode, seq_len, batch_size),
+#                                             decode = c(num_hidden_decode, 1, batch_size)))
+# ctx_vector$infer.shape()
+```
+
+
+### Launch training
+
+```{r}
+ctx <- mx.cpu()
+
+initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "in", magnitude = 2.5)
+
+# optimizer <- mx.opt.create("rmsprop", learning.rate = 1e-3, gamma1 = 0.95, gamma2 = 0.95,
+#                            wd = 1e-5, clip_gradient = 1, rescale.grad=1/batch_size)
+
+# optimizer <- mx.opt.create("adadelta", rho = 0.95, epsilon = 1e-8, wd = 1e-8,
+#                            clip_gradient = 1, rescale.grad=1/batch_size)
+
+optimizer <- mx.opt.create("adam", learning.rate = 1e-3, beta1 = 0.9, beta2 = 0.999,
+                           epsilon = 1e-8, wd = 1e-8,
+                           clip_gradient = 1, rescale.grad=1/batch_size)
+
+# optimizer <- mx.opt.create("adadelta", rho = 0.95, eps = 1e-8, wd = 1e-5,
+#                            clip_gradient = 5, rescale.grad = 1/batch_size)
+
+logger <- mx.metric.logger()
+epoch.end.callback <- mx.callback.log.train.metric(period = 1)
+batch.end.callback <- mx.callback.log.train.metric(period = 10)
+
+mx.metric.Perplexity <- mx.metric.custom("Perplexity", function(label, pred) {
+  
+  label = mx.nd.reshape(mx.nd.array(label), shape = -1)
+  
+  label_probs <- mx.nd.choose.element.0index(
+    lhs = mx.nd.array(pred), 
+    rhs = label)
+  
+  mask = label != 0
+  mask_length = mx.nd.sum(mask)
+  
+  # batch <- length(label_probs)
+  NLL <- -mx.nd.sum(mx.nd.log(label_probs) * mask) / mask_length
+  Perplexity <- mx.nd.exp(NLL)
+  return(as.numeric(as.array(Perplexity)))
+})
+
+system.time(
+  model <- mx.model.buckets(symbol = decode,
+                            train.data = iter_train, 
+                            eval.data = NULL,
+                            num.round = 1, ctx = ctx, verbose = FALSE,
+                            metric = mx.metric.Perplexity, 
+                            optimizer = optimizer,  initializer = initializer,
+                            batch.end.callback = batch.end.callback, 
+                            epoch.end.callback = epoch.end.callback)
+)
+
+mx.model.save(model = model, prefix = "models/model_en_fr_rnn_2", iteration = 0)
+
+```
+
+
+Inference
+
+```{r}
+library(stringi)
+
+model <- mx.model.load(prefix = "models/model_en_fr_rnn_1", iteration = 0)
+source_dic <- buckets$source_dic
+target_dic <- buckets$target_dic
+setkeyv(target_dic, "word_id")
+
+infer_seq <- "tomorrow i want to talk about law in the parliament"
+infer_seq <- "i am student"
+infer_seq <- "the parliament and the government"
+
+infer_seq <-paste("<BOS>", infer_seq, "<EOS>")
+infer_seq <- stri_split_boundaries(infer_seq, type = "word", 
+                                                skip_word_none = T, 
+                                                skip_word_number = F, 
+                                                simplify = T)
+
+infer_seq <- data.table(t(infer_seq))
+infer_dt <- source_dic[infer_seq]
+infer_dt
+
+infer_mat <- matrix(0, nrow = 24, ncol = 1)
+infer_mat[1:length(infer_dt$word_id), 1] <- infer_dt$word_id
+
+iter_infer <- mx.io.arrayiter(data = infer_mat, label = infer_mat, batch.size = 1, shuffle = F)
+
+infer_pred <- mx.infer.rnn(infer.data = iter_infer, model = model, ctx = ctx)
+dim(infer_pred)
+
+infer_nd <- mx.nd.array(infer_pred)
+infer_max <- as.array(mx.nd.argmax(infer_nd, axis = 1))
+
+translation <- target_dic[infer_max+1]
+translation
+```
+

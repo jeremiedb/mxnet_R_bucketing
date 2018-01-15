@@ -1,0 +1,184 @@
+---
+title: "Corpus preprocessing for translation"
+output:
+  html_document:
+    theme: paper
+---
+
+
+```{r, message=FALSE, warning=FALSE}
+library(data.table)
+library(readr)
+library(mxnet)
+library(stringr)
+library(stringi)
+library(plotly)
+```
+
+
+# Load raw source data
+
+Source: [University of Haifa](http://cl.haifa.ac.il/projects/translationese/index.shtml). 
+
+```{r}
+raw_en <- read_lines("training/hansard.EN-FR/hansard/train.en.tok")
+raw_fr <- read_lines("training/hansard.EN-FR/hansard/train.fr.tok")
+```
+
+```{r}
+raw_en[1:5]
+raw_fr[1:5]
+```
+
+
+### Pre-processing
+
+- Prepare source and target corpus in parallel  
+- Convert sequences into vectors of words  
+- Trim out sequences of length outside min-max constraints  
+- Build dictionnary and ignore words below a count threshold
+- Assign each word with an index for embedding
+
+
+```{r}
+
+corpus_pre_process <- function(source, target, min_seq_len=1, max_seq_len=50, word_count_min = 20, dic = NULL) {
+  
+  # do not convert to ascii because acceted words will be split by the tokenizer
+  # head(raw_vec)
+  # raw_vec <-  ::stri_en   stri_enc_toascii(str = raw_vec)
+  
+  # string pre-process
+  source <- stringi::stri_trans_tolower(source)
+  target <- stringi::stri_trans_tolower(target)
+  
+  # add  <BOS> and <EOS> token indicators
+  source <- paste("<BOS>", source, "<EOS>")
+  target <- paste("<BOS>", target, "<EOS>")
+  
+  # split raw sequence vectors into lists of word vectors (one list element per sequence)
+  source_word_vec_list <- stri_split_boundaries(source, type = "word", 
+                                                skip_word_none = T, 
+                                                skip_word_number = F, 
+                                                simplify = F)
+  
+  target_word_vec_list <- stri_split_boundaries(target, type = "word", 
+                                                skip_word_none = T, 
+                                                skip_word_number = F, 
+                                                simplify = F)
+  
+  # number of entries per sequence
+  source_seq_length <- sapply(source_word_vec_list, length)
+  target_seq_length <- sapply(target_word_vec_list, length)
+  
+  plot <- plot_ly(x = source_seq_length, type="histogram", name="source") %>% 
+    add_trace(x = target_seq_length, name = "target")
+  
+  # keep sequences meeting seq length criteria
+  seq_filter <- which(source_seq_length >= min_seq_len & target_seq_length >= min_seq_len & 
+                        source_seq_length <= max_seq_len & target_seq_length <= max_seq_len)
+  
+  # filter seq length and word vec lists
+  source_seq_length <- source_seq_length[seq_filter]
+  target_seq_length <- target_seq_length[seq_filter]
+  
+  source_word_vec_list <- source_word_vec_list[seq_filter]
+  target_word_vec_list <- target_word_vec_list[seq_filter]
+  
+  # word position within each sequence
+  seq_word_id_source <- unlist(sapply(source_seq_length, function(x) 1:x))
+  seq_word_id_target <- unlist(sapply(target_seq_length, function(x) 1:x))
+  
+  source_dt <- data.table(word = unlist(source_word_vec_list), 
+                          seq_id = rep(1:length(source_seq_length), times = source_seq_length),
+                          seq_word_id = seq_word_id_source)
+  
+  target_dt <- data.table(word = unlist(target_word_vec_list), 
+                          seq_id = rep(1:length(target_seq_length), times = target_seq_length),
+                          seq_word_id = seq_word_id_target)
+  
+  setkeyv(source_dt, "word")
+  setkeyv(target_dt, "word")
+  
+  rm(source_word_vec_list)
+  rm(target_word_vec_list)
+  gc()
+  
+  # Build vocabulary
+  if (is.null(dic)) {
+    
+    # count number of occurence of each word in the corpus
+    source_word_count = source_dt[, .N, by=word]
+    source_dic = source_word_count[N>=word_count_min,,][order(-N)]
+    
+    target_word_count = target_dt[, .N, by=word]
+    target_dic = target_word_count[N>=word_count_min,,][order(-N)]
+    
+    # add special tokens for padding - unknown words and beginning/end of sequence
+    source_dic_words = c("<PAD>", "<UNKNOWN>", source_dic$word)
+    source_dic = data.table(word_id = 1:length(source_dic_words)-1, word = source_dic_words)
+    setkeyv(source_dic, "word")
+    
+    target_dic_words = c("<PAD>", "<UNKNOWN>", target_dic$word)
+    target_dic = data.table(word_id = 1:length(target_dic_words)-1, word = target_dic_words)
+    setkeyv(target_dic, "word")
+    
+  }
+  
+  # index dictionnary word_id on corpus - replace words not present in dic by <UNKNOWN> id
+  source_dt <- source_dic[source_dt][order(seq_id, seq_word_id)]
+  source_dt <- setDT(source_dt)[is.na(word_id), word_id := 1L]
+  
+  target_dt <- target_dic[target_dt][order(seq_id, seq_word_id)]
+  target_dt <- setDT(target_dt)[is.na(word_id), word_id := 1L]
+
+  return(list(source_dt = source_dt, 
+              source_dic = source_dic,
+              source_seq_length = source_seq_length,
+              target_dt = target_dt,
+              target_dic = target_dic,
+              target_seq_length = target_seq_length))
+}
+
+```
+
+```{r, eval = FALSE}
+preprocess <- corpus_pre_process(source = raw_en, target = raw_fr, min_seq_len = 4, max_seq_len = 24, word_count_min = 20, dic = NULL)
+write_rds(preprocess, path = "data/preprocess_en_fr_4_24.rds")
+```
+
+
+### Make bucket data
+
+```{r, eval = FALSE}
+preprocess <- read_rds(path = "data/preprocess_en_fr_4_24.rds")
+
+create_buckets <- function(source, target, seq_len = c(225), 
+                           source_align = "left", target_align = "left",
+                           source_dic, target_dic) {
+  
+  
+  # convert long format into array of shape max_seq_length * samples
+  source <- dcast(data = source, seq_word_id ~ seq_id, value.var = "word_id", fill = 0)
+  source <- as.matrix(source[ , c("seq_word_id") := NULL])
+  
+  target <- dcast(data = target, seq_word_id ~ seq_id, value.var = "word_id", fill = 0)
+  target <- as.matrix(target[ , c("seq_word_id") := NULL])
+  
+  buckets = list("24" = list(data = source, label = target))
+  
+  return(list(buckets = buckets,
+              source_dic = source_dic,
+              target_dic = target_dic))
+}
+
+```
+
+```{r, eval = FALSE}
+buckets <- create_buckets(source = preprocess$source_dt, 
+                          target = preprocess$target_dt, 
+                          source_dic = preprocess$source_dic, 
+                          target_dic = preprocess$target_dic)
+write_rds(buckets, "data/buckets_en_fr_4_24.rds")
+```
+
