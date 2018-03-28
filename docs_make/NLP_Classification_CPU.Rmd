@@ -1,6 +1,8 @@
 ---
 title: "NLP Classification on CPU"
 output: github_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 > This tutorial presents an example of application of RNN to text classification using padded data to handle sequences of varying lengths. 
@@ -176,8 +178,8 @@ For bucketing, a list of symbols is defined, one for each bucket length. During 
 seq_len <- as.integer(train.data.single$bucket.names)
 
 symbol_single <- rnn.graph.unroll(seq_len = seq_len, config = "seq-to-one", cell_type = "lstm", 
-                                  num_rnn_layer = 1, num_embed = 2, num_hidden = 6, 
-                                  num_decode = 2, input_size = vocab, dropout = 0.5, 
+                                  num_rnn_layer = 2, num_embed = 2, num_hidden = 8, 
+                                  num_decode = 2, input_size = vocab, dropout = 0, 
                                   ignore_label = -1, loss_output = "softmax",
                                   output_last_state = F, masking = T)
 ```
@@ -187,7 +189,7 @@ bucket_list <- unique(c(train.data.bucket$bucket.names, eval.data.bucket$bucket.
 
 symbol_buckets <- sapply(bucket_list, function(seq) {
   rnn.graph.unroll(seq_len = as.integer(seq), config = "seq-to-one", cell_type = "lstm", 
-                   num_rnn_layer = 1, num_embed = 2, num_hidden = 6, 
+                   num_rnn_layer = 2, num_embed = 2, num_hidden = 8, 
                    num_decode = 2, input_size = vocab, dropout = 0.5, 
                    ignore_label = -1, loss_output = "softmax",
                    output_last_state = F, masking = T)
@@ -210,15 +212,15 @@ optimizer <- mx.opt.create("rmsprop", learning.rate = 1e-3, gamma1 = 0.95, gamma
 
 logger <- mx.metric.logger()
 epoch.end.callback <- mx.callback.log.train.metric(period = 1, logger = logger)
-batch.end.callback <- mx.callback.log.train.metric(period = 50)
+batch.end.callback <- mx.callback.log.speedometer(batch.size = batch.size, frequency = 20)
 
 system.time(
   model <- mx.model.buckets(symbol = symbol_single,
                             train.data = train.data.single, eval.data = eval.data.single,
-                            num.round = 8, ctx = devices, verbose = FALSE,
+                            num.round = 8, ctx = devices, verbose = TRUE,
                             metric = mx.metric.accuracy, optimizer = optimizer,  
                             initializer = initializer,
-                            batch.end.callback = NULL, 
+                            batch.end.callback = batch.end.callback, 
                             epoch.end.callback = epoch.end.callback)
 )
 
