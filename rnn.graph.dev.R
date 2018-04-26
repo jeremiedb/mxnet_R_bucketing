@@ -692,8 +692,8 @@ rnn.graph.unroll.straight <- function(num_rnn_layer,
   
   if (config=="seq-to-one") {
     
-    if (masking) mask <- mx.symbol.SequenceLast(data=data, use.sequence.length = T, sequence_length = seq.mask, axis = 1, name = paste0(prefix, "mask")) else
-      mask <- mx.symbol.SequenceLast(data=data, use.sequence.length = F, axis = 1, name = paste0(prefix, "mask"))
+    if (masking) mask <- mx.symbol.SequenceLast(data = data, use.sequence.length = T, sequence_length = seq.mask, axis = 1, name = paste0(prefix, "mask")) else
+      mask <- mx.symbol.SequenceLast(data = data, use.sequence.length = F, axis = 1, name = paste0(prefix, "mask"))
     
     if (!is.null(loss_output)) {
       
