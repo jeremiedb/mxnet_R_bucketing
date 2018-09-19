@@ -1,13 +1,14 @@
 ---
-title: "Time-Series on CPU"
+title: "Time-Series with custom RNN cell"
 output: github_document
 editor_options: 
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 This is a minimalistic demo on how to model time-series with RNN, including training and inference. 
 
-It relies on an explicit symbolic construction of the RNN cells (LSTM or GRU), thus supporting training on CPU unlike the FusedRNN operator that is CUDA dependent. 
+Rather than relying on the `mx.symbol.RNN` operator which provides a convenient and efficient implementation of common RNN cells such as the LSTM and GRU, the following example relies on a manual construction of the RNN cells and provides a structure from which alternative cells can be implemented. 
+
 
 ```{r, echo=TRUE, message=FALSE}
 library("readr")
@@ -18,18 +19,18 @@ library("mxnet")
 
 ### Data preparation
 
-In this step a collection of univariate time-series is built. 
-192 independent times series (_samples_) with each 100 observations (_seq_len_) are created. The modeling task will is predict the next value given the previous ones. 
+In this step, a dataset made of multiple univariate time-series is built. 
+500 independent times series (_n_) with each 100 observations (_seq_len_) are created. 
 
+The modeling task will be to predict the next value given the previous ones. The target variable can therefore be obtained by shifting the features by one timestep in the future. 
 
-
-The target variable is therefore obtained by shifting the features by one timestep in the future. 
+The resulting data is of shape [1, 100, 500] corresponding to [num_features, seq_length, samples]. In multivariate time-series, the dataset would follow the same structure, except that the num_features would be > 1. 
 
 ```{r, echo=TRUE}
 # number of timestamps
 seq_len = 100
 
-# nunmber of samples
+# number of samples
 n = 500
 
 # return a random starting point of the time series
@@ -63,7 +64,7 @@ plot_ly(x = 1:dim(x)[2], y = x[,,1], type = "scatter", mode = "lines", name = "f
 
 ### Create data iterators
 
-The training and evaluation data are made by splitting 
+The training and evaluation data are obtained by splitting the first 400 and the remaining observations into different `mx.io.arrayiter` iterators. 
 
 ```{r}
 batch.size = 32
@@ -80,6 +81,8 @@ eval.data <- mx.io.arrayiter(data = x[,,-train_ids, drop = F], label = y[, -trai
 
 
 ### Model architecture
+
+R-package provides a helper function, `rnn.graph.unroll`, to build the explicit graphs for LSTM and GRU. Here a graph with only 2 time-steps is built so as to have a reasonable size for display. 
 
 ```{r, echo=TRUE}
 symbol <- rnn.graph.unroll(seq_len = 2, 
@@ -106,8 +109,9 @@ graph = graph.viz(symbol, type = "graph", direction = "TD",
 graph
 ```
 
+Now the complete graph can be built by specifying a sequence length matching the data (_seq_len_ = 50).
 
-```{r, echo = FALSE}
+```{r, echo = TRUE}
 symbol <- rnn.graph.unroll(seq_len = seq_len, 
                            num_rnn_layer =  2, 
                            num_hidden = 50,
@@ -126,7 +130,7 @@ symbol <- rnn.graph.unroll(seq_len = seq_len,
 
 ### Fit a LSTM model
 
-Needs a custom metric to handle labels in a matrix rather than flat format in the iterator. 
+Prior to training, a custom metric is defined to handle labels that are in a 2D (matrix) format rather than in a flat vector as in vanilla regression models.  
 
 ```{r}
 mx.metric.mse.seq <- mx.metric.custom("MSE", function(label, pred) {
@@ -156,7 +160,7 @@ system.time(
   model <- mx.model.buckets(symbol = symbol,
                             train.data = train.data, 
                             eval.data = eval.data, 
-                            num.round = 100, ctx = ctx, verbose = TRUE,
+                            num.round = 60, ctx = ctx, verbose = TRUE,
                             metric = mx.metric.mse.seq, 
                             initializer = initializer, optimizer = optimizer, 
                             batch.end.callback = NULL, 
@@ -176,12 +180,12 @@ plot_ly(x = seq_len(length(logger$train)), y = logger$train, type = "scatter",
 
 Setup inference data. Need to apply preprocessing to inference sequence and convert into a infer data iterator. 
 
-### Build the inference symbols
+### Build the inference graph
 
-Two symbols: 
+Two graphs are built: 
 
-- first unrolled to the length of the inference sequence. 
-- second of length one on which to iterate up to the number of the desired inference steps. 
+1. Graph whose seq length matches the number of timesteps of the inference data. This will provide the state of the model that will subsequently feed the inference iterations. 
+2. Graph with a seq length of one used to iterate from the previous prediction state up up to the number of the desired inference steps. 
 
 ```{r}
 ctx <- mx.cpu()
