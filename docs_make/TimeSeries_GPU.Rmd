@@ -16,38 +16,63 @@ library("mxnet")
 
 ### Data preparation
 
-```{r, echo=TRUE}
-seq_len = 100
-samples = 192
+In this step, a dataset made of multiple univariate time-series is built. 
+500 independent times series (_n_) with each 100 observations (_seq_len_) are created. 
 
-seeds <- runif(samples, min = -pi, max = pi)
+The modeling task will be to predict the next value given the previous ones. The target variable can therefore be obtained by shifting the features by one timestep in the future. 
+
+The resulting data is of shape [1, 100, 500] corresponding to [num_features, seq_length, samples]. In multivariate time-series, the dataset would follow the same structure, except that the num_features would be > 1. 
+
+```{r, echo=TRUE}
+# number of timestamps
+seq_len = 100
+
+# number of samples
+n = 500
+
+# return a random starting point of the time series
+set.seed(12)
+seeds <- runif(n, min = 0, max = 24)
+
+# generate the time series of seq_length for each starting point
 pts <- sapply(seeds, function(x) sin(x + pi/12 * (0:(seq_len))))
 
+# build the features matrix
 x <- pts[1:seq_len, ]
-x <- array(x, dim = c(1, seq_len, samples))
+x <- array(x, dim = c(1, seq_len, n))
+
+# build the target array - same as feature but one timestep forward
 y <- pts[-1, ]
 
-p1 = plot_ly(x = 1:dim(x)[2], y = x[1,,1], type = "scatter", mode = "lines") %>% 
-  add_trace(x = 1:dim(x)[2], y = x[1,,2], type = "scatter", mode = "lines") %>% 
-  add_trace(x = 1:dim(x)[2], y = x[1,,3], type = "scatter", mode = "lines") %>% 
-  add_trace(x = 1:dim(x)[2], y = x[1,,4], type = "scatter", mode = "lines") %>% 
-  add_trace(x = 1:dim(x)[2], y = x[1,,5], type = "scatter", mode = "lines")
+# plot time series from 5 first samples
+plot_ly(x = 1:dim(x)[2], y = x[,,1], type = "scatter", mode = "lines") %>% 
+  add_trace(x = 1:dim(x)[2], y = x[,,2], type = "scatter", mode = "lines") %>% 
+  add_trace(x = 1:dim(x)[2], y = x[,,3], type = "scatter", mode = "lines") %>% 
+  add_trace(x = 1:dim(x)[2], y = x[,,4], type = "scatter", mode = "lines") %>% 
+  add_trace(x = 1:dim(x)[2], y = x[,,5], type = "scatter", mode = "lines") %>% 
+  layout(title = "Sample of 5 time series")
 
-p2 = plot_ly(x = 1:length(y[,1]), y = y[,1], type = "scatter", mode = "lines") %>%
-  add_trace(x = 1:length(y[,2]), y = y[,2], type = "scatter", mode = "lines")
 
-p1
+# plot first time series and its associated target
+plot_ly(x = 1:dim(x)[2], y = x[,,1], type = "scatter", mode = "lines", name = "feature") %>% 
+  add_trace(x = 1:dim(x)[2], y = y[,1], type = "scatter", mode = "lines", name = "target") %>% 
+  layout(title = "Sample of one time series")
 ```
 
 ### Create data iterators
 
-```{r}
-batch.size = 16
+The training and evaluation data are obtained by splitting the first 400 and the remaining observations into different `mx.io.arrayiter` iterators. 
 
-train.data <- mx.io.arrayiter(data = x[,,1:160, drop = F], label = y[, 1:160], 
+```{r}
+batch.size = 32
+
+# take first 400 samples for train - remaining 100 for evaluation
+train_ids <- 1:400
+
+train.data <- mx.io.arrayiter(data = x[,,train_ids, drop = F], label = y[, train_ids], 
                               batch.size = batch.size, shuffle = TRUE)
 
-eval.data <- mx.io.arrayiter(data = x[,,-(1:160), drop = F], label = y[, -(1:160)], 
+eval.data <- mx.io.arrayiter(data = x[,,-train_ids, drop = F], label = y[, -train_ids], 
                               batch.size = batch.size, shuffle = FALSE)
 ```
 
@@ -81,10 +106,10 @@ Needs a custom metric to handle labels in a matrix rather than flat format in th
 
 ```{r}
 mx.metric.mse.seq <- mx.metric.custom("Perplexity", function(label, pred) {
-  label = mx.nd.reshape(mx.nd.array(label), shape = -1)
-  label = as.array(label)
-  res <- mean((label-pred)^2)
-  return(res)
+  label = mx.nd.reshape(label, shape = -1)
+  pred = mx.nd.reshape(pred, shape = -1)
+  res <- mx.nd.mean(mx.nd.square(label-pred))
+  return(as.array(res))
 })
 ```
 
@@ -106,7 +131,7 @@ system.time(
   model <- mx.model.buckets(symbol = symbol,
                             train.data = train.data, 
                             eval.data = eval.data, 
-                            num.round = 250, ctx = ctx, verbose = TRUE,
+                            num.round = 100, ctx = ctx, verbose = TRUE,
                             metric = mx.metric.mse.seq, 
                             initializer = initializer, optimizer = optimizer, 
                             batch.end.callback = NULL, 
@@ -177,8 +202,8 @@ for (i in 1:pred_length) {
 ### Plot predictions against real values
 
 ```{r}
-data = mx.nd.array(x[, , 1, drop = F])
-label = mx.nd.array(y[, 1, drop = F])
+data <- mx.nd.array(x[, , 1, drop = F])
+label <- mx.nd.array(y[, 1, drop = F])
 
 plot_ly(x = 1:dim(y)[1], y = y[,1], type = "scatter", mode="lines", name = "hist") %>% 
   add_trace(x = dim(y)[1] + 1:length(real), y = real, type = "scatter", mode="lines", name = "real") %>% 
