@@ -135,10 +135,9 @@ Prior to training, a custom metric is defined to handle labels that are in a 2D 
 ```{r}
 mx.metric.mse.seq <- mx.metric.custom("MSE", function(label, pred) {
   label = mx.nd.reshape(label, shape = -1)
-  label = as.array(label)
-  pred = as.array(pred)
-  res <- mean((label-pred)^2)
-  return(res)
+  pred = mx.nd.reshape(pred, shape = -1)
+  res <- mx.nd.mean(mx.nd.square(label-pred))
+  return(as.array(res))
 })
 ```
 

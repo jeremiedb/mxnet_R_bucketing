@@ -32,17 +32,17 @@ require("mxnet")
 
 ## Load model
 
-A ResNet34 model is loaded and its last convolution output is grouped together the softmax output. Also, the weights of the last fully connected output is extracted. 
+A ResNet model is loaded and its last convolution output is grouped together the softmax output. Also, the weights of the last fully connected output is extracted. 
 
 These are the key ingredients of the class activation map. 
 
 ```{r, echo=TRUE}
-resnet34 <- mx.model.load("C:/Data/NeuralNet/mxnet/image-classifier/Models/Resnet34/resnet-34", iteration=0)
+resnet <- mx.model.load("../models/resnet-50", iteration=0)
 
-labels_resnet <- readLines("C:/Data/NeuralNet/mxnet/image-classifier/Models/Resnet101/synset.txt")
+labels_resnet <- readLines("../models/synset.txt")
 labels_resnet <- gsub(pattern = "(n\\d+\\s)(.+)", replacement="\\2", x=labels_resnet)
 
-symbol <- resnet34$symbol
+symbol <- resnet$symbol
 internals <- symbol$get.internals()
 outputs <- internals$outputs
 
@@ -52,7 +52,7 @@ conv <- internals$get.output(which(outputs=="relu1_output"))
 softmax <- internals$get.output(which(outputs=="softmax_output"))
 symbol_group <- mx.symbol.Group(c(conv, softmax))
 # last fully connected weights
-weight_fc <- resnet34$arg.params$fc1_weight
+weight_fc <- resnet$arg.params$fc1_weight
 ```
 
 
@@ -72,7 +72,7 @@ preproc_resnet_pad <- function(im, resize=224) {
   return(array)
 }
 
-im <- imager::load.image("../data/Cat-and-dog.jpg")
+im <- imager::load.image("../models/cat-dog-2.jpg")
 
 data_array <- preproc_resnet_pad(im)
 data = mx.nd.array(data_array)
@@ -88,8 +88,8 @@ plot(im_array %>% as.cimg())
 
 ```{r}
 arg_names <- symbol_group$arguments
-arg.arrays <- c(list(data=data, softmax_label = label), resnet34$arg.params)[arg_names]
-aux.arrays <- resnet34$aux.params[symbol_group$auxiliary.states]
+arg.arrays <- c(list(data=data, softmax_label = label), resnet$arg.params)[arg_names]
+aux.arrays <- resnet$aux.params[symbol_group$auxiliary.states]
 
 # outputs = mod.predict(blob)
 exec <- mxnet:::mx.symbol.bind(symbol = symbol_group, ctx = mx.cpu(), 
@@ -104,7 +104,7 @@ conv_fm = outputs[[1]]
 dim(conv_fm)
 
 # get the indices of the topk predictions
-top_k = 4
+top_k = 8
 inds_topk <- mx.nd.topk(data=score, axis=1, k=top_k) %>% mx.nd.reshape(-1)
 labels_resnet[as.array(inds_topk)+1]
 ```
@@ -174,7 +174,7 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
 ```
 
 
-```{r}
+```{r, fig.height=12, fig.width=8}
 weight_fc_topk = mx.nd.take(weight_fc, indices = inds_topk, axis = 0)
 cam = get_cam(conv_fm = conv_fm, weight_fc = weight_fc_topk)
 cam_array = cam %>% as.array()

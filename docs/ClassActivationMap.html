@@ -23,7 +23,9 @@
 <script src="site_libs/navigation-1.1/codefolding.js"></script>
 <link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
 <script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
-<link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-5.0.13/css/fa-svg-with-js.css" rel="stylesheet" />
+<script src="site_libs/font-awesome-5.0.13/js/fontawesome-all.min.js"></script>
+<script src="site_libs/font-awesome-5.0.13/js/fa-v4-shims.min.js"></script>
 
 <style type="text/css">code{white-space: pre;}</style>
 <style type="text/css">
@@ -36,7 +38,7 @@ if (window.hljs) {
   hljs.configure({languages: []});
   hljs.initHighlightingOnLoad();
   if (document.readyState && document.readyState === "complete") {
-    window.setTimeout(function() { hljs.initHighlightingOnLoad(); }, 0);
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
   }
 }
 </script>
@@ -92,6 +94,9 @@ img {
 }
 .tabbed-pane {
   padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
 }
 button.code-folding-btn:focus {
   outline: none;
@@ -228,7 +233,7 @@ $(document).ready(function () {
         </ul>
   </li>
   
-  <li><a href="">CNN NLP Classification</a></li>
+  <li><a href="CNN_NLP_Classification.html">CNN NLP Classification</a></li>
   
   </ul>
   
@@ -281,14 +286,14 @@ require(&quot;imager&quot;)
 require(&quot;mxnet&quot;)</code></pre>
 <div id="load-model" class="section level2">
 <h2>Load model</h2>
-<p>A ResNet34 model is loaded and its last convolution output is grouped together the softmax output. Also, the weights of the last fully connected output is extracted.</p>
+<p>A ResNet model is loaded and its last convolution output is grouped together the softmax output. Also, the weights of the last fully connected output is extracted.</p>
 <p>These are the key ingredients of the class activation map.</p>
-<pre class="r"><code>resnet34 &lt;- mx.model.load(&quot;C:/Data/NeuralNet/mxnet/image-classifier/Models/Resnet34/resnet-34&quot;, iteration=0)
+<pre class="r"><code>resnet &lt;- mx.model.load(&quot;../models/resnet-50&quot;, iteration=0)
 
-labels_resnet &lt;- readLines(&quot;C:/Data/NeuralNet/mxnet/image-classifier/Models/Resnet101/synset.txt&quot;)
+labels_resnet &lt;- readLines(&quot;../models/synset.txt&quot;)
 labels_resnet &lt;- gsub(pattern = &quot;(n\\d+\\s)(.+)&quot;, replacement=&quot;\\2&quot;, x=labels_resnet)
 
-symbol &lt;- resnet34$symbol
+symbol &lt;- resnet$symbol
 internals &lt;- symbol$get.internals()
 outputs &lt;- internals$outputs
 
@@ -298,7 +303,7 @@ conv &lt;- internals$get.output(which(outputs==&quot;relu1_output&quot;))
 softmax &lt;- internals$get.output(which(outputs==&quot;softmax_output&quot;))
 symbol_group &lt;- mx.symbol.Group(c(conv, softmax))
 # last fully connected weights
-weight_fc &lt;- resnet34$arg.params$fc1_weight</code></pre>
+weight_fc &lt;- resnet$arg.params$fc1_weight</code></pre>
 </div>
 <div id="image-treatment" class="section level2">
 <h2>Image treatment</h2>
@@ -314,7 +319,7 @@ weight_fc &lt;- resnet34$arg.params$fc1_weight</code></pre>
   return(array)
 }
 
-im &lt;- imager::load.image(&quot;../data/Cat-and-dog.jpg&quot;)
+im &lt;- imager::load.image(&quot;../models/cat-dog-2.jpg&quot;)
 
 data_array &lt;- preproc_resnet_pad(im)
 data = mx.nd.array(data_array)
@@ -329,8 +334,8 @@ plot(im_array %&gt;% as.cimg())</code></pre>
 <div id="generate-activation-map" class="section level2">
 <h2>Generate activation map</h2>
 <pre class="r"><code>arg_names &lt;- symbol_group$arguments
-arg.arrays &lt;- c(list(data=data, softmax_label = label), resnet34$arg.params)[arg_names]
-aux.arrays &lt;- resnet34$aux.params[symbol_group$auxiliary.states]
+arg.arrays &lt;- c(list(data=data, softmax_label = label), resnet$arg.params)[arg_names]
+aux.arrays &lt;- resnet$aux.params[symbol_group$auxiliary.states]
 
 # outputs = mod.predict(blob)
 exec &lt;- mxnet:::mx.symbol.bind(symbol = symbol_group, ctx = mx.cpu(), 
@@ -343,15 +348,19 @@ outputs &lt;- exec$outputs
 score = outputs[[2]]
 conv_fm = outputs[[1]]
 dim(conv_fm)</code></pre>
-<pre><code>## [1]   7   7 512   1</code></pre>
+<pre><code>## [1]    7    7 2048    1</code></pre>
 <pre class="r"><code># get the indices of the topk predictions
-top_k = 4
+top_k = 8
 inds_topk &lt;- mx.nd.topk(data=score, axis=1, k=top_k) %&gt;% mx.nd.reshape(-1)
 labels_resnet[as.array(inds_topk)+1]</code></pre>
-<pre><code>## [1] &quot;boxer&quot;                                                                                             
-## [2] &quot;English foxhound&quot;                                                                                  
-## [3] &quot;Siamese cat, Siamese&quot;                                                                              
-## [4] &quot;American Staffordshire terrier, Staffordshire terrier, American pit bull terrier, pit bull terrier&quot;</code></pre>
+<pre><code>## [1] &quot;cocker spaniel, English cocker spaniel, cocker&quot;
+## [2] &quot;golden retriever&quot;                              
+## [3] &quot;standard poodle&quot;                               
+## [4] &quot;Sussex spaniel&quot;                                
+## [5] &quot;basset, basset hound&quot;                          
+## [6] &quot;Welsh springer spaniel&quot;                        
+## [7] &quot;tiger cat&quot;                                     
+## [8] &quot;tabby, tabby cat&quot;</code></pre>
 </div>
 <div id="cam-function" class="section level2">
 <h2>CAM function</h2>
@@ -401,7 +410,7 @@ for (k in 1:top_k) {
 }
 
 multiplot(plotlist = plots, cols = 2)</code></pre>
-<p><img src="ClassActivationMap_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<p><img src="ClassActivationMap_files/figure-html/unnamed-chunk-7-1.png" width="768" /></p>
 </div>
 
 

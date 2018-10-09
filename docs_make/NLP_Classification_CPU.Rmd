@@ -36,8 +36,8 @@ nodes <- combine_ndfs(nodes_1, nodes_2)
 edges <- create_edge_df(from = c(rep(1,6)), to= c(2:7))
 
 graph1 <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed = T) %>% 
-  set_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
-  set_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
+  add_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
+  add_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
 
 render_graph(graph1, height = 120)
 
@@ -48,8 +48,8 @@ nodes <- combine_ndfs(nodes_3, nodes_4)
 edges <- create_edge_df(from = c(rep(1,6)), to= c(2:7))
 
 graph2 <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed = T) %>% 
-  set_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
-  set_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
+  add_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
+  add_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
 
 render_graph(graph2, height = 120)
 ```
@@ -65,7 +65,7 @@ nodes <- combine_ndfs(nodes_1, nodes_2)
 edges <- create_edge_df(from = c(1, rep(2,6)), to= c(2, 3:8), color = "black")
 
 graph1 <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed = T) %>% 
-  set_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
+  add_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
   add_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
 
 render_graph(graph1, height = 180)
@@ -77,7 +77,7 @@ nodes <- combine_ndfs(nodes_3, nodes_4)
 edges <- create_edge_df(from = c(1, rep(2,4)), to= c(2, 3:6), color = "black")
 
 graph2 <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed = T) %>% 
-  set_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
+  add_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
   add_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
 
 render_graph(graph2, height = 180)
@@ -92,13 +92,13 @@ nodes_2 <- DiagrammeR::create_node_df(n = 6, label = c("1", "2", "3", "4", "5", 
 nodes_3 <- DiagrammeR::create_node_df(n = 6, label = c("0.11\n0.65", "-0.21\n0.52", "-0.44\n0.84", "0.89\n0.04", "1.88\n2.59", "-0.21\n0.52"), level = 2, fillcolor = adjustcolor("blue", alpha.f = 0.2), style = "filled", shape = "box", color = "blue", fontcolor = "black")
 
 nodes <- combine_ndfs(nodes_1, nodes_2, nodes_3)
-edges <- create_edge_df(from = c(1:12), to= c(7:18), label = NA)
+edges <- create_edge_df(from = c(1:12), to= c(7:18), label = " ")
 edges$label[6] <- "   indexing"
 edges$label[12] <- "   embedding"
 
 graph <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed = T) %>% 
-  set_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
-  set_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
+  add_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
+  add_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
 
 render_graph(graph, height = 200)
 
@@ -108,13 +108,13 @@ nodes_2 <- DiagrammeR::create_node_df(n = 4, label = c("7", "2", "8", "0"), leve
 nodes_3 <- DiagrammeR::create_node_df(n = 4, label = c("0.77\n0.35", "-0.21\n0.52", "-0.14\n-0.49", "0.00\n0.00"), level = 2, fillcolor = adjustcolor("blue", alpha.f = 0.2), style = "filled", shape = "box", color = "blue", fontcolor = "black")
 
 nodes <- combine_ndfs(nodes_1, nodes_2, nodes_3)
-edges <- create_edge_df(from = c(1:8), to= c(5:12), label = NA)
+edges <- create_edge_df(from = c(1:8), to= c(5:12), label = " ")
 edges$label[4] <- "   indexing"
 edges$label[8] <- "   embedding"
 
 graph <- DiagrammeR::create_graph(nodes_df = nodes, edges_df = edges, directed = T) %>% 
-  set_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
-  set_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
+  add_global_graph_attrs("layout", value = "dot", attr_type = "graph") %>% 
+  add_global_graph_attrs("rankdir", value = "TD", attr_type = "graph")
 
 render_graph(graph, height = 200)
 ```

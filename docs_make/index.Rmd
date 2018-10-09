@@ -10,4 +10,8 @@ output: html_document
 
 * Time series model
 
+* Vision (activation map)
+
+* Machine translation (WIP)
+
 * NLP Sentiment analysis with CNN

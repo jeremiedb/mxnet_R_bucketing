@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 
 <html xmlns="http://www.w3.org/1999/xhtml">
 
@@ -22,17 +22,19 @@
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
 <link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
 <script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
-<script src="site_libs/htmlwidgets-0.9/htmlwidgets.js"></script>
+<script src="site_libs/htmlwidgets-1.2/htmlwidgets.js"></script>
 <script src="site_libs/viz-0.3/viz.js"></script>
 <link href="site_libs/DiagrammeR-styles-0.2/styles.css" rel="stylesheet" />
-<script src="site_libs/grViz-binding-0.9.2/grViz.js"></script>
-<script src="site_libs/plotly-binding-4.7.1/plotly.js"></script>
+<script src="site_libs/grViz-binding-1.0.0/grViz.js"></script>
+<script src="site_libs/plotly-binding-4.8.0.9000/plotly.js"></script>
 <script src="site_libs/typedarray-0.1/typedarray.min.js"></script>
 <link href="site_libs/crosstalk-1.0.0/css/crosstalk.css" rel="stylesheet" />
 <script src="site_libs/crosstalk-1.0.0/js/crosstalk.min.js"></script>
-<link href="site_libs/plotlyjs-1.29.2/plotly-htmlwidgets.css" rel="stylesheet" />
-<script src="site_libs/plotlyjs-1.29.2/plotly-latest.min.js"></script>
-<link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
+<link href="site_libs/plotly-htmlwidgets-css-1.40.1/plotly-htmlwidgets.css" rel="stylesheet" />
+<script src="site_libs/plotly-main-1.40.1/plotly-latest.min.js"></script>
+<link href="site_libs/font-awesome-5.0.13/css/fa-svg-with-js.css" rel="stylesheet" />
+<script src="site_libs/font-awesome-5.0.13/js/fontawesome-all.min.js"></script>
+<script src="site_libs/font-awesome-5.0.13/js/fa-v4-shims.min.js"></script>
 
 <style type="text/css">code{white-space: pre;}</style>
 <style type="text/css">
@@ -101,6 +103,9 @@ img {
 }
 .tabbed-pane {
   padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
 }
 button.code-folding-btn:focus {
   outline: none;
@@ -209,8 +214,15 @@ $(document).ready(function () {
   <li class="dropdown">
     <a class="dropdown-toggle" data-toggle="dropdown">Time Series<b class="caret"></b></a>
     <ul class="dropdown-menu" role="menu">
-        <li><a href="TimeSeries_GPU">GPU</a></li>
-        <li><a href="TimeSeries_CPU">CPU</a></li>
+        <li><a href="TimeSeries_GPU.html">GPU</a></li>
+        <li><a href="TimeSeries_CPU.html">CPU</a></li>
+        </ul>
+  </li>
+  
+    <li class="dropdown">
+    <a class="dropdown-toggle" data-toggle="dropdown">Vision<b class="caret"></b></a>
+    <ul class="dropdown-menu" role="menu">
+        <li><a href="ClassActivationMap.html">Activation Map</a></li>
         </ul>
   </li>
   
@@ -299,8 +311,8 @@ eval.data &lt;- mx.io.bucket.iter(buckets = corpus_bucketed_test$buckets, batch.
 
 graph.viz(rnn_graph_one_one, type = &quot;graph&quot;, direction = &quot;LR&quot;, 
           graph.height.px = 180, shape=c(100, 64))</code></pre>
-<div id="htmlwidget-1de0823d59c317e8cb52" style="width:672px;height:180px;" class="grViz html-widget"></div>
-<script type="application/json" data-for="htmlwidget-1de0823d59c317e8cb52">{"x":{"diagram":"digraph {\n\ngraph [layout = \"dot\",\n       rankdir = \"LR\"]\n\n\n  \"1\" [label = \"data\ndata\", shape = \"oval\", penwidth = \"2\", color = \"#8dd3c7\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#8DD3C7FF\"] \n  \"2\" [label = \"Embedding\nembed\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"3\" [label = \"SwapAxis\nswap_pre\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"4\" [label = \"RNN\nRNN\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"5\" [label = \"_copy\nmask\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"6\" [label = \"SwapAxis\nswap_post\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"7\" [label = \"Reshape\nreshape0\", shape = \"oval\", penwidth = \"2\", color = \"#fdb462\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FDB462FF\"] \n  \"8\" [label = \"FullyConnected\ndecode\n82\", shape = \"box\", penwidth = \"2\", color = \"#fb8072\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FB8072FF\"] \n  \"9\" [label = \"Reshape\nreshape1\", shape = \"oval\", penwidth = \"2\", color = \"#fdb462\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FDB462FF\"] \n  \"10\" [label = \"SoftmaxOutput\nloss\", shape = \"box\", penwidth = \"2\", color = \"#b3de69\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#B3DE69FF\"] \n\"1\"->\"2\" [id = \"1\", color = \"black\", fontcolor = \"black\"] \n\"2\"->\"3\" [id = \"2\", color = \"black\", fontcolor = \"black\"] \n\"3\"->\"4\" [id = \"3\", color = \"black\", fontcolor = \"black\"] \n\"4\"->\"5\" [id = \"4\", color = \"black\", fontcolor = \"black\"] \n\"5\"->\"6\" [id = \"5\", color = \"black\", fontcolor = \"black\"] \n\"6\"->\"7\" [id = \"6\", color = \"black\", fontcolor = \"black\"] \n\"7\"->\"8\" [id = \"7\", color = \"black\", fontcolor = \"black\"] \n\"8\"->\"10\" [id = \"8\", color = \"black\", fontcolor = \"black\"] \n\"9\"->\"10\" [id = \"9\", color = \"black\", fontcolor = \"black\"] \n}","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-7523d67581b10afec39b" style="width:672px;height:180px;" class="grViz html-widget"></div>
+<script type="application/json" data-for="htmlwidget-7523d67581b10afec39b">{"x":{"diagram":"digraph {\n\ngraph [layout = \"dot\",\n       rankdir = \"LR\"]\n\n\n\n  \"1\" [label = \"data\ndata\", shape = \"oval\", penwidth = \"2\", color = \"#8dd3c7\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#8DD3C7FF\"] \n  \"2\" [label = \"Embedding\nembed\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"3\" [label = \"SwapAxis\nswap_pre\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"4\" [label = \"RNN\nRNN\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"5\" [label = \"_copy\nmask\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"6\" [label = \"SwapAxis\nswap_post\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"7\" [label = \"Reshape\nreshape0\", shape = \"oval\", penwidth = \"2\", color = \"#fdb462\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FDB462FF\"] \n  \"8\" [label = \"FullyConnected\ndecode\n82\", shape = \"box\", penwidth = \"2\", color = \"#fb8072\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FB8072FF\"] \n  \"9\" [label = \"Reshape\nreshape1\", shape = \"oval\", penwidth = \"2\", color = \"#fdb462\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FDB462FF\"] \n  \"10\" [label = \"SoftmaxOutput\nloss\", shape = \"box\", penwidth = \"2\", color = \"#b3de69\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#B3DE69FF\"] \n\"1\"->\"2\" [color = \"black\", fontcolor = \"black\"] \n\"2\"->\"3\" [color = \"black\", fontcolor = \"black\"] \n\"3\"->\"4\" [color = \"black\", fontcolor = \"black\"] \n\"4\"->\"5\" [color = \"black\", fontcolor = \"black\"] \n\"5\"->\"6\" [color = \"black\", fontcolor = \"black\"] \n\"6\"->\"7\" [color = \"black\", fontcolor = \"black\"] \n\"7\"->\"8\" [color = \"black\", fontcolor = \"black\"] \n\"8\"->\"10\" [color = \"black\", fontcolor = \"black\"] \n\"9\"->\"10\" [color = \"black\", fontcolor = \"black\"] \n}","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
 </div>
 <div id="fit-a-lstm-model" class="section level2">
 <h2>Fit a LSTM model</h2>
@@ -350,8 +362,8 @@ model &lt;- mx.model.buckets(symbol = rnn_graph_one_one,
                           epoch.end.callback = epoch.end.callback)
 
 mx.model.save(model, prefix = &quot;../models/model_one_to_one_lstm_gpu&quot;, iteration = 1)</code></pre>
-<div id="1a78416bca76" style="width:672px;height:480px;" class="plotly html-widget"></div>
-<script type="application/json" data-for="1a78416bca76">{"x":{"visdat":{"1a7896ad5d8":["function () ","plotlyVisDat"]},"cur_data":"1a7896ad5d8","attrs":{"1a7896ad5d8":{"x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"y":[11.9908074726261,5.43284824871591,4.68428404461981,4.41820897706301,4.27972382926986,4.19397306054584,4.12471220637424,4.07547251734196,4.03877194239547,4.01089341622931,3.98659906068145,3.96178646941131,3.94904773851274,3.92892354217679,3.91658325935671,3.90424684705116,3.89517904431154,3.88233522853158,3.87469708058784,3.86415880479094],"mode":"markers+lines","name":"train","alpha":1,"sizes":[10,100],"type":"scatter"},"1a7896ad5d8.1":{"x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"y":[6.01331988149493,4.62977516299701,4.25671677783748,4.11347193193576,4.00114124429657,3.95858890578693,3.91655920657103,3.87174100819531,3.85014371069184,3.8178915431453,3.80522690604156,3.78804819949282,3.76875807167312,3.77465306129509,3.75452229289713,3.73035501831308,3.7292380748743,3.73579720642593,3.72486032495679,3.72350329551065],"mode":"markers+lines","name":"eval","alpha":1,"sizes":[10,100],"type":"scatter"}},"layout":{"margin":{"b":40,"l":60,"t":25,"r":10},"xaxis":{"domain":[0,1]},"yaxis":{"domain":[0,1]},"hovermode":"closest","showlegend":true},"source":"A","config":{"modeBarButtonsToAdd":[{"name":"Collaborate","icon":{"width":1000,"ascent":500,"descent":-50,"path":"M487 375c7-10 9-23 5-36l-79-259c-3-12-11-23-22-31-11-8-22-12-35-12l-263 0c-15 0-29 5-43 15-13 10-23 23-28 37-5 13-5 25-1 37 0 0 0 3 1 7 1 5 1 8 1 11 0 2 0 4-1 6 0 3-1 5-1 6 1 2 2 4 3 6 1 2 2 4 4 6 2 3 4 5 5 7 5 7 9 16 13 26 4 10 7 19 9 26 0 2 0 5 0 9-1 4-1 6 0 8 0 2 2 5 4 8 3 3 5 5 5 7 4 6 8 15 12 26 4 11 7 19 7 26 1 1 0 4 0 9-1 4-1 7 0 8 1 2 3 5 6 8 4 4 6 6 6 7 4 5 8 13 13 24 4 11 7 20 7 28 1 1 0 4 0 7-1 3-1 6-1 7 0 2 1 4 3 6 1 1 3 4 5 6 2 3 3 5 5 6 1 2 3 5 4 9 2 3 3 7 5 10 1 3 2 6 4 10 2 4 4 7 6 9 2 3 4 5 7 7 3 2 7 3 11 3 3 0 8 0 13-1l0-1c7 2 12 2 14 2l218 0c14 0 25-5 32-16 8-10 10-23 6-37l-79-259c-7-22-13-37-20-43-7-7-19-10-37-10l-248 0c-5 0-9-2-11-5-2-3-2-7 0-12 4-13 18-20 41-20l264 0c5 0 10 2 16 5 5 3 8 6 10 11l85 282c2 5 2 10 2 17 7-3 13-7 17-13z m-304 0c-1-3-1-5 0-7 1-1 3-2 6-2l174 0c2 0 4 1 7 2 2 2 4 4 5 7l6 18c0 3 0 5-1 7-1 1-3 2-6 2l-173 0c-3 0-5-1-8-2-2-2-4-4-4-7z m-24-73c-1-3-1-5 0-7 2-2 3-2 6-2l174 0c2 0 5 0 7 2 3 2 4 4 5 7l6 18c1 2 0 5-1 6-1 2-3 3-5 3l-174 0c-3 0-5-1-7-3-3-1-4-4-5-6z"},"click":"function(gd) { \n        // is this being viewed in RStudio?\n        if (location.search == '?viewer_pane=1') {\n          alert('To learn about plotly for collaboration, visit:\\n https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html');\n        } else {\n          window.open('https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html', '_blank');\n        }\n      }"}],"cloud":false},"data":[{"x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"y":[11.9908074726261,5.43284824871591,4.68428404461981,4.41820897706301,4.27972382926986,4.19397306054584,4.12471220637424,4.07547251734196,4.03877194239547,4.01089341622931,3.98659906068145,3.96178646941131,3.94904773851274,3.92892354217679,3.91658325935671,3.90424684705116,3.89517904431154,3.88233522853158,3.87469708058784,3.86415880479094],"mode":"markers+lines","name":"train","type":"scatter","line":{"fillcolor":"rgba(31,119,180,1)","color":"rgba(31,119,180,1)"},"xaxis":"x","yaxis":"y","frame":null},{"x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"y":[6.01331988149493,4.62977516299701,4.25671677783748,4.11347193193576,4.00114124429657,3.95858890578693,3.91655920657103,3.87174100819531,3.85014371069184,3.8178915431453,3.80522690604156,3.78804819949282,3.76875807167312,3.77465306129509,3.75452229289713,3.73035501831308,3.7292380748743,3.73579720642593,3.72486032495679,3.72350329551065],"mode":"markers+lines","name":"eval","type":"scatter","line":{"fillcolor":"rgba(255,127,14,1)","color":"rgba(255,127,14,1)"},"xaxis":"x","yaxis":"y","frame":null}],"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.2,"selected":{"opacity":1}},"base_url":"https://plot.ly"},"evals":["config.modeBarButtonsToAdd.0.click"],"jsHooks":{"render":[{"code":"function(el, x) { var ctConfig = crosstalk.var('plotlyCrosstalkOpts').set({\"on\":\"plotly_click\",\"persistent\":false,\"dynamic\":false,\"selectize\":false,\"opacityDim\":0.2,\"selected\":{\"opacity\":1}}); }","data":null}]}}</script>
+<div id="htmlwidget-f993eb422365c6a935c6" style="width:672px;height:480px;" class="plotly html-widget"></div>
+<script type="application/json" data-for="htmlwidget-f993eb422365c6a935c6">{"x":{"visdat":{"f802351611c":["function () ","plotlyVisDat"]},"cur_data":"f802351611c","attrs":{"f802351611c":{"x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"y":[12.380876487089,5.49346843186572,4.70028222875907,4.42965923198839,4.29405229560506,4.20116980762091,4.14314829622547,4.09528188765472,4.05996975920093,4.03085483068804,4.00323144464285,3.98539446582845,3.96774838732973,3.95076858656934,3.93970674809192,3.92880598267351,3.92066314878586,3.91075917882975,3.9021295706939,3.89276886354198],"mode":"markers+lines","name":"train","alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"type":"scatter"},"f802351611c.1":{"x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"y":[6.18719297266956,4.6353413520239,4.23717560012653,4.11051897838691,4.00668668758232,3.97113061273022,3.9072492001927,3.87483769507751,3.85625373413802,3.8242321113804,3.81171959742641,3.79382422652698,3.77527581746718,3.76871475449323,3.77271804746886,3.75691382237757,3.75997297424379,3.74185013078427,3.73787962700353,3.73679917298982],"mode":"markers+lines","name":"eval","alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"type":"scatter","inherit":true}},"layout":{"margin":{"b":40,"l":60,"t":25,"r":10},"xaxis":{"domain":[0,1],"automargin":true,"title":[]},"yaxis":{"domain":[0,1],"automargin":true,"title":[]},"hovermode":"closest","showlegend":true},"source":"A","config":{"modeBarButtonsToAdd":[{"name":"Collaborate","icon":{"width":1000,"ascent":500,"descent":-50,"path":"M487 375c7-10 9-23 5-36l-79-259c-3-12-11-23-22-31-11-8-22-12-35-12l-263 0c-15 0-29 5-43 15-13 10-23 23-28 37-5 13-5 25-1 37 0 0 0 3 1 7 1 5 1 8 1 11 0 2 0 4-1 6 0 3-1 5-1 6 1 2 2 4 3 6 1 2 2 4 4 6 2 3 4 5 5 7 5 7 9 16 13 26 4 10 7 19 9 26 0 2 0 5 0 9-1 4-1 6 0 8 0 2 2 5 4 8 3 3 5 5 5 7 4 6 8 15 12 26 4 11 7 19 7 26 1 1 0 4 0 9-1 4-1 7 0 8 1 2 3 5 6 8 4 4 6 6 6 7 4 5 8 13 13 24 4 11 7 20 7 28 1 1 0 4 0 7-1 3-1 6-1 7 0 2 1 4 3 6 1 1 3 4 5 6 2 3 3 5 5 6 1 2 3 5 4 9 2 3 3 7 5 10 1 3 2 6 4 10 2 4 4 7 6 9 2 3 4 5 7 7 3 2 7 3 11 3 3 0 8 0 13-1l0-1c7 2 12 2 14 2l218 0c14 0 25-5 32-16 8-10 10-23 6-37l-79-259c-7-22-13-37-20-43-7-7-19-10-37-10l-248 0c-5 0-9-2-11-5-2-3-2-7 0-12 4-13 18-20 41-20l264 0c5 0 10 2 16 5 5 3 8 6 10 11l85 282c2 5 2 10 2 17 7-3 13-7 17-13z m-304 0c-1-3-1-5 0-7 1-1 3-2 6-2l174 0c2 0 4 1 7 2 2 2 4 4 5 7l6 18c0 3 0 5-1 7-1 1-3 2-6 2l-173 0c-3 0-5-1-8-2-2-2-4-4-4-7z m-24-73c-1-3-1-5 0-7 2-2 3-2 6-2l174 0c2 0 5 0 7 2 3 2 4 4 5 7l6 18c1 2 0 5-1 6-1 2-3 3-5 3l-174 0c-3 0-5-1-7-3-3-1-4-4-5-6z"},"click":"function(gd) { \n        // is this being viewed in RStudio?\n        if (location.search == '?viewer_pane=1') {\n          alert('To learn about plotly for collaboration, visit:\\n https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html');\n        } else {\n          window.open('https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html', '_blank');\n        }\n      }"}],"cloud":false},"data":[{"x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"y":[12.380876487089,5.49346843186572,4.70028222875907,4.42965923198839,4.29405229560506,4.20116980762091,4.14314829622547,4.09528188765472,4.05996975920093,4.03085483068804,4.00323144464285,3.98539446582845,3.96774838732973,3.95076858656934,3.93970674809192,3.92880598267351,3.92066314878586,3.91075917882975,3.9021295706939,3.89276886354198],"mode":"markers+lines","name":"train","type":"scatter","marker":{"color":"rgba(31,119,180,1)","line":{"color":"rgba(31,119,180,1)"}},"error_y":{"color":"rgba(31,119,180,1)"},"error_x":{"color":"rgba(31,119,180,1)"},"line":{"color":"rgba(31,119,180,1)"},"xaxis":"x","yaxis":"y","frame":null},{"x":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],"y":[6.18719297266956,4.6353413520239,4.23717560012653,4.11051897838691,4.00668668758232,3.97113061273022,3.9072492001927,3.87483769507751,3.85625373413802,3.8242321113804,3.81171959742641,3.79382422652698,3.77527581746718,3.76871475449323,3.77271804746886,3.75691382237757,3.75997297424379,3.74185013078427,3.73787962700353,3.73679917298982],"mode":"markers+lines","name":"eval","type":"scatter","marker":{"color":"rgba(255,127,14,1)","line":{"color":"rgba(255,127,14,1)"}},"error_y":{"color":"rgba(255,127,14,1)"},"error_x":{"color":"rgba(255,127,14,1)"},"line":{"color":"rgba(255,127,14,1)"},"xaxis":"x","yaxis":"y","frame":null}],"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.2,"selected":{"opacity":1},"debounce":0},"base_url":"https://plot.ly"},"evals":["config.modeBarButtonsToAdd.0.click"],"jsHooks":[]}</script>
 </div>
 <div id="inference-on-test-data" class="section level2">
 <h2>Inference on test data</h2>
@@ -414,7 +426,7 @@ for (i in 1:100) {
 
 predict_txt &lt;- paste0(rev_dic[as.character(predict)], collapse = &quot;&quot;)
 predict_txt_tot &lt;- paste0(infer_raw, predict_txt, collapse = &quot;&quot;)</code></pre>
-<p>Generated sequence: The United States are a standing the country and the challenges and the challenges and the challenges and the challenges a</p>
+<p>Generated sequence: The United States are a strengthen the country to the country to the country to the country to the country to the country</p>
 <p>Key ideas appear somewhat overemphasized.</p>
 </div>
 <div id="inference-from-random-sample" class="section level3">
@@ -463,7 +475,7 @@ for (i in 1:100) {
 
 predict_txt &lt;- paste0(rev_dic[as.character(predict)], collapse = &quot;&quot;)
 predict_txt_tot &lt;- paste0(infer_raw, predict_txt, collapse = &quot;&quot;)</code></pre>
-<p>Generated sequence: The United States are the same college to make their new Veprication in their differences enough of 2005 Rebuby American A</p>
+<p>Generated sequence: The United States are not a sense, we have all of Americax Department in Washington’s President Bostrease than a member th</p>
 <p>Now we get a more alembicated political speech.</p>
 </div>
 </div>

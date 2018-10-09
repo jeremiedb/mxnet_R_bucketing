@@ -5,7 +5,7 @@ editor_options:
   chunk_output_type: inline
 ---
 
-> This tutorial presents an example of application of one-to-one RNN applied to text generation using the reworked functionnalities in MXNet R package.  
+> This tutorial presents an example of application of one-to-one RNN model applied to text generation using MXNet R package.  
 
 Example based on [Obama's speech](http://data.mxnet.io/data/char_lstm.zip).
 

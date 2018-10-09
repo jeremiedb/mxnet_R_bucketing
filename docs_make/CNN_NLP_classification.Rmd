@@ -21,8 +21,6 @@ library("AUC")
 library("scales")
 library("mxnet")
 library("DiagrammeR")
-
-source("../rnn.infer.R")
 ```
 
 ## Data preparation
@@ -121,8 +119,8 @@ num_filters=16
 seq_len = 600
 
 symbol_cnn <- cnn.symbol.factory(seq_len = seq_len, input_size = vocab, 
-                                num_embed = num_embed, num_filters = num_filters, 
-                                num_decode = num_decode, dropout = 0.5, ignore_label = -1)
+                                 num_embed = num_embed, num_filters = num_filters, 
+                                 num_decode = num_decode, dropout = 0.5, ignore_label = -1)
 
 graph.viz(symbol_cnn, shape=c(seq_len, batch.size), direction = "LR")
 ```
@@ -130,7 +128,7 @@ graph.viz(symbol_cnn, shape=c(seq_len, batch.size), direction = "LR")
 
 ## Model training
 ```{r, echo=TRUE, eval=TRUE, message=FALSE, warning=FALSE}
-devices <- mx.cpu()
+devices <- mx.gpu()
 
 initializer <- mx.init.Xavier(rnd_type = "gaussian", factor_type = "avg", magnitude = 2.5)
 

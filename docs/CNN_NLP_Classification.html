@@ -22,17 +22,19 @@
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
 <link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
 <script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
-<script src="site_libs/htmlwidgets-0.9/htmlwidgets.js"></script>
+<script src="site_libs/htmlwidgets-1.2/htmlwidgets.js"></script>
 <script src="site_libs/viz-0.3/viz.js"></script>
 <link href="site_libs/DiagrammeR-styles-0.2/styles.css" rel="stylesheet" />
-<script src="site_libs/grViz-binding-0.9.2/grViz.js"></script>
-<script src="site_libs/plotly-binding-4.7.1/plotly.js"></script>
+<script src="site_libs/grViz-binding-1.0.0/grViz.js"></script>
+<script src="site_libs/plotly-binding-4.8.0.9000/plotly.js"></script>
 <script src="site_libs/typedarray-0.1/typedarray.min.js"></script>
 <link href="site_libs/crosstalk-1.0.0/css/crosstalk.css" rel="stylesheet" />
 <script src="site_libs/crosstalk-1.0.0/js/crosstalk.min.js"></script>
-<link href="site_libs/plotlyjs-1.29.2/plotly-htmlwidgets.css" rel="stylesheet" />
-<script src="site_libs/plotlyjs-1.29.2/plotly-latest.min.js"></script>
-<link href="site_libs/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" />
+<link href="site_libs/plotly-htmlwidgets-css-1.40.1/plotly-htmlwidgets.css" rel="stylesheet" />
+<script src="site_libs/plotly-main-1.40.1/plotly-latest.min.js"></script>
+<link href="site_libs/font-awesome-5.0.13/css/fa-svg-with-js.css" rel="stylesheet" />
+<script src="site_libs/font-awesome-5.0.13/js/fontawesome-all.min.js"></script>
+<script src="site_libs/font-awesome-5.0.13/js/fa-v4-shims.min.js"></script>
 
 <style type="text/css">code{white-space: pre;}</style>
 <style type="text/css">
@@ -101,6 +103,9 @@ img {
 }
 .tabbed-pane {
   padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
 }
 button.code-folding-btn:focus {
   outline: none;
@@ -209,8 +214,15 @@ $(document).ready(function () {
   <li class="dropdown">
     <a class="dropdown-toggle" data-toggle="dropdown">Time Series<b class="caret"></b></a>
     <ul class="dropdown-menu" role="menu">
-        <li><a href="TimeSeries_GPU">GPU</a></li>
-        <li><a href="TimeSeries_CPU">CPU</a></li>
+        <li><a href="TimeSeries_GPU.html">GPU</a></li>
+        <li><a href="TimeSeries_CPU.html">CPU</a></li>
+        </ul>
+  </li>
+  
+    <li class="dropdown">
+    <a class="dropdown-toggle" data-toggle="dropdown">Vision<b class="caret"></b></a>
+    <ul class="dropdown-menu" role="menu">
+        <li><a href="ClassActivationMap.html">Activation Map</a></li>
         </ul>
   </li>
   
@@ -331,16 +343,16 @@ num_filters=16
 seq_len = 600
 
 symbol_cnn &lt;- cnn.symbol.factory(seq_len = seq_len, input_size = vocab, 
-                                num_embed = num_embed, num_filters = num_filters, 
-                                num_decode = num_decode, dropout = 0.5, ignore_label = -1)
+                                 num_embed = num_embed, num_filters = num_filters, 
+                                 num_decode = num_decode, dropout = 0.5, ignore_label = -1)
 
 graph.viz(symbol_cnn, shape=c(seq_len, batch.size), direction = &quot;LR&quot;)</code></pre>
-<div id="htmlwidget-177a16ebd8b1017b6aea" style="width:672px;height:192px;" class="grViz html-widget"></div>
-<script type="application/json" data-for="htmlwidget-177a16ebd8b1017b6aea">{"x":{"diagram":"digraph {\n\ngraph [layout = \"dot\",\n       rankdir = \"LR\"]\n\n\n  \"1\" [label = \"data\ndata\", shape = \"oval\", penwidth = \"2\", color = \"#8dd3c7\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#8DD3C7FF\"] \n  \"2\" [label = \"Embedding\nembed\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"3\" [label = \"SwapAxis\nswapaxes0\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"4\" [label = \"expand_dims\nembed_expand\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"5\" [label = \"Convolution\nconvolution0\n3X1 / 1X1, 8\", shape = \"box\", penwidth = \"2\", color = \"#fb8072\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FB8072FF\"] \n  \"6\" [label = \"Activation\nact1\nrelu\", shape = \"box\", penwidth = \"2\", color = \"#ffffb3\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FFFFB3FF\"] \n  \"7\" [label = \"Pooling\npool1\navg2X1 / 2X1\", shape = \"oval\", penwidth = \"2\", color = \"#80b1d3\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#80B1D3FF\"] \n  \"8\" [label = \"Convolution\nconvolution1\n3X1 / 1X1, 16\", shape = \"box\", penwidth = \"2\", color = \"#fb8072\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FB8072FF\"] \n  \"9\" [label = \"Activation\nact2\nrelu\", shape = \"box\", penwidth = \"2\", color = \"#ffffb3\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FFFFB3FF\"] \n  \"10\" [label = \"Pooling\npool2\navg2X1 / 2X1\", shape = \"oval\", penwidth = \"2\", color = \"#80b1d3\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#80B1D3FF\"] \n  \"11\" [label = \"Convolution\nconvolution2\n3X1 / 1X1, 32\", shape = \"box\", penwidth = \"2\", color = \"#fb8072\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FB8072FF\"] \n  \"12\" [label = \"Activation\nact3\nrelu\", shape = \"box\", penwidth = \"2\", color = \"#ffffb3\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FFFFB3FF\"] \n  \"13\" [label = \"Pooling\npool3\nmax1X1\", shape = \"oval\", penwidth = \"2\", color = \"#80b1d3\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#80B1D3FF\"] \n  \"14\" [label = \"Flatten\nflatten\", shape = \"oval\", penwidth = \"2\", color = \"#fdb462\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FDB462FF\"] \n  \"15\" [label = \"FullyConnected\nfc_final\n2\", shape = \"box\", penwidth = \"2\", color = \"#fb8072\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FB8072FF\"] \n  \"16\" [label = \"SoftmaxOutput\nloss\", shape = \"box\", penwidth = \"2\", color = \"#b3de69\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#B3DE69FF\"] \n\"1\"->\"2\" [id = \"1\", color = \"black\", fontcolor = \"black\", label = \"600X64\"] \n\"2\"->\"3\" [id = \"2\", color = \"black\", fontcolor = \"black\", label = \"2X600X64\"] \n\"3\"->\"4\" [id = \"3\", color = \"black\", fontcolor = \"black\", label = \"600X2X64\"] \n\"4\"->\"5\" [id = \"4\", color = \"black\", fontcolor = \"black\", label = \"1X600X2X64\"] \n\"5\"->\"6\" [id = \"5\", color = \"black\", fontcolor = \"black\", label = \"1X600X8X64\"] \n\"6\"->\"7\" [id = \"6\", color = \"black\", fontcolor = \"black\", label = \"1X600X8X64\"] \n\"7\"->\"8\" [id = \"7\", color = \"black\", fontcolor = \"black\", label = \"1X300X8X64\"] \n\"8\"->\"9\" [id = \"8\", color = \"black\", fontcolor = \"black\", label = \"1X300X16X64\"] \n\"9\"->\"10\" [id = \"9\", color = \"black\", fontcolor = \"black\", label = \"1X300X16X64\"] \n\"10\"->\"11\" [id = \"10\", color = \"black\", fontcolor = \"black\", label = \"1X150X16X64\"] \n\"11\"->\"12\" [id = \"11\", color = \"black\", fontcolor = \"black\", label = \"1X150X32X64\"] \n\"12\"->\"13\" [id = \"12\", color = \"black\", fontcolor = \"black\", label = \"1X150X32X64\"] \n\"13\"->\"14\" [id = \"13\", color = \"black\", fontcolor = \"black\", label = \"1X1X32X64\"] \n\"14\"->\"15\" [id = \"14\", color = \"black\", fontcolor = \"black\", label = \"32X64\"] \n\"15\"->\"16\" [id = \"15\", color = \"black\", fontcolor = \"black\", label = \"2X64\"] \n}","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-df31258b0c89e308707f" style="width:672px;height:192px;" class="grViz html-widget"></div>
+<script type="application/json" data-for="htmlwidget-df31258b0c89e308707f">{"x":{"diagram":"digraph {\n\ngraph [layout = \"dot\",\n       rankdir = \"LR\"]\n\n\n\n  \"1\" [label = \"data\ndata\", shape = \"oval\", penwidth = \"2\", color = \"#8dd3c7\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#8DD3C7FF\"] \n  \"2\" [label = \"Embedding\nembed\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"3\" [label = \"SwapAxis\nswapaxes0\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"4\" [label = \"expand_dims\nembed_expand\", shape = \"box\", penwidth = \"2\", color = \"#fccde5\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FCCDE5FF\"] \n  \"5\" [label = \"Convolution\nconvolution0\n3X1 / 1X1, 8\", shape = \"box\", penwidth = \"2\", color = \"#fb8072\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FB8072FF\"] \n  \"6\" [label = \"Activation\nact1\nrelu\", shape = \"box\", penwidth = \"2\", color = \"#ffffb3\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FFFFB3FF\"] \n  \"7\" [label = \"Pooling\npool1\navg2X1 / 2X1\", shape = \"oval\", penwidth = \"2\", color = \"#80b1d3\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#80B1D3FF\"] \n  \"8\" [label = \"Convolution\nconvolution1\n3X1 / 1X1, 16\", shape = \"box\", penwidth = \"2\", color = \"#fb8072\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FB8072FF\"] \n  \"9\" [label = \"Activation\nact2\nrelu\", shape = \"box\", penwidth = \"2\", color = \"#ffffb3\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FFFFB3FF\"] \n  \"10\" [label = \"Pooling\npool2\navg2X1 / 2X1\", shape = \"oval\", penwidth = \"2\", color = \"#80b1d3\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#80B1D3FF\"] \n  \"11\" [label = \"Convolution\nconvolution2\n3X1 / 1X1, 32\", shape = \"box\", penwidth = \"2\", color = \"#fb8072\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FB8072FF\"] \n  \"12\" [label = \"Activation\nact3\nrelu\", shape = \"box\", penwidth = \"2\", color = \"#ffffb3\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FFFFB3FF\"] \n  \"13\" [label = \"Pooling\npool3\nmax1X1\", shape = \"oval\", penwidth = \"2\", color = \"#80b1d3\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#80B1D3FF\"] \n  \"14\" [label = \"Flatten\nflatten\", shape = \"oval\", penwidth = \"2\", color = \"#fdb462\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FDB462FF\"] \n  \"15\" [label = \"FullyConnected\nfc_final\n2\", shape = \"box\", penwidth = \"2\", color = \"#fb8072\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#FB8072FF\"] \n  \"16\" [label = \"SoftmaxOutput\nloss\", shape = \"box\", penwidth = \"2\", color = \"#b3de69\", style = \"filled\", fontcolor = \"black\", fillcolor = \"#B3DE69FF\"] \n\"1\"->\"2\" [color = \"black\", fontcolor = \"black\", label = \"600X64\"] \n\"2\"->\"3\" [color = \"black\", fontcolor = \"black\", label = \"2X600X64\"] \n\"3\"->\"4\" [color = \"black\", fontcolor = \"black\", label = \"600X2X64\"] \n\"4\"->\"5\" [color = \"black\", fontcolor = \"black\", label = \"1X600X2X64\"] \n\"5\"->\"6\" [color = \"black\", fontcolor = \"black\", label = \"1X600X8X64\"] \n\"6\"->\"7\" [color = \"black\", fontcolor = \"black\", label = \"1X600X8X64\"] \n\"7\"->\"8\" [color = \"black\", fontcolor = \"black\", label = \"1X300X8X64\"] \n\"8\"->\"9\" [color = \"black\", fontcolor = \"black\", label = \"1X300X16X64\"] \n\"9\"->\"10\" [color = \"black\", fontcolor = \"black\", label = \"1X300X16X64\"] \n\"10\"->\"11\" [color = \"black\", fontcolor = \"black\", label = \"1X150X16X64\"] \n\"11\"->\"12\" [color = \"black\", fontcolor = \"black\", label = \"1X150X32X64\"] \n\"12\"->\"13\" [color = \"black\", fontcolor = \"black\", label = \"1X150X32X64\"] \n\"13\"->\"14\" [color = \"black\", fontcolor = \"black\", label = \"1X1X32X64\"] \n\"14\"->\"15\" [color = \"black\", fontcolor = \"black\", label = \"32X64\"] \n\"15\"->\"16\" [color = \"black\", fontcolor = \"black\", label = \"2X64\"] \n}","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
 </div>
 <div id="model-training" class="section level2">
 <h2>Model training</h2>
-<pre class="r"><code>devices &lt;- mx.cpu()
+<pre class="r"><code>devices &lt;- mx.gpu()
 
 initializer &lt;- mx.init.Xavier(rnd_type = &quot;gaussian&quot;, factor_type = &quot;avg&quot;, magnitude = 2.5)
 
@@ -361,15 +373,15 @@ system.time(
                             epoch.end.callback = epoch.end.callback)
 )</code></pre>
 <pre><code>##    user  system elapsed 
-## 493.410 667.100 293.905</code></pre>
+##   42.55  107.08   46.47</code></pre>
 <pre class="r"><code>mx.model.save(model, prefix = &quot;../models/model_cnn_classif_single&quot;, iteration = 1)</code></pre>
-<div id="a17954418e" style="width:672px;height:384px;" class="plotly html-widget"></div>
-<script type="application/json" data-for="a17954418e">{"x":{"visdat":{"a173a5394d1":["function () ","plotlyVisDat"]},"cur_data":"a173a5394d1","attrs":{"a173a5394d1":{"x":[1,2,3,4,5],"y":[0.662419871794872,0.852123397435897,0.892227564102564,0.909455128205128,0.922355769230769],"mode":"markers+lines","name":"train","alpha":1,"sizes":[10,100],"type":"scatter"},"a173a5394d1.1":{"x":[1,2,3,4,5],"y":[0.821875,0.847355769230769,0.849439102564103,0.869671474358974,0.873157051282051],"mode":"markers+lines","name":"eval","alpha":1,"sizes":[10,100],"type":"scatter"}},"layout":{"margin":{"b":40,"l":60,"t":25,"r":10},"xaxis":{"domain":[0,1]},"yaxis":{"domain":[0,1]},"hovermode":"closest","showlegend":true},"source":"A","config":{"modeBarButtonsToAdd":[{"name":"Collaborate","icon":{"width":1000,"ascent":500,"descent":-50,"path":"M487 375c7-10 9-23 5-36l-79-259c-3-12-11-23-22-31-11-8-22-12-35-12l-263 0c-15 0-29 5-43 15-13 10-23 23-28 37-5 13-5 25-1 37 0 0 0 3 1 7 1 5 1 8 1 11 0 2 0 4-1 6 0 3-1 5-1 6 1 2 2 4 3 6 1 2 2 4 4 6 2 3 4 5 5 7 5 7 9 16 13 26 4 10 7 19 9 26 0 2 0 5 0 9-1 4-1 6 0 8 0 2 2 5 4 8 3 3 5 5 5 7 4 6 8 15 12 26 4 11 7 19 7 26 1 1 0 4 0 9-1 4-1 7 0 8 1 2 3 5 6 8 4 4 6 6 6 7 4 5 8 13 13 24 4 11 7 20 7 28 1 1 0 4 0 7-1 3-1 6-1 7 0 2 1 4 3 6 1 1 3 4 5 6 2 3 3 5 5 6 1 2 3 5 4 9 2 3 3 7 5 10 1 3 2 6 4 10 2 4 4 7 6 9 2 3 4 5 7 7 3 2 7 3 11 3 3 0 8 0 13-1l0-1c7 2 12 2 14 2l218 0c14 0 25-5 32-16 8-10 10-23 6-37l-79-259c-7-22-13-37-20-43-7-7-19-10-37-10l-248 0c-5 0-9-2-11-5-2-3-2-7 0-12 4-13 18-20 41-20l264 0c5 0 10 2 16 5 5 3 8 6 10 11l85 282c2 5 2 10 2 17 7-3 13-7 17-13z m-304 0c-1-3-1-5 0-7 1-1 3-2 6-2l174 0c2 0 4 1 7 2 2 2 4 4 5 7l6 18c0 3 0 5-1 7-1 1-3 2-6 2l-173 0c-3 0-5-1-8-2-2-2-4-4-4-7z m-24-73c-1-3-1-5 0-7 2-2 3-2 6-2l174 0c2 0 5 0 7 2 3 2 4 4 5 7l6 18c1 2 0 5-1 6-1 2-3 3-5 3l-174 0c-3 0-5-1-7-3-3-1-4-4-5-6z"},"click":"function(gd) { \n        // is this being viewed in RStudio?\n        if (location.search == '?viewer_pane=1') {\n          alert('To learn about plotly for collaboration, visit:\\n https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html');\n        } else {\n          window.open('https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html', '_blank');\n        }\n      }"}],"cloud":false},"data":[{"x":[1,2,3,4,5],"y":[0.662419871794872,0.852123397435897,0.892227564102564,0.909455128205128,0.922355769230769],"mode":"markers+lines","name":"train","type":"scatter","line":{"fillcolor":"rgba(31,119,180,1)","color":"rgba(31,119,180,1)"},"xaxis":"x","yaxis":"y","frame":null},{"x":[1,2,3,4,5],"y":[0.821875,0.847355769230769,0.849439102564103,0.869671474358974,0.873157051282051],"mode":"markers+lines","name":"eval","type":"scatter","line":{"fillcolor":"rgba(255,127,14,1)","color":"rgba(255,127,14,1)"},"xaxis":"x","yaxis":"y","frame":null}],"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.2,"selected":{"opacity":1}},"base_url":"https://plot.ly"},"evals":["config.modeBarButtonsToAdd.0.click"],"jsHooks":{"render":[{"code":"function(el, x) { var ctConfig = crosstalk.var('plotlyCrosstalkOpts').set({\"on\":\"plotly_click\",\"persistent\":false,\"dynamic\":false,\"selectize\":false,\"opacityDim\":0.2,\"selected\":{\"opacity\":1}}); }","data":null}]}}</script>
+<div id="htmlwidget-9f6068c9a9a7f7d9fe21" style="width:672px;height:384px;" class="plotly html-widget"></div>
+<script type="application/json" data-for="htmlwidget-9f6068c9a9a7f7d9fe21">{"x":{"visdat":{"31ec3b637b6d":["function () ","plotlyVisDat"]},"cur_data":"31ec3b637b6d","attrs":{"31ec3b637b6d":{"x":[1,2,3,4,5],"y":[0.52006074168798,0.693614130434783,0.802909207161125,0.861572890025575,0.889905690537084],"mode":"markers+lines","name":"train","alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"type":"scatter"},"31ec3b637b6d.1":{"x":[1,2,3,4,5],"y":[0.560062340153453,0.766863810741688,0.767463235294118,0.845268542199488,0.85230179028133],"mode":"markers+lines","name":"eval","alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"type":"scatter","inherit":true}},"layout":{"margin":{"b":40,"l":60,"t":25,"r":10},"xaxis":{"domain":[0,1],"automargin":true,"title":[]},"yaxis":{"domain":[0,1],"automargin":true,"title":[]},"hovermode":"closest","showlegend":true},"source":"A","config":{"modeBarButtonsToAdd":[{"name":"Collaborate","icon":{"width":1000,"ascent":500,"descent":-50,"path":"M487 375c7-10 9-23 5-36l-79-259c-3-12-11-23-22-31-11-8-22-12-35-12l-263 0c-15 0-29 5-43 15-13 10-23 23-28 37-5 13-5 25-1 37 0 0 0 3 1 7 1 5 1 8 1 11 0 2 0 4-1 6 0 3-1 5-1 6 1 2 2 4 3 6 1 2 2 4 4 6 2 3 4 5 5 7 5 7 9 16 13 26 4 10 7 19 9 26 0 2 0 5 0 9-1 4-1 6 0 8 0 2 2 5 4 8 3 3 5 5 5 7 4 6 8 15 12 26 4 11 7 19 7 26 1 1 0 4 0 9-1 4-1 7 0 8 1 2 3 5 6 8 4 4 6 6 6 7 4 5 8 13 13 24 4 11 7 20 7 28 1 1 0 4 0 7-1 3-1 6-1 7 0 2 1 4 3 6 1 1 3 4 5 6 2 3 3 5 5 6 1 2 3 5 4 9 2 3 3 7 5 10 1 3 2 6 4 10 2 4 4 7 6 9 2 3 4 5 7 7 3 2 7 3 11 3 3 0 8 0 13-1l0-1c7 2 12 2 14 2l218 0c14 0 25-5 32-16 8-10 10-23 6-37l-79-259c-7-22-13-37-20-43-7-7-19-10-37-10l-248 0c-5 0-9-2-11-5-2-3-2-7 0-12 4-13 18-20 41-20l264 0c5 0 10 2 16 5 5 3 8 6 10 11l85 282c2 5 2 10 2 17 7-3 13-7 17-13z m-304 0c-1-3-1-5 0-7 1-1 3-2 6-2l174 0c2 0 4 1 7 2 2 2 4 4 5 7l6 18c0 3 0 5-1 7-1 1-3 2-6 2l-173 0c-3 0-5-1-8-2-2-2-4-4-4-7z m-24-73c-1-3-1-5 0-7 2-2 3-2 6-2l174 0c2 0 5 0 7 2 3 2 4 4 5 7l6 18c1 2 0 5-1 6-1 2-3 3-5 3l-174 0c-3 0-5-1-7-3-3-1-4-4-5-6z"},"click":"function(gd) { \n        // is this being viewed in RStudio?\n        if (location.search == '?viewer_pane=1') {\n          alert('To learn about plotly for collaboration, visit:\\n https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html');\n        } else {\n          window.open('https://cpsievert.github.io/plotly_book/plot-ly-for-collaboration.html', '_blank');\n        }\n      }"}],"cloud":false},"data":[{"x":[1,2,3,4,5],"y":[0.52006074168798,0.693614130434783,0.802909207161125,0.861572890025575,0.889905690537084],"mode":"markers+lines","name":"train","type":"scatter","marker":{"color":"rgba(31,119,180,1)","line":{"color":"rgba(31,119,180,1)"}},"error_y":{"color":"rgba(31,119,180,1)"},"error_x":{"color":"rgba(31,119,180,1)"},"line":{"color":"rgba(31,119,180,1)"},"xaxis":"x","yaxis":"y","frame":null},{"x":[1,2,3,4,5],"y":[0.560062340153453,0.766863810741688,0.767463235294118,0.845268542199488,0.85230179028133],"mode":"markers+lines","name":"eval","type":"scatter","marker":{"color":"rgba(255,127,14,1)","line":{"color":"rgba(255,127,14,1)"}},"error_y":{"color":"rgba(255,127,14,1)"},"error_x":{"color":"rgba(255,127,14,1)"},"line":{"color":"rgba(255,127,14,1)"},"xaxis":"x","yaxis":"y","frame":null}],"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.2,"selected":{"opacity":1},"debounce":0},"base_url":"https://plot.ly"},"evals":["config.modeBarButtonsToAdd.0.click"],"jsHooks":[]}</script>
 </div>
 <div id="plot-word-embeddings" class="section level2">
 <h2>Plot word embeddings</h2>
 <p>Word representation can be visualized by looking at the assigned weights in any of the embedding dimensions. Here, we look simultaneously at the two embeddings learnt in the LSTM model.</p>
-<p><img src="CNN_NLP_Classification_files/figure-html/embed-1.png" width="672" /></p>
+<p><img src="CNN_NLP_classification_files/figure-html/embed-1.png" width="672" /></p>
 <p>Since the model attempts to predict the sentiment, it’s no surprise that the 2 dimensions into which each word is projected appear correlated with words’ polarity. Positive words are associated with lower values along the first embedding (<em>great</em>, <em>excellent</em>), while the most negative words appear at the far right (<em>terrible</em>, <em>worst</em>).</p>
 </div>
 <div id="inference-on-test-data" class="section level2">
@@ -392,8 +404,8 @@ label &lt;- unlist(lapply(corpus_single_test$buckets, function(x) x$label))
 acc &lt;- sum(label == pred)/length(label)
 roc &lt;- roc(predictions = pred_raw[, 2], labels = factor(label))
 auc &lt;- auc(roc)</code></pre>
-<p>Accuracy: 87.2%</p>
-<p>AUC: 0.945</p>
+<p>Accuracy: 85.2%</p>
+<p>AUC: 0.931</p>
 </div>
 
 
